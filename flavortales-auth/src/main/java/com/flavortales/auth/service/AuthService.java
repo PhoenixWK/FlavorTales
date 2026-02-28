@@ -26,6 +26,26 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 
+/**
+ * Handles vendor registration and email-verification workflows.
+ *
+ * <h3>Datasource routing</h3>
+ * All three public methods persist and/or update database records, so they are
+ * annotated with {@code @Transactional} (readOnly = <b>false</b> – the
+ * default).  The {@link com.flavortales.common.aop.DataSourceAspect} intercepts
+ * each method at startup and routes the connection to the
+ * <b>MASTER</b> (read-write) datasource before Spring opens the transaction.
+ *
+ * <pre>
+ *  registerVendor        → @Transactional → MASTER  (INSERT user + verification)
+ *  verifyEmail           → @Transactional → MASTER  (UPDATE verification + user)
+ *  resendVerificationCode→ @Transactional → MASTER  (INSERT new verification)
+ * </pre>
+ *
+ * For purely read-only queries in future service methods, annotate them with
+ * {@link com.flavortales.common.annotation.ReadOnly @ReadOnly} to have the
+ * aspect route them to the SLAVE (replica) datasource automatically.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j

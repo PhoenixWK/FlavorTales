@@ -73,3 +73,45 @@ export async function resendVerificationCode(
   });
   return handleResponse<null>(res);
 }
+
+// ---- Login ------------------------------------------------------------------
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+  rememberMe: boolean;
+}
+
+export interface LoginResponse {
+  userId: number;
+  email: string;
+  username: string;
+  role: string;
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+}
+
+/**
+ * POST /api/auth/vendor/login
+ *
+ * Sends credentials and receives both JSON tokens and HTTP-only cookies.
+ * `credentials: "include"` is required for the browser to store the cookies.
+ *
+ * HTTP error map (mirrors backend exceptions):
+ *  - 400  Validation / bad request
+ *  - 401  Invalid credentials  (InvalidCredentialsException)
+ *  - 423  Account locked       (AccountLockedException)
+ *  - 429  Rate-limited         (TooManyLoginAttemptsException)
+ */
+export async function vendorLogin(
+  payload: LoginRequest
+): Promise<ApiResponse<LoginResponse>> {
+  const res = await fetch(`${API_BASE}/api/auth/vendor/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",   // allow browser to store HTTP-only cookies
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<LoginResponse>(res);
+}

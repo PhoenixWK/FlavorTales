@@ -129,7 +129,7 @@ export default function VendorVerifyEmailForm() {
     try {
       await verifyVendorEmail(email, code);
       setSuccessMessage("Email verified! Redirecting to sign in…");
-      setTimeout(() => router.replace("/auth/login"), 2000);
+      setTimeout(() => router.replace("/auth/vendor/login"), 2000);
     } catch (err) {
       const status = (err as { status?: number }).status;
       const fallback =
@@ -139,7 +139,7 @@ export default function VendorVerifyEmailForm() {
       // If already verified, direct to login
       if (status === 409) {
         setSuccessMessage(msg + " Redirecting…");
-        setTimeout(() => router.replace("/auth/login"), 2500);
+        setTimeout(() => router.replace("/auth/vendor/login"), 2500);
       } else {
         setErrorMessage(msg);
       }

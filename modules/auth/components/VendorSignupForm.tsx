@@ -295,7 +295,7 @@ export default function VendorSignupForm() {
         <p className="text-center text-sm text-gray-500 mt-6">
           Already have an account?{" "}
           <Link
-            href="/auth/login"
+            href="/auth/vendor/login"
             className="text-orange-500 hover:text-orange-600 font-medium"
           >
             sign in

@@ -10,6 +10,8 @@ import com.flavortales.auth.service.AuthService;
 import com.flavortales.auth.service.LoginAttemptService;
 import com.flavortales.common.dto.ApiResponse;
 import com.flavortales.common.exception.InvalidCredentialsException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -137,5 +139,87 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
         return ResponseEntity.ok(ApiResponse.success("Login successful", loginResponse));
+    }
+
+    // =========================================================================
+    // FR-UM-003: Logout
+    // =========================================================================
+
+    /**
+     * POST /api/auth/vendor/logout
+     *
+     * <h3>Processing</h3>
+     * <ol>
+     *   <li>Extracts the access token from the {@code access_token} cookie or
+     *       the {@code Authorization: Bearer} header.</li>
+     *   <li>Delegates token invalidation and audit logging to
+     *       {@link AuthService#logout(String)}.</li>
+     *   <li>Expires both the access and refresh token cookies so the browser
+     *       clears them immediately.</li>
+     * </ol>
+     *
+     * <p>If no token is found (e.g. session already expired), cookies are still
+     * cleared and a success response is returned so the client can safely
+     * redirect to the login page.
+     */
+    @PostMapping("/vendor/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+
+        // 1. Resolve token from cookie or Authorization header
+        String token = resolveToken(request);
+
+        // 2. Invalidate token + log logout event
+        authService.logout(token);
+
+        // 3. Expire both HTTP-only cookies
+        ResponseCookie clearAccess = ResponseCookie.from("access_token", "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+
+        ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/api/auth/refresh")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, clearAccess.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
+
+        return ResponseEntity.ok(ApiResponse.success("Logout successful", null));
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Resolves the raw JWT access-token string from the incoming HTTP request.
+     * Cookie is preferred (browser clients); the Authorization header is the
+     * fallback (API / mobile clients).
+     */
+    private String resolveToken(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("access_token".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+
+        String bearer = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (bearer != null && bearer.startsWith("Bearer ")) {
+            return bearer.substring(7);
+        }
+
+        return null;
     }
 }

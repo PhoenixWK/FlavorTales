@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flavortales.auth.dto.RegisterResponse;
 import com.flavortales.auth.dto.VendorRegisterRequest;
 import com.flavortales.auth.service.AuthService;
+import com.flavortales.auth.service.JwtService;
+import com.flavortales.auth.service.LoginAttemptService;
+import com.flavortales.auth.service.TokenBlacklistService;
 import com.flavortales.common.exception.DuplicateEmailException;
 import com.flavortales.common.exception.DuplicateUsernameException;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,8 +44,11 @@ class AuthControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
-    private AuthService authService;
+    @MockBean  private AuthService          authService;
+    @MockBean  private LoginAttemptService  loginAttemptService;
+    // Required so JwtAuthenticationFilter @Component can be instantiated in the slice context
+    @MockBean  private JwtService           jwtService;
+    @MockBean  private TokenBlacklistService tokenBlacklistService;
 
     private static final String URL = "/api/auth/vendor/register";
 

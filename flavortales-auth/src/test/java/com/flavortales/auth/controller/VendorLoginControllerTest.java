@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flavortales.auth.dto.LoginRequest;
 import com.flavortales.auth.dto.LoginResponse;
 import com.flavortales.auth.service.AuthService;
+import com.flavortales.auth.service.JwtService;
 import com.flavortales.auth.service.LoginAttemptService;
+import com.flavortales.auth.service.TokenBlacklistService;
 import com.flavortales.common.exception.AccountDisabledException;
 import com.flavortales.common.exception.AccountLockedException;
 import com.flavortales.common.exception.AccountPendingException;
@@ -84,8 +86,11 @@ class VendorLoginControllerTest {
     @Autowired private MockMvc       mockMvc;
     @Autowired private ObjectMapper  objectMapper;
 
-    @MockBean  private AuthService         authService;
-    @MockBean  private LoginAttemptService loginAttemptService;
+    @MockBean  private AuthService          authService;
+    @MockBean  private LoginAttemptService  loginAttemptService;
+    // Required so JwtAuthenticationFilter @Component can be instantiated in the slice context
+    @MockBean  private JwtService           jwtService;
+    @MockBean  private TokenBlacklistService tokenBlacklistService;
 
     /** Reusable valid request with real-data values. */
     private LoginRequest validRequest;

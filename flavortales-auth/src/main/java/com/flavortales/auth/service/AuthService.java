@@ -4,6 +4,7 @@ import com.flavortales.auth.dto.LoginRequest;
 import com.flavortales.auth.dto.LoginResponse;
 import com.flavortales.auth.dto.VendorRegisterRequest;
 import com.flavortales.auth.dto.RegisterResponse;
+import com.flavortales.auth.service.TokenBlacklistService;
 import com.flavortales.auth.entity.EmailVerification;
 import com.flavortales.auth.repository.EmailVerificationRepository;
 import com.flavortales.common.annotation.ReadOnly;
@@ -58,6 +59,7 @@ public class AuthService {
     private final EmailVerificationRepository emailVerificationRepository;
     private final EmailService emailService;
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Value("${app.verification.expiration-minutes}")
     private int expirationMinutes;
@@ -234,6 +236,37 @@ public class AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
+    }
+
+    // =========================================================================
+    // FR-UM-003: Logout
+    // =========================================================================
+
+    /**
+     * Invalidates the given access token and logs the logout event.
+     *
+     * <p>The token is added to the {@link TokenBlacklistService} blacklist so
+     * subsequent requests carrying it are rejected by the JWT filter.  Cookie
+     * clearing is handled by the calling controller.
+     *
+     * @param token raw compact JWT access-token string (may be {@code null}
+     *              when no token is present, e.g. already-expired session)
+     */
+    public void logout(String token) {
+        if (token == null || token.isBlank()) {
+            log.info("[Logout] Logout requested with no token (session already expired)");
+            return;
+        }
+
+        String email = "unknown";
+        try {
+            email = jwtService.extractSubject(token);
+        } catch (Exception e) {
+            log.warn("[Logout] Could not extract subject from token: {}", e.getMessage());
+        }
+
+        tokenBlacklistService.blacklist(token);
+        log.info("[Logout] User logged out: {}", email);
     }
 
     /**

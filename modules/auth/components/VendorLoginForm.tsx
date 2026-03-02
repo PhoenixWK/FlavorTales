@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { vendorLogin } from "@/modules/auth/services/authApi";
+import { saveSession } from "@/shared/utils/auth";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ interface FormErrors {
 
 export default function VendorLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [formData, setFormData] = useState<FormData>({
     email: "",
@@ -89,6 +91,13 @@ export default function VendorLoginForm() {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Show "Session expired" banner when redirected back after auto-logout
+  useEffect(() => {
+    if (searchParams.get("reason") === "session_expired") {
+      setApiError("Your session has expired. Please sign in again.");
+    }
+  }, [searchParams]);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -138,13 +147,26 @@ export default function VendorLoginForm() {
     setIsLoading(true);
     try {
       const res = await vendorLogin(formData);
+      // Persist display info to localStorage for the dashboard UI
+      if (res.data) {
+        saveSession({
+          userId: res.data.userId,
+          username: res.data.username,
+          email: res.data.email,
+          role: res.data.role,
+        });
+      }
       setSuccessMessage(
         `Welcome back, ${res.data?.username ?? ""}! Redirecting…`
       );
-      // Redirect based on role: admins go to /admin, vendors go to /dashboard
+      // Redirect based on role
       const destination =
-        res.data?.role === "ADMIN" ? "/admin/dashboard" : "/dashboard";
-      setTimeout(() => router.replace(destination), 1500);
+        res.data?.role === "admin" ? "/admin/dashboard" : "/vendor/dashboard";
+      // `from` param is set by middleware when the user arrives at a protected page
+      const from = typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("from")
+        : null;
+      setTimeout(() => router.replace(from ?? destination), 1500);
     } catch (err) {
       const status = (err as { status?: number }).status ?? 0;
       const fallback =

@@ -29,6 +29,12 @@ export interface ApiResponse<T> {
 async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
   const json = await res.json();
   if (!res.ok) {
+    // Auto-logout: server invalidated the session (blacklisted or expired token)
+    if (res.status === 401 && json?.message === "Session expired" && typeof window !== "undefined") {
+      const from = encodeURIComponent(window.location.pathname);
+      window.location.replace(`/auth/vendor/login?from=${from}&reason=session_expired`);
+      return new Promise(() => {}); // never resolves – redirect is in progress
+    }
     const message = json?.message ?? json?.error ?? "An unexpected error occurred.";
     // Carry HTTP status so callers can distinguish error types
     const err = new Error(message) as Error & { status: number };
@@ -114,4 +120,24 @@ export async function vendorLogin(
     body: JSON.stringify(payload),
   });
   return handleResponse<LoginResponse>(res);
+}
+
+// ---- Logout -----------------------------------------------------------------
+
+/**
+ * POST /api/auth/vendor/logout
+ *
+ * Asks the server to blacklist the current access token and clear the
+ * HTTP-only cookies. The frontend clears its own localStorage session
+ * regardless of the response outcome.
+ */
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/auth/vendor/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    // Best-effort – always clear client state even if the request fails
+  }
 }

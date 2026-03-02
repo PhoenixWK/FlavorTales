@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import VendorLoginForm from "@/modules/auth/components/VendorLoginForm";
 
 export const metadata = {
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function VendorLoginPage() {
-  return <VendorLoginForm />;
+  return (
+    <Suspense>
+      <VendorLoginForm />
+    </Suspense>
+  );
 }

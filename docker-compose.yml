@@ -1,0 +1,103 @@
+#version: '3.8'
+
+services:
+
+  mysql-primary:
+    image: mysql:8.0
+    container_name: flavortales-primary
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3308:3306"
+    command: >
+      --server-id=1
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON 
+      --enforce-gtid-consistency=ON
+      --performance-schema=ON
+    volumes:
+      - flavortales-primary-data:/var/lib/mysql
+
+  mysql-replicate:
+    image: mysql:8.0
+    container_name: flavortales-replicate
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3309:3306"
+    command: >
+      --server-id=2
+      --relay-log=relay-bin
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --performance-schema=ON
+    volumes:
+      - flavortales-replicate-data:/var/lib/mysql
+
+  pmm-server:
+    image: percona/pmm-server:2
+    container_name: pmm-server
+    restart: always
+    ports:
+      - "9090:80"
+    volumes:
+      - pmm-data:/srv
+
+  pmm-client:
+    image: percona/pmm-client:2
+    container_name: pmm-client
+    hostname: flavortales-pmm-client
+    restart: always
+    depends_on:
+      - pmm-server
+      - mysql-primary
+      - mysql-replicate
+    environment:
+      PMM_AGENT_SERVER_ADDRESS: "pmm-server:443"
+      PMM_AGENT_SERVER_USERNAME: "admin"
+      PMM_AGENT_SERVER_PASSWORD: "admin"
+      PMM_AGENT_SERVER_INSECURE_TLS: "1"
+      PMM_AGENT_SETUP: "1"
+      PMM_AGENT_SETUP_FORCE: "1"
+      PMM_AGENT_CONFIG_FILE: "/usr/local/percona/pmm2/pmm-agent.yaml"
+
+  backend:
+    build:
+      context: ../backend/flavortales-backend
+      dockerfile: Dockerfile
+    container_name: flavortales-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql-primary
+      - mysql-replicate
+    environment:
+      SPRING_DATASOURCE_MASTER_JDBC_URL: jdbc:mysql://mysql-primary:3306/flavortales
+      SPRING_DATASOURCE_MASTER_USERNAME: root
+      SPRING_DATASOURCE_MASTER_PASSWORD: root
+      SPRING_DATASOURCE_SLAVE_JDBC_URL: jdbc:mysql://mysql-replicate:3306/flavortales
+      SPRING_DATASOURCE_SLAVE_USERNAME: root
+      SPRING_DATASOURCE_SLAVE_PASSWORD: root
+
+  frontend:
+    build:
+      context: ../frontend/flavortales-frontend
+      dockerfile: Dockerfile
+    container_name: flavortales-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://backend:8080
+
+volumes:
+  flavortales-primary-data:
+  flavortales-replicate-data:
+  pmm-data:

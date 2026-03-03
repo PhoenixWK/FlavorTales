@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.11</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.flavortales</groupId>
+    <artifactId>flavortales</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>flavortales</name>
+    <description>FlavorTales Backend - Parent</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <jjwt.version>0.12.6</jjwt.version>
+    </properties>
+
+    <!-- ================================================================
+         Child Modules
+    ================================================================ -->
+    <modules>
+        <module>flavortales-common</module>
+        <module>flavortales-user</module>
+        <module>flavortales-notification</module>
+        <module>flavortales-auth</module>
+        <module>flavortales-analytics</module>
+        <module>flavortales-file</module>
+        <module>flavortales-location</module>
+        <module>flavortales-moderation</module>
+        <module>flavortales-poi</module>
+        <module>flavortales-audio</module>
+        <module>flavortales-content</module>
+        <module>flavortales-search</module>
+        <module>flavortales-app</module>
+    </modules>
+
+    <!-- ================================================================
+         Dependency Management – versions declared once, inherited by all
+    ================================================================ -->
+    <dependencyManagement>
+        <dependencies>
+
+            <!-- Internal modules -->
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-user</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-notification</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-auth</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-analytics</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-file</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-location</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-moderation</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-poi</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-audio</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-content</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.flavortales</groupId>
+                <artifactId>flavortales-search</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- JWT -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+
+            <!-- MapStruct -->
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+
+            <!-- Redis - Jedis -->
+            <dependency>
+                <groupId>redis.clients</groupId>
+                <artifactId>jedis</artifactId>
+                <version>7.1.0</version>
+            </dependency>
+
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- ================================================================
+         Shared dependencies inherited by every child module
+    ================================================================ -->
+    <dependencies>
+
+        <!-- Lombok (annotation-only, excluded from runtime JAR) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <!-- ================================================================
+         Plugin Management – shared build configuration
+    ================================================================ -->
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <parameters>true</parameters>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </path>
+                            <path>
+                                <groupId>org.mapstruct</groupId>
+                                <artifactId>mapstruct-processor</artifactId>
+                                <version>${mapstruct.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <configuration>
+                        <excludes>
+                            <exclude>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+    </build>
+
+</project>

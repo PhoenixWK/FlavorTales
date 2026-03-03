@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.flavortales</groupId>
+        <artifactId>flavortales</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>flavortales-content</artifactId>
+    <name>flavortales-content</name>
+    <description>Module 5 – Content Management (shop info, menu, file upload, moderation)</description>
+
+    <dependencies>
+
+        <!-- Common module -->
+        <dependency>
+            <groupId>com.flavortales</groupId>
+            <artifactId>flavortales-common</artifactId>
+        </dependency>
+
+        <!-- POI module (content is attached to shops/POIs) -->
+        <dependency>
+            <groupId>com.flavortales</groupId>
+            <artifactId>flavortales-poi</artifactId>
+        </dependency>
+
+        <!-- MapStruct -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+
+    </dependencies>
+
+</project>

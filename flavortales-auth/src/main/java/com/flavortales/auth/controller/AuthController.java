@@ -1,0 +1,280 @@
+package com.flavortales.auth.controller;
+
+import com.flavortales.auth.dto.ForgotPasswordRequest;
+import com.flavortales.auth.dto.LoginRequest;
+import com.flavortales.auth.dto.LoginResponse;
+import com.flavortales.auth.dto.RegisterResponse;
+import com.flavortales.auth.dto.ResendCodeRequest;
+import com.flavortales.auth.dto.ResetPasswordRequest;
+import com.flavortales.auth.dto.VendorRegisterRequest;
+import com.flavortales.auth.dto.VerifyEmailRequest;
+import com.flavortales.auth.service.AuthService;
+import com.flavortales.auth.service.LoginAttemptService;
+import com.flavortales.auth.service.PasswordResetService;
+import com.flavortales.common.dto.ApiResponse;
+import com.flavortales.common.exception.InvalidCredentialsException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final AuthService authService;
+    private final LoginAttemptService loginAttemptService;
+    private final PasswordResetService passwordResetService;
+
+    /** Whether to mark cookies as Secure (set to {@code true} in production over HTTPS). */
+    @Value("${app.security.cookie-secure:false}")
+    private boolean cookieSecure;
+
+    /**
+     * FR-UM-001: Vendor Account Registration
+     * POST /api/auth/vendor/register
+     */
+    @PostMapping("/vendor/register")
+    public ResponseEntity<ApiResponse<RegisterResponse>> registerVendor(
+            @Valid @RequestBody VendorRegisterRequest request) {
+
+        RegisterResponse response = authService.registerVendor(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Registration successful", response));
+    }
+
+    /**
+     * FR-UM-002: Vendor Email Verification
+     * POST /api/auth/vendor/verify
+     */
+    @PostMapping("/vendor/verify")
+    public ResponseEntity<ApiResponse<Void>> verifyVendorEmail(
+            @Valid @RequestBody VerifyEmailRequest request) {
+
+        authService.verifyEmail(request.getEmail(), request.getCode());
+        return ResponseEntity.ok(ApiResponse.success("Email verified successfully. You can now log in.", null));
+    }
+
+    /**
+     * FR-UM-003: Resend Verification Code (max 3 times)
+     * POST /api/auth/vendor/resend-code
+     */
+    @PostMapping("/vendor/resend-code")
+    public ResponseEntity<ApiResponse<Void>> resendVerificationCode(
+            @Valid @RequestBody ResendCodeRequest request) {
+
+        authService.resendVerificationCode(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success("A new verification code has been sent to your email.", null));
+    }
+
+    /**
+     * FR-UM-004: Vendor / Admin Login
+     * POST /api/auth/vendor/login
+     *
+     * <h3>Security flow</h3>
+     * <ol>
+     *   <li>Rate-limit and lockout check against the SLAVE DB
+     *       ({@link LoginAttemptService#checkRateLimitAndLockout}).</li>
+     *   <li>Credential validation, status check, and JWT issuance against the
+     *       SLAVE DB ({@link AuthService#login}).</li>
+     *   <li>On success – clear attempt history and record success on MASTER.</li>
+     *   <li>On credential failure – record failed attempt on MASTER (may
+     *       trigger lockout) then re-throw so the global handler returns 401.</li>
+     *   <li>Access and refresh tokens are delivered both in HTTP-only cookies
+     *       (for browser clients) and in the JSON response body (for API / mobile
+     *       clients).</li>
+     * </ol>
+     */
+    @PostMapping("/vendor/login")
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse response) {
+
+        String email = request.getEmail();
+
+        // 1. Pre-flight: rate-limit + lockout (reads SLAVE)
+        loginAttemptService.checkRateLimitAndLockout(email);
+
+        // 2. Authenticate (reads SLAVE)
+        LoginResponse loginResponse;
+        try {
+            loginResponse = authService.login(request);
+        } catch (InvalidCredentialsException ex) {
+            // 3a. On bad credentials – record failure (writes MASTER, may lock)
+            loginAttemptService.recordFailedAttempt(email);
+            throw ex;
+        }
+
+        // 3b. On success – reset attempt history (writes MASTER)
+        loginAttemptService.recordSuccessAndClear(email);
+
+        // 4. Set HTTP-only cookies
+        int regularMaxAge     = 24 * 3600;           // 1 day
+        int rememberMeMaxAge  = 7 * 24 * 3600;       // 7 days
+        int refreshMaxAge     = 30 * 24 * 3600;      // 30 days
+
+        int accessMaxAge = request.isRememberMe() ? rememberMeMaxAge : regularMaxAge;
+
+        ResponseCookie accessCookie = ResponseCookie.from("access_token", loginResponse.getAccessToken())
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/")
+                .maxAge(accessMaxAge)
+                .sameSite("Strict")
+                .build();
+
+        ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", loginResponse.getRefreshToken())
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/api/auth/refresh")
+                .maxAge(refreshMaxAge)
+                .sameSite("Strict")
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
+        return ResponseEntity.ok(ApiResponse.success("Login successful", loginResponse));
+    }
+
+    // =========================================================================
+    // FR-UM-003: Logout
+    // =========================================================================
+
+    /**
+     * POST /api/auth/vendor/logout
+     *
+     * <h3>Processing</h3>
+     * <ol>
+     *   <li>Extracts the access token from the {@code access_token} cookie or
+     *       the {@code Authorization: Bearer} header.</li>
+     *   <li>Delegates token invalidation and audit logging to
+     *       {@link AuthService#logout(String)}.</li>
+     *   <li>Expires both the access and refresh token cookies so the browser
+     *       clears them immediately.</li>
+     * </ol>
+     *
+     * <p>If no token is found (e.g. session already expired), cookies are still
+     * cleared and a success response is returned so the client can safely
+     * redirect to the login page.
+     */
+    @PostMapping("/vendor/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+
+        // 1. Resolve token from cookie or Authorization header
+        String token = resolveToken(request);
+
+        // 2. Invalidate token + log logout event
+        authService.logout(token);
+
+        // 3. Expire both HTTP-only cookies
+        ResponseCookie clearAccess = ResponseCookie.from("access_token", "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+
+        ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/api/auth/refresh")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, clearAccess.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
+
+        return ResponseEntity.ok(ApiResponse.success("Logout successful", null));
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * FR-UM-004: Password Recovery – Step 1
+     * POST /api/auth/vendor/forgot-password
+     *
+     * <p>Always returns a generic success message to prevent email enumeration.
+     * Rate-limited at 3 requests per hour per client IP.
+     */
+    @PostMapping("/vendor/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest httpRequest) {
+
+        String ipAddress = resolveClientIp(httpRequest);
+        passwordResetService.requestReset(request.getEmail(), ipAddress);
+        return ResponseEntity.ok(ApiResponse.success(
+                "If this email is registered, a password reset link has been sent.", null));
+    }
+
+    /**
+     * FR-UM-004: Password Recovery – Step 2
+     * POST /api/auth/vendor/reset-password
+     *
+     * <p>Validates the one-time token, updates the password, and invalidates
+     * all prior sessions by stamping {@code passwordChangedAt} on the user.
+     */
+    @PostMapping("/vendor/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.success(
+                "Password has been reset successfully. Please log in with your new password.", null));
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Resolves the raw JWT access-token string from the incoming HTTP request.
+     * Cookie is preferred (browser clients); the Authorization header is the
+     * fallback (API / mobile clients).
+     */
+    private String resolveToken(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("access_token".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+
+        String bearer = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (bearer != null && bearer.startsWith("Bearer ")) {
+            return bearer.substring(7);
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves the client IP address from the request.
+     * Checks the {@code X-Forwarded-For} header first (set by reverse proxies),
+     * then falls back to the direct remote address.
+     */
+    private String resolveClientIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+}

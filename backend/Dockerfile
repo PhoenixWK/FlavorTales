@@ -22,7 +22,7 @@ COPY flavortales-search/pom.xml flavortales-search/pom.xml
 COPY flavortales-app/pom.xml flavortales-app/pom.xml
 
 # Download dependencies
-RUN mvn dependency:go-offline -B
+RUN mvn -f /workspace/pom.xml dependency:go-offline -B
 
 # Copy all source files
 COPY flavortales-common/src flavortales-common/src
@@ -40,7 +40,7 @@ COPY flavortales-search/src flavortales-search/src
 COPY flavortales-app/src flavortales-app/src
 
 # Build the runnable JAR (skip tests for faster image build)
-RUN mvn clean package -DskipTests -B
+RUN mvn -f /workspace/pom.xml clean package -DskipTests -B
 
 # ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-jammy

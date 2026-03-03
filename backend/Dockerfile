@@ -6,18 +6,15 @@ WORKDIR /workspace
 # Copy entire source tree (filess.io uses repo root as build context)
 COPY . .
 
-# Navigate to backend module where pom.xml lives
-WORKDIR /workspace/backend
-
-# Build the runnable JAR (skip tests for faster image build)
-RUN mvn clean package -DskipTests -B
+# Build the runnable JAR; pom.xml is at /workspace after COPY
+RUN mvn -f /workspace/pom.xml clean package -DskipTests -B
 
 # ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 
-COPY --from=builder /workspace/backend/flavortales-app/target/flavortales-app-*.jar app.jar
+COPY --from=builder /workspace/flavortales-app/target/flavortales-app-*.jar app.jar
 
 EXPOSE 8080
 

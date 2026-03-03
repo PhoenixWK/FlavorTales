@@ -122,6 +122,50 @@ export async function vendorLogin(
   return handleResponse<LoginResponse>(res);
 }
 
+// ---- Password Recovery -------------------------------------------------------
+
+/**
+ * POST /api/auth/vendor/forgot-password
+ *
+ * Always resolves (success: true) regardless of whether the email is
+ * registered – the server never reveals email existence.
+ *
+ * HTTP error map:
+ *  - 400  Validation error (blank / malformed email)
+ *  - 429  IP rate limit exceeded (> 3 requests / hour)
+ */
+export async function forgotPassword(
+  email: string
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/api/auth/vendor/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  return handleResponse<null>(res);
+}
+
+/**
+ * POST /api/auth/vendor/reset-password
+ *
+ * Validates the 6-digit one-time code and updates the password.
+ *
+ * HTTP error map:
+ *  - 400  Invalid / expired / already-used token, or validation error
+ */
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+  confirmPassword: string
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/api/auth/vendor/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, newPassword, confirmPassword }),
+  });
+  return handleResponse<null>(res);
+}
+
 // ---- Logout -----------------------------------------------------------------
 
 /**

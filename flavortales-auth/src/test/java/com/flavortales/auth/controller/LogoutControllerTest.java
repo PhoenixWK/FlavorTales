@@ -3,7 +3,9 @@ package com.flavortales.auth.controller;
 import com.flavortales.auth.service.AuthService;
 import com.flavortales.auth.service.JwtService;
 import com.flavortales.auth.service.LoginAttemptService;
+import com.flavortales.auth.service.PasswordResetService;
 import com.flavortales.auth.service.TokenBlacklistService;
+import com.flavortales.user.repository.UserRepository;
 import com.flavortales.common.dto.ApiResponse;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,9 +86,11 @@ class LogoutControllerTest {
     @Autowired private MockMvc             mockMvc;
     @MockBean  private AuthService          authService;
     @MockBean  private LoginAttemptService  loginAttemptService;
+    @MockBean  private PasswordResetService passwordResetService;
     // Required so JwtAuthenticationFilter @Component can be instantiated in the slice context
     @MockBean  private JwtService           jwtService;
     @MockBean  private TokenBlacklistService tokenBlacklistService;
+    @MockBean  private UserRepository        userRepository;
 
     @BeforeEach
     void setUp() {

@@ -1,13 +1,16 @@
 package com.flavortales.auth.controller;
 
+import com.flavortales.auth.dto.ForgotPasswordRequest;
 import com.flavortales.auth.dto.LoginRequest;
 import com.flavortales.auth.dto.LoginResponse;
 import com.flavortales.auth.dto.RegisterResponse;
 import com.flavortales.auth.dto.ResendCodeRequest;
+import com.flavortales.auth.dto.ResetPasswordRequest;
 import com.flavortales.auth.dto.VendorRegisterRequest;
 import com.flavortales.auth.dto.VerifyEmailRequest;
 import com.flavortales.auth.service.AuthService;
 import com.flavortales.auth.service.LoginAttemptService;
+import com.flavortales.auth.service.PasswordResetService;
 import com.flavortales.common.dto.ApiResponse;
 import com.flavortales.common.exception.InvalidCredentialsException;
 import jakarta.servlet.http.Cookie;
@@ -29,6 +32,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final LoginAttemptService loginAttemptService;
+    private final PasswordResetService passwordResetService;
 
     /** Whether to mark cookies as Secure (set to {@code true} in production over HTTPS). */
     @Value("${app.security.cookie-secure:false}")
@@ -201,6 +205,44 @@ public class AuthController {
     // -------------------------------------------------------------------------
 
     /**
+     * FR-UM-004: Password Recovery – Step 1
+     * POST /api/auth/vendor/forgot-password
+     *
+     * <p>Always returns a generic success message to prevent email enumeration.
+     * Rate-limited at 3 requests per hour per client IP.
+     */
+    @PostMapping("/vendor/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest httpRequest) {
+
+        String ipAddress = resolveClientIp(httpRequest);
+        passwordResetService.requestReset(request.getEmail(), ipAddress);
+        return ResponseEntity.ok(ApiResponse.success(
+                "If this email is registered, a password reset link has been sent.", null));
+    }
+
+    /**
+     * FR-UM-004: Password Recovery – Step 2
+     * POST /api/auth/vendor/reset-password
+     *
+     * <p>Validates the one-time token, updates the password, and invalidates
+     * all prior sessions by stamping {@code passwordChangedAt} on the user.
+     */
+    @PostMapping("/vendor/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.success(
+                "Password has been reset successfully. Please log in with your new password.", null));
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    /**
      * Resolves the raw JWT access-token string from the incoming HTTP request.
      * Cookie is preferred (browser clients); the Authorization header is the
      * fallback (API / mobile clients).
@@ -221,5 +263,18 @@ public class AuthController {
         }
 
         return null;
+    }
+
+    /**
+     * Resolves the client IP address from the request.
+     * Checks the {@code X-Forwarded-For} header first (set by reverse proxies),
+     * then falls back to the direct remote address.
+     */
+    private String resolveClientIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

@@ -4,6 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flavortales.auth.dto.ResendCodeRequest;
 import com.flavortales.auth.dto.VerifyEmailRequest;
 import com.flavortales.auth.service.AuthService;
+import com.flavortales.auth.service.JwtService;
+import com.flavortales.auth.service.LoginAttemptService;
+import com.flavortales.auth.service.PasswordResetService;
+import com.flavortales.auth.service.TokenBlacklistService;
+import com.flavortales.user.repository.UserRepository;
 import com.flavortales.common.exception.AccountAlreadyVerifiedException;
 import com.flavortales.common.exception.InvalidVerificationCodeException;
 import com.flavortales.common.exception.ResendLimitExceededException;
@@ -52,7 +57,13 @@ class EmailVerificationControllerTest {
     @Autowired private MockMvc       mockMvc;
     @Autowired private ObjectMapper  objectMapper;
 
-    @MockBean  private AuthService   authService;
+    @MockBean  private AuthService          authService;
+    @MockBean  private LoginAttemptService  loginAttemptService;
+    @MockBean  private PasswordResetService passwordResetService;
+    // Required so JwtAuthenticationFilter @Component can be instantiated in the slice context
+    @MockBean  private JwtService           jwtService;
+    @MockBean  private TokenBlacklistService tokenBlacklistService;
+    @MockBean  private UserRepository        userRepository;
 
     private static final String VERIFY_URL      = "/api/auth/vendor/verify";
     private static final String RESEND_URL       = "/api/auth/vendor/resend-code";
@@ -206,9 +217,10 @@ class EmailVerificationControllerTest {
             }
 
             @Test
-            @DisplayName("Returns 400 when email has no domain extension")
-            void emailMissingExtensionFails() throws Exception {
-                performVerifyExpect400(verifyRequest("vendor@domain", VALID_CODE), "email");
+            @DisplayName("Returns 400 when email is missing the @ symbol entirely")
+            void emailMissingAtSymbolFails() throws Exception {
+                // "vendordomain" has no '@' – unambiguously rejected by @Email
+                performVerifyExpect400(verifyRequest("vendordomain", VALID_CODE), "email");
             }
         }
 

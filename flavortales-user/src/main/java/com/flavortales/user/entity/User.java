@@ -51,4 +51,12 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    /**
+     * Set to the current timestamp whenever the user's password is changed via
+     * the password-recovery flow.  The JWT authentication filter uses this to
+     * invalidate all tokens that were issued <em>before</em> this moment.
+     */
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
 }

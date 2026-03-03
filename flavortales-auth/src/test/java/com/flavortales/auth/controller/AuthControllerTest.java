@@ -6,7 +6,9 @@ import com.flavortales.auth.dto.VendorRegisterRequest;
 import com.flavortales.auth.service.AuthService;
 import com.flavortales.auth.service.JwtService;
 import com.flavortales.auth.service.LoginAttemptService;
+import com.flavortales.auth.service.PasswordResetService;
 import com.flavortales.auth.service.TokenBlacklistService;
+import com.flavortales.user.repository.UserRepository;
 import com.flavortales.common.exception.DuplicateEmailException;
 import com.flavortales.common.exception.DuplicateUsernameException;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,9 +48,11 @@ class AuthControllerTest {
 
     @MockBean  private AuthService          authService;
     @MockBean  private LoginAttemptService  loginAttemptService;
+    @MockBean  private PasswordResetService passwordResetService;
     // Required so JwtAuthenticationFilter @Component can be instantiated in the slice context
     @MockBean  private JwtService           jwtService;
     @MockBean  private TokenBlacklistService tokenBlacklistService;
+    @MockBean  private UserRepository        userRepository;
 
     private static final String URL = "/api/auth/vendor/register";
 

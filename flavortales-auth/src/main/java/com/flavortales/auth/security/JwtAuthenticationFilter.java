@@ -2,6 +2,8 @@ package com.flavortales.auth.security;
 
 import com.flavortales.auth.service.JwtService;
 import com.flavortales.auth.service.TokenBlacklistService;
+import com.flavortales.user.entity.User;
+import com.flavortales.user.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -19,7 +21,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * FR-UM-003: Logout – Session Token Validation
@@ -51,6 +57,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -70,14 +77,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     String email = claims.getSubject();
                     String role  = claims.get("role", String.class);
 
-                    UsernamePasswordAuthenticationToken auth =
-                            new UsernamePasswordAuthenticationToken(
-                                    email,
-                                    null,
-                                    List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                            );
-                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+                    // FR-UM-004: Reject tokens issued before a password reset
+                    if (isIssuedBeforePasswordChange(email, claims.getIssuedAt())) {
+                        log.debug("[JWT] Token predates password change – rejected for {}", email);
+                    } else {
+                        UsernamePasswordAuthenticationToken auth =
+                                new UsernamePasswordAuthenticationToken(
+                                        email,
+                                        null,
+                                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                                );
+                        auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                    }
 
                 } else {
                     log.debug("[JWT] Token expired for {}", request.getRequestURI());
@@ -117,5 +129,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return null;
+    }
+
+    /**
+     * Returns {@code true} when the user has changed their password after the
+     * token was issued, meaning the token should no longer be trusted.
+     *
+     * <p>Only performs a DB lookup when the user record actually has a
+     * {@code passwordChangedAt} timestamp – new accounts or accounts that
+     * have never used password recovery will skip this check entirely.
+     */
+    private boolean isIssuedBeforePasswordChange(String email, Date issuedAt) {
+        if (issuedAt == null) {
+            return false;
+        }
+        Optional<User> opt = userRepository.findByEmail(email);
+        if (opt.isEmpty()) {
+            return false;
+        }
+        LocalDateTime passwordChangedAt = opt.get().getPasswordChangedAt();
+        if (passwordChangedAt == null) {
+            return false;
+        }
+        LocalDateTime tokenIssuedAt = issuedAt.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
+        return tokenIssuedAt.isBefore(passwordChangedAt);
     }
 }

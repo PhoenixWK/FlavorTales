@@ -64,6 +64,31 @@ public class EmailService {
     }
 
     @Async
+    public void sendPasswordResetEmail(String toEmail, String resetToken, int expirationMinutes) {
+        try {
+            Context ctx = new Context();
+            ctx.setVariable("resetToken", resetToken);
+            ctx.setVariable("expirationMinutes", expirationMinutes);
+            ctx.setVariable("companyName", companyName);
+            ctx.setVariable("supportEmail", supportEmail);
+
+            String htmlBody = templateEngine.process("password-reset-email", ctx);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("Password Reset Request - " + companyName);
+            helper.setText(htmlBody, true);
+
+            mailSender.send(message);
+            log.info("Password reset email sent to {}", toEmail);
+        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
+            log.error("Failed to send password reset email to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    @Async
     public void sendAdminNewVendorNotification(String vendorEmail, String vendorUsername) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

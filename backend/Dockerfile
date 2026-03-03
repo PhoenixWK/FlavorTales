@@ -40,7 +40,7 @@ COPY flavortales-search/src flavortales-search/src
 COPY flavortales-app/src flavortales-app/src
 
 # Build the runnable JAR (skip tests for faster image build)
-RUN mvn -pl flavortales-app -am clean package -DskipTests -B
+RUN mvn clean package -DskipTests -B
 
 # ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-jammy

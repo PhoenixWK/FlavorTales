@@ -9,10 +9,24 @@ services:
       MYSQL_DATABASE: flavortales
     ports:
       - "3308:3306"
-    command: --performance-schema=ON
+    command:
+      - --performance-schema=ON
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --binlog-expire-logs-seconds=604800
     volumes:
       - flavortales-primary-data:/var/lib/mysql
-      - ../database/mysql_schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+      - ../database/mysql_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/mysql/primary-init.sql:/docker-entrypoint-initdb.d/02-replication.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   mysql-replicate:
     image: mysql:8.0
@@ -23,9 +37,37 @@ services:
       MYSQL_DATABASE: flavortales
     ports:
       - "3309:3306"
-    command: --performance-schema=ON
+    command:
+      - --performance-schema=ON
+      - --server-id=2
+      - --relay-log=relay-bin
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --read-only=ON
     volumes:
       - flavortales-replicate-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      mysql-primary:
+        condition: service_healthy
+
+  replication-setup:
+    image: mysql:8.0
+    container_name: flavortales-replication-setup
+    restart: on-failure
+    volumes:
+      - ./database/mysql/replica-setup.sh:/replica-setup.sh:ro
+    entrypoint: ["/bin/bash", "/replica-setup.sh"]
+    depends_on:
+      mysql-primary:
+        condition: service_healthy
+      mysql-replicate:
+        condition: service_healthy
 
   pmm-server:
     image: percona/pmm-server:2
@@ -52,8 +94,12 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - mysql-primary
-      - mysql-replicate
+      mysql-primary:
+        condition: service_healthy
+      mysql-replicate:
+        condition: service_healthy
+      replication-setup:
+        condition: service_completed_successfully
 
   frontend:
     build:

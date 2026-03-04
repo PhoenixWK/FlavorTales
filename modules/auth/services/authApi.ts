@@ -113,10 +113,12 @@ export interface LoginResponse {
 export async function vendorLogin(
   payload: LoginRequest
 ): Promise<ApiResponse<LoginResponse>> {
-  const res = await fetch(`${API_BASE}/api/auth/vendor/login`, {
+  // Call the Next.js proxy route (/api/auth/vendor/login) instead of the
+  // backend directly.  The proxy re-sets the access_token cookie on the
+  // frontend domain so Next.js middleware can read it and allow /vendor/* access.
+  const res = await fetch(`/api/auth/vendor/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",   // allow browser to store HTTP-only cookies
     body: JSON.stringify(payload),
   });
   return handleResponse<LoginResponse>(res);
@@ -177,9 +179,8 @@ export async function resetPassword(
  */
 export async function logout(): Promise<void> {
   try {
-    await fetch(`${API_BASE}/api/auth/vendor/logout`, {
+    await fetch(`/api/auth/vendor/logout`, {
       method: "POST",
-      credentials: "include",
     });
   } catch {
     // Best-effort – always clear client state even if the request fails

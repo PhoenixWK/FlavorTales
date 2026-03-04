@@ -1,6 +1,6 @@
 # sync-all.ps1
-# Syncs backend/, frontend/, and database/ into the FlavorTales main branch folder,
-# then commits and pushes to origin/main.
+# Syncs backend/, frontend/, database/, and infrastructure/ into the FlavorTales main
+# branch folder, then commits and pushes to origin/main.
 #
 # Layout:
 #   Source Code/
@@ -9,6 +9,10 @@
 #   ├── database/       ← MySQL schema + replication scripts
 #   ├── infrastructure/ ← FlavorTales infrastructure branch (docker-compose.yml, .env)
 #   └── main/           ← FlavorTales main branch (synced here by this script)
+#       ├── backend/
+#       ├── frontend/
+#       ├── database/
+#       └── infrastructure/  ← merged from infrastructure branch
 
 $ErrorActionPreference = "Stop"
 
@@ -27,10 +31,11 @@ function Sync-Folder {
     Write-Host "    Done: $label"
 }
 
-# ── Sync all three source folders ─────────────────────────────────────────────
-Sync-Folder "$root\backend"  "$mainDir\backend"  "backend"
-Sync-Folder "$root\frontend" "$mainDir\frontend" "frontend"
-Sync-Folder "$root\database" "$mainDir\database" "database"
+# ── Sync all four source folders ─────────────────────────────────────────────
+Sync-Folder "$root\backend"         "$mainDir\backend"         "backend"
+Sync-Folder "$root\frontend"        "$mainDir\frontend"        "frontend"
+Sync-Folder "$root\database"        "$mainDir\database"        "database"
+Sync-Folder "$root\infrastructure"  "$mainDir\infrastructure"  "infrastructure"
 
 # ── Commit and push main branch ───────────────────────────────────────────────
 Write-Host "`n==> Committing and pushing main branch ..."
@@ -43,7 +48,7 @@ if (-not $changes) {
     Write-Host "    No changes to commit."
 } else {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
-    git commit -m "sync: update backend, frontend, database [$timestamp]"
+    git commit -m "sync: update backend, frontend, database, infrastructure [$timestamp]"
     git push origin main
     Write-Host "    Pushed to origin/main."
 }

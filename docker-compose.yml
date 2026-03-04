@@ -1,31 +1,74 @@
 services:
 
+  mysql-primary:
+    image: mysql:8.0
+    container_name: flavortales-primary
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: flavortales
+    ports:
+      - "3308:3306"
+    command: --performance-schema=ON
+    volumes:
+      - flavortales-primary-data:/var/lib/mysql
+      - ../database/mysql_schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+  mysql-replicate:
+    image: mysql:8.0
+    container_name: flavortales-replicate
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: flavortales
+    ports:
+      - "3309:3306"
+    command: --performance-schema=ON
+    volumes:
+      - flavortales-replicate-data:/var/lib/mysql
+
+  pmm-server:
+    image: percona/pmm-server:2
+    container_name: pmm-server
+    restart: always
+    ports:
+      - "8081:80"
+    volumes:
+      - pmm-data:/srv
+
+  pmm-client:
+    image: percona/pmm-client:2
+    container_name: pmm-client
+    restart: always
+    environment:
+      PMM_AGENT_SERVER_ADDRESS: pmm-server:443
+    depends_on:
+      - pmm-server
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    environment:
-      - SPRING_DATASOURCE_MASTER_JDBC_URL=jdbc:mysql://${DB_MASTER_HOST}:${DB_MASTER_PORT}/flavortales
-      - SPRING_DATASOURCE_MASTER_USERNAME=${DB_USERNAME}
-      - SPRING_DATASOURCE_MASTER_PASSWORD=${DB_PASSWORD}
-      - SPRING_DATASOURCE_SLAVE_JDBC_URL=jdbc:mysql://${DB_SLAVE_HOST}:${DB_SLAVE_PORT}/flavortales
-      - SPRING_DATASOURCE_SLAVE_USERNAME=${DB_USERNAME}
-      - SPRING_DATASOURCE_SLAVE_PASSWORD=${DB_PASSWORD}
-      - APP_JWT_SECRET=${APP_JWT_SECRET}
-      - SPRING_MAIL_HOST=smtp.gmail.com
-      - SPRING_MAIL_PORT=587
-      - SPRING_MAIL_USERNAME=${SPRING_MAIL_USERNAME}
-      - SPRING_MAIL_PASSWORD=${SPRING_MAIL_PASSWORD}
+    depends_on:
+      - mysql-primary
+      - mysql-replicate
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_BASE_URL=http://theres-residing.with.playit.plus:2463
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_API_BASE_URL=http://theres-residing.with.playit.plus:2463
     depends_on:
       - backend
+
+volumes:
+  flavortales-primary-data:
+  flavortales-replicate-data:
+  pmm-data:

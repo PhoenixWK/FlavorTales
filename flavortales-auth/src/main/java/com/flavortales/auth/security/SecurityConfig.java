@@ -47,9 +47,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    /** Allowed frontend origin – can be overridden via {@code app.cors.allowed-origin}. */
-    @Value("${app.cors.allowed-origin:http://localhost:3000}")
-    private String allowedOrigin;
+    /** Allowed frontend origins (comma-separated) – overridable via {@code app.cors.allowed-origins}. */
+    @Value("${app.cors.allowed-origins:http://localhost:3000}")
+    private List<String> allowedOrigins;
 
     @Bean
     @Primary
@@ -83,7 +83,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(allowedOrigin));
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

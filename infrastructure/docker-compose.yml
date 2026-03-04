@@ -5,7 +5,7 @@ services:
     container_name: flavortales-primary
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
       MYSQL_DATABASE: flavortales
     ports:
       - "3308:3306"
@@ -22,7 +22,7 @@ services:
       - ../database/mysql/mysql_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ../database/mysql/primary-init.sql:/docker-entrypoint-initdb.d/02-replication.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-root}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -33,7 +33,7 @@ services:
     container_name: flavortales-replicate
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
       MYSQL_DATABASE: flavortales
     ports:
       - "3309:3306"
@@ -47,7 +47,7 @@ services:
     volumes:
       - flavortales-replicate-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-root}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -84,6 +84,7 @@ services:
     restart: always
     environment:
       PMM_AGENT_SERVER_ADDRESS: pmm-server:443
+      PMM_AGENT_SERVER_INSECURE_TLS: "true"
     depends_on:
       - pmm-server
 
@@ -93,6 +94,23 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      # Override DB connections to use Docker service hostnames (not localhost/tunnels)
+      SPRING_DATASOURCE_MASTER_JDBC_URL: jdbc:mysql://mysql-primary:3306/flavortales
+      SPRING_DATASOURCE_SLAVE_JDBC_URL: jdbc:mysql://mysql-replicate:3306/flavortales
+      SPRING_DATASOURCE_MASTER_USERNAME: ${DB_USERNAME:-root}
+      SPRING_DATASOURCE_MASTER_PASSWORD: ${DB_PASSWORD:-root}
+      SPRING_DATASOURCE_SLAVE_USERNAME: ${DB_USERNAME:-root}
+      SPRING_DATASOURCE_SLAVE_PASSWORD: ${DB_PASSWORD:-root}
+      # JWT
+      APP_JWT_SECRET: ${APP_JWT_SECRET}
+      # Mail
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
+      # CORS – allow requests from the browser-facing frontend origin
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:3000}
     depends_on:
       mysql-primary:
         condition: service_healthy
@@ -100,19 +118,22 @@ services:
         condition: service_healthy
       replication-setup:
         condition: service_completed_successfully
+    restart: on-failure
 
   frontend:
     build:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_BASE_URL=http://theres-residing.with.playit.plus:2463
+        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_BASE_URL=http://theres-residing.with.playit.plus:2463
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+      - COOKIE_SECURE=false
     depends_on:
       - backend
+    restart: on-failure
 
 volumes:
   flavortales-primary-data:

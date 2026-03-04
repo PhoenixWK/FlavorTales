@@ -19,6 +19,11 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080"
 export async function POST(request: NextRequest) {
   const body = await request.json();
 
+  // Detect if the request came over HTTPS (works for both direct and proxied connections)
+  const isHttps =
+    request.url.startsWith("https://") ||
+    request.headers.get("x-forwarded-proto") === "https";
+
   // Forward to backend
   const backendRes = await fetch(`${API_BASE}/api/auth/vendor/login`, {
     method: "POST",
@@ -46,7 +51,7 @@ export async function POST(request: NextRequest) {
   if (accessToken) {
     response.cookies.set("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
       path: "/",
       maxAge: accessMaxAge,
       sameSite: "lax",      // lax (not strict) so same-site navigation works
@@ -57,7 +62,7 @@ export async function POST(request: NextRequest) {
   if (refreshToken) {
     response.cookies.set("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
       path: "/api/auth/vendor/refresh",
       maxAge: refreshMaxAge,
       sameSite: "lax",

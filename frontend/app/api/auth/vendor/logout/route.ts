@@ -10,9 +10,14 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080"
  * Spring Boot backend (via Authorization header) for blacklisting, and then
  * clears the access_token and refresh_token cookies on the frontend domain.
  */
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("access_token")?.value;
+
+  // Detect if the request came over HTTPS
+  const isHttps =
+    request.url.startsWith("https://") ||
+    request.headers.get("x-forwarded-proto") === "https";
 
   // Best-effort: tell the backend to blacklist the token
   try {
@@ -34,7 +39,7 @@ export async function POST(_request: NextRequest) {
   // Clear both cookies on the frontend domain
   response.cookies.set("access_token", "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isHttps,
     path: "/",
     maxAge: 0,
     sameSite: "lax",
@@ -42,7 +47,7 @@ export async function POST(_request: NextRequest) {
 
   response.cookies.set("refresh_token", "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isHttps,
     path: "/api/auth/vendor/refresh",
     maxAge: 0,
     sameSite: "lax",

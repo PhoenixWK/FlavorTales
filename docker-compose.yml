@@ -19,8 +19,8 @@ services:
       - --binlog-expire-logs-seconds=604800
     volumes:
       - flavortales-primary-data:/var/lib/mysql
-      - ../../database/mysql_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ../database/mysql/primary-init.sql:/docker-entrypoint-initdb.d/02-replication.sql:ro
+      - ../database/mysql_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/mysql/primary-init.sql:/docker-entrypoint-initdb.d/02-replication.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
       interval: 10s
@@ -61,7 +61,7 @@ services:
     container_name: flavortales-replication-setup
     restart: on-failure
     volumes:
-      - ../database/mysql/replica-setup.sh:/replica-setup.sh:ro
+      - ./database/mysql/replica-setup.sh:/replica-setup.sh:ro
     entrypoint: ["/bin/bash", "/replica-setup.sh"]
     depends_on:
       mysql-primary:

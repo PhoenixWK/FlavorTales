@@ -272,7 +272,7 @@ export default function VendorResetPasswordForm() {
             <label className="block text-sm font-medium text-gray-700 mb-3 text-center">
               Reset code
             </label>
-            <div className="flex justify-center gap-3">
+            <div className="flex justify-center gap-2 sm:gap-3">
               {digits.map((digit, i) => (
                 <input
                   key={i}
@@ -288,7 +288,7 @@ export default function VendorResetPasswordForm() {
                   onFocus={(e) => e.target.select()}
                   disabled={isLoading || !!successMessage}
                   aria-label={`Code digit ${i + 1}`}
-                  className={`w-12 h-14 text-center text-xl font-semibold rounded-xl border bg-white text-gray-900
+                  className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-semibold rounded-xl border bg-white text-gray-900
                     focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition
                     disabled:opacity-50 disabled:cursor-not-allowed
                     ${errors.code ? "border-red-400" : "border-orange-200"}`}

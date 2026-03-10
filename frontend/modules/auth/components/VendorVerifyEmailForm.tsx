@@ -244,7 +244,7 @@ export default function VendorVerifyEmailForm() {
         {/* OTP form */}
         <form onSubmit={handleVerify} noValidate>
           {/* 6-digit OTP boxes */}
-          <div className="flex justify-center gap-3 mb-8">
+          <div className="flex justify-center gap-2 sm:gap-3 mb-8">
             {digits.map((digit, i) => (
               <input
                 key={i}
@@ -260,7 +260,7 @@ export default function VendorVerifyEmailForm() {
                 onFocus={(e) => e.target.select()}
                 disabled={!!successMessage}
                 aria-label={`Digit ${i + 1}`}
-                className={`w-12 h-14 text-center text-xl font-semibold rounded-xl border bg-white text-gray-900
+                className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-semibold rounded-xl border bg-white text-gray-900
                   focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition
                   disabled:opacity-50 disabled:cursor-not-allowed
                   ${errorMessage ? "border-red-400" : "border-orange-200"}`}

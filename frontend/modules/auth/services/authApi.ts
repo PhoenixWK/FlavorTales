@@ -27,6 +27,14 @@ export interface ApiResponse<T> {
 // ---- Helpers ----------------------------------------------------------------
 
 async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    const err = new Error(
+      `Server returned a non-JSON response (HTTP ${res.status}). Please check that all services are running.`
+    ) as Error & { status: number };
+    err.status = res.status;
+    throw err;
+  }
   const json = await res.json();
   if (!res.ok) {
     // Auto-logout: server invalidated the session (blacklisted or expired token)

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+// INTERNAL_API_BASE_URL is used for server-side container-to-container calls (Docker).
+// Falls back to NEXT_PUBLIC_API_BASE_URL for local dev where both run on localhost.
+const API_BASE =
+  process.env.INTERNAL_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://localhost:8080";
 
 /**
  * POST /api/auth/vendor/login  (Next.js proxy route)
@@ -17,6 +22,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080"
  *          ← Set-Cookie: access_token (frontend domain) + JSON forwarded to browser
  */
 export async function POST(request: NextRequest) {
+  try {
   const body = await request.json();
 
   // Detect if the request came over HTTPS (works for both direct and proxied connections)
@@ -30,6 +36,14 @@ export async function POST(request: NextRequest) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+  const contentType = backendRes.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    return NextResponse.json(
+      { success: false, message: `Backend returned an unexpected response (HTTP ${backendRes.status}).` },
+      { status: backendRes.status || 502 }
+    );
+  }
 
   const json = await backendRes.json();
 
@@ -48,10 +62,12 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.json(json, { status: 200 });
 
   // Set access_token on the frontend domain so Next.js middleware can read it
+  // COOKIE_SECURE=false must be set when serving over plain HTTP (e.g. playit.gg tunnel)
+  const secureCookie = process.env.COOKIE_SECURE !== "false" && isHttps;
   if (accessToken) {
     response.cookies.set("access_token", accessToken, {
       httpOnly: true,
-      secure: isHttps,
+      secure: secureCookie,
       path: "/",
       maxAge: accessMaxAge,
       sameSite: "lax",      // lax (not strict) so same-site navigation works
@@ -62,7 +78,7 @@ export async function POST(request: NextRequest) {
   if (refreshToken) {
     response.cookies.set("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: isHttps,
+      secure: secureCookie,
       path: "/api/auth/vendor/refresh",
       maxAge: refreshMaxAge,
       sameSite: "lax",
@@ -70,4 +86,13 @@ export async function POST(request: NextRequest) {
   }
 
   return response;
+  } catch (error) {
+    const isConnRefused =
+      error instanceof TypeError ||
+      (error as NodeJS.ErrnoException)?.code === "ECONNREFUSED";
+    const message = isConnRefused
+      ? "Cannot connect to the backend server. Make sure it is running on port 8080."
+      : "Login service is temporarily unavailable. Please try again later.";
+    return NextResponse.json({ success: false, message }, { status: 503 });
+  }
 }

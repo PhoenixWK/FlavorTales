@@ -69,6 +69,20 @@ services:
       mysql-replicate:
         condition: service_healthy
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: flavortales-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - flavortales-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   pmm-server:
     image: percona/pmm-server:2
     container_name: pmm-server
@@ -111,6 +125,9 @@ services:
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
       # CORS – allow requests from the browser-facing frontend origin
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
       mysql-primary:
         condition: service_healthy
@@ -118,6 +135,8 @@ services:
         condition: service_healthy
       replication-setup:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     restart: on-failure
 
   frontend:
@@ -130,12 +149,29 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
-      - COOKIE_SECURE=false
+      # Server-side BFF routes use the Docker service hostname (not localhost)
+      - INTERNAL_API_BASE_URL=http://backend:8080
+      - COOKIE_SECURE=true
     depends_on:
       - backend
     restart: on-failure
 
+  # Cloudflare Tunnel – exposes flavortales.site (frontend) and
+  # api.flavortales.site (backend) without opening any inbound ports.
+  # Configure public hostnames in Cloudflare Zero Trust dashboard:
+  #   flavortales.site     → http://frontend:3000
+  #   api.flavortales.site → http://backend:8080
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: flavortales-cloudflared
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+
 volumes:
   flavortales-primary-data:
   flavortales-replicate-data:
+  flavortales-redis-data:
   pmm-data:

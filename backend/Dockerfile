@@ -21,8 +21,10 @@ COPY flavortales-content/pom.xml flavortales-content/pom.xml
 COPY flavortales-search/pom.xml flavortales-search/pom.xml
 COPY flavortales-app/pom.xml flavortales-app/pom.xml
 
-# Download dependencies
-RUN mvn dependency:go-offline -B
+# Download dependencies (retry once on network failure, clearing partial-download markers first)
+RUN mvn dependency:go-offline -B \
+    || (find /root/.m2 -name "*.lastUpdated" -delete \
+        && mvn dependency:go-offline -B)
 
 # Copy all source files
 COPY flavortales-common/src flavortales-common/src

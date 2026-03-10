@@ -116,4 +116,30 @@ public class EmailService {
                 "Best regards,\n" +
                 companyName;
     }
+
+    // ── POI creation notification (FR-PM-001) ─────────────────────────────────
+
+    @Async
+    public void sendPoiCreatedEmail(String toEmail, String poiName) {
+        try {
+            Context ctx = new Context();
+            ctx.setVariable("poiName", poiName);
+            ctx.setVariable("companyName", companyName);
+            ctx.setVariable("supportEmail", supportEmail);
+
+            String htmlBody = templateEngine.process("poi-created-email", ctx);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("Your POI has been created – " + companyName);
+            helper.setText(htmlBody, true);
+
+            mailSender.send(message);
+            log.info("POI creation email sent to {}", toEmail);
+        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
+            log.error("Failed to send POI creation email to {}: {}", toEmail, e.getMessage());
+        }
+    }
 }

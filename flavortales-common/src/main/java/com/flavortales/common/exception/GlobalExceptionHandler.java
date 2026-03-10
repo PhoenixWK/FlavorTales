@@ -151,4 +151,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("An unexpected error occurred"));
     }
+
+    // -------------------------------------------------------------------------
+    // POI handlers (FR-PM-001)
+    // -------------------------------------------------------------------------
+
+    @ExceptionHandler(DuplicatePoiLocationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicatePoiLocation(DuplicatePoiLocationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ShopAlreadyHasPoiException.class)
+    public ResponseEntity<ApiResponse<Void>> handleShopAlreadyHasPoi(ShopAlreadyHasPoiException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ShopNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleShopNotFound(ShopNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
 }

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>POI Created</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    .container { max-width: 560px; margin: 40px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+    .header { background: #f97316; padding: 28px 32px; text-align: center; }
+    .header h1 { color: #fff; margin: 0; font-size: 22px; }
+    .body { padding: 32px; color: #374151; line-height: 1.6; }
+    .poi-box { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; padding: 16px 20px; margin: 20px 0; }
+    .poi-box p { margin: 0; font-size: 15px; }
+    .poi-box strong { color: #ea580c; font-size: 17px; }
+    .footer { text-align: center; padding: 20px 32px; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; }
+    a { color: #f97316; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🍜 FlavorTales</h1>
+  </div>
+  <div class="body">
+    <p>Hello,</p>
+    <p>Your Point of Interest (POI) has been <strong>successfully created</strong> on the map and is now visible to visitors.</p>
+    <div class="poi-box">
+      <p>POI Name: <strong th:text="${poiName}">My Food Stall</strong></p>
+    </div>
+    <p>Customers near your location will now be able to discover your stall through the FlavorTales platform.</p>
+    <p>If you have any questions, feel free to contact us at
+      <a th:href="'mailto:' + ${supportEmail}" th:text="${supportEmail}">support@flavortales.com</a>.
+    </p>
+    <p>Best regards,<br /><span th:text="${companyName}">FlavorTales</span> Team</p>
+  </div>
+  <div class="footer">
+    &copy; <span th:text="${companyName}">FlavorTales</span>. All rights reserved.
+  </div>
+</div>
+</body>
+</html>

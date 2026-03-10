@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+// INTERNAL_API_BASE_URL is used for server-side container-to-container calls (Docker).
+// Falls back to NEXT_PUBLIC_API_BASE_URL for local dev where both run on localhost.
+const API_BASE =
+  process.env.INTERNAL_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://localhost:8080";
 
 /**
  * POST /api/auth/vendor/logout  (Next.js proxy route)

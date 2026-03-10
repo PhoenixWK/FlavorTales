@@ -78,6 +78,7 @@ CREATE TABLE password_reset_token (
 
 CREATE TABLE poi (
     poi_id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_id INT NOT NULL COMMENT 'Vendor who created this POI',
     name VARCHAR(255) NOT NULL,
     latitude DECIMAL(10, 8) NOT NULL,
     longitude DECIMAL(11, 8) NOT NULL,
@@ -85,7 +86,9 @@ CREATE TABLE poi (
     status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (vendor_id) REFERENCES user(user_id) ON DELETE RESTRICT,
     INDEX idx_status (status),
+    INDEX idx_vendor (vendor_id),
     INDEX idx_location (latitude, longitude)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

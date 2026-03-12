@@ -4,6 +4,7 @@ import com.flavortales.common.dto.ApiResponse;
 import com.flavortales.poi.dto.CreatePoiRequest;
 import com.flavortales.poi.dto.PoiResponse;
 import com.flavortales.poi.dto.ShopOptionDto;
+import com.flavortales.poi.dto.UpdatePoiRequest;
 import com.flavortales.poi.service.PoiService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -83,6 +84,47 @@ public class PoiController {
         String vendorEmail = authentication.getName();
         List<PoiResponse> pois = poiService.getMyPois(vendorEmail);
         return ResponseEntity.ok(ApiResponse.success("Your POIs retrieved", pois));
+    }
+
+    /**
+     * GET /api/poi/{poiId}
+     * Returns a single POI belonging to the authenticated vendor.
+     * Used by the edit form to pre-populate current values.
+     */
+    @GetMapping("/{poiId}")
+    public ResponseEntity<ApiResponse<PoiResponse>> getPoiById(
+            @PathVariable Integer poiId,
+            Authentication authentication) {
+
+        if (!hasRole(authentication, "ROLE_vendor")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Only vendors can access this resource"));
+        }
+
+        String vendorEmail = authentication.getName();
+        PoiResponse response = poiService.getPoiById(poiId, vendorEmail);
+        return ResponseEntity.ok(ApiResponse.success("POI retrieved", response));
+    }
+
+    /**
+     * PUT /api/poi/{poiId}
+     * Updates the POI owned by the authenticated vendor (FR-PM-004).
+     * All request fields are optional; omitted fields retain their current value.
+     */
+    @PutMapping("/{poiId}")
+    public ResponseEntity<ApiResponse<PoiResponse>> updatePoi(
+            @PathVariable Integer poiId,
+            @Valid @RequestBody UpdatePoiRequest request,
+            Authentication authentication) {
+
+        if (!hasRole(authentication, "ROLE_vendor")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Only vendors can update POIs"));
+        }
+
+        String vendorEmail = authentication.getName();
+        PoiResponse response = poiService.updatePoi(poiId, request, vendorEmail);
+        return ResponseEntity.ok(ApiResponse.success("POI updated successfully", response));
     }
 
     /**

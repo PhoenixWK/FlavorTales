@@ -11,6 +11,7 @@ public interface PoiMapper {
 
     @Mapping(source = "status", target = "status", qualifiedByName = "statusToString")
     @Mapping(target = "linkedShopId", ignore = true)
+    @Mapping(target = "linkedShopName", ignore = true)
     PoiResponse toResponse(Poi poi);
 
     @Named("statusToString")

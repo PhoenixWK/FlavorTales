@@ -28,7 +28,7 @@ export default function Toast({ toast, onDismiss, duration = 4000 }: ToastProps)
     <div
       role="alert"
       aria-live="assertive"
-      className={`fixed top-6 right-6 z-50 flex items-start gap-3 rounded-xl px-4 py-3.5 shadow-lg border max-w-sm w-full ${
+      className={`fixed top-6 right-6 z-[1100] flex items-start gap-3 rounded-xl px-4 py-3.5 shadow-lg border max-w-sm w-full ${
         isSuccess
           ? "bg-green-50 border-green-200 text-green-800"
           : "bg-red-50 border-red-200 text-red-800"

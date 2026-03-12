@@ -14,6 +14,20 @@ export interface CreatePoiPayload {
   radius: number;
 }
 
+export interface UpdatePoiPayload {
+  name?: string;
+  latitude?: number;
+  longitude?: number;
+  radius?: number;
+  /** null = no change | 0 = unlink | positive = link to this shop */
+  shopId?: number | null;
+}
+
+export interface ShopOption {
+  shopId: number;
+  name: string;
+}
+
 export interface PoiResponse {
   poiId: number;
   name: string;
@@ -21,7 +35,8 @@ export interface PoiResponse {
   longitude: number;
   radius: number;
   status: string;
-  linkedShopId: number;
+  linkedShopId: number | null;
+  linkedShopName: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -67,6 +82,25 @@ export async function createPoi(
   return handleResponse<PoiResponse>(res);
 }
 
+export async function updatePoi(
+  poiId: number,
+  payload: UpdatePoiPayload
+): Promise<ApiResponse<PoiResponse>> {
+  const res = await fetch(`${POI_PROXY_BASE}/${poiId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<PoiResponse>(res);
+}
+
+export async function getPoiById(poiId: number): Promise<ApiResponse<PoiResponse>> {
+  const res = await fetch(`${POI_PROXY_BASE}/${poiId}`, {
+    method: "GET",
+  });
+  return handleResponse<PoiResponse>(res);
+}
+
 export async function getActivePois(): Promise<ApiResponse<PoiResponse[]>> {
   const res = await fetch(`${POI_PROXY_BASE}`, {
     method: "GET",
@@ -76,12 +110,20 @@ export async function getActivePois(): Promise<ApiResponse<PoiResponse[]>> {
 
 /**
  * Fetches POIs belonging to the currently authenticated vendor.
- * NOTE: Uses GET /api/poi for now. When the backend exposes
- * GET /api/poi/my, update the URL here.
  */
 export async function getMyPois(): Promise<ApiResponse<PoiResponse[]>> {
   const res = await fetch(`${POI_PROXY_BASE}/my`, {
     method: "GET",
   });
   return handleResponse<PoiResponse[]>(res);
+}
+
+/**
+ * Fetches the vendor's active shops that have no POI yet (for the shop dropdown).
+ */
+export async function getAvailableShops(): Promise<ApiResponse<ShopOption[]>> {
+  const res = await fetch(`${POI_PROXY_BASE}/shops/available`, {
+    method: "GET",
+  });
+  return handleResponse<ShopOption[]>(res);
 }

@@ -1,10 +1,11 @@
 # merge-database.ps1
-# Merges the 'database' branch folder into main/database
-# Uses robocopy: copies new & updated files, does NOT delete extras in destination
+# Merges the 'database' branch repo into main/database, then commits to the main git repo.
+# Uses robocopy: copies new & updated files, does NOT delete extras in destination.
 
-$Root   = Split-Path -Parent $PSScriptRoot
-$Source = Join-Path $Root "database"
-$Dest   = Join-Path $Root "main\database"
+$Root     = Split-Path -Parent $PSScriptRoot
+$Source   = Join-Path $Root "database"
+$Dest     = Join-Path $Root "main\database"
+$MainRepo = Join-Path $Root "main"
 
 Write-Host ""
 Write-Host "========================================"
@@ -24,14 +25,54 @@ if (-not (Test-Path $Dest)) {
     Write-Host "  Created destination folder."
 }
 
+# Get HEAD commit info from the source branch repo
+$SourceHash    = git -C $Source rev-parse --short HEAD 2>$null
+$SourceMessage = git -C $Source log -1 --pretty=%s HEAD 2>$null
+if ($SourceHash) {
+    $SourceBranch = git -C $Source rev-parse --abbrev-ref HEAD 2>$null
+    Write-Host "  Source HEAD   : $SourceHash"
+    Write-Host "  Source Branch : $SourceBranch"
+    Write-Host "  Source Commit : $SourceMessage"
+} else {
+    Write-Warning "  Could not read HEAD from source repo."
+}
+Write-Host ""
+
 robocopy $Source $Dest /E /XD ".git" /NP /TEE /LOG+:"$PSScriptRoot\merge-database.log"
 
 $rc = $LASTEXITCODE
 if ($rc -ge 8) {
     Write-Error "robocopy failed with exit code $rc. Check merge-database.log for details."
     exit $rc
-} else {
-    Write-Host ""
-    Write-Host "  Done. (robocopy exit code: $rc — success)"
-    Write-Host ""
 }
+Write-Host "  Files synced. (robocopy exit code: $rc)"
+Write-Host ""
+
+# Commit and push to the main git repo
+Push-Location $MainRepo
+try {
+    git add "database/"
+    $Changed = git status --porcelain "database/"
+    if ($Changed) {
+        $CommitMsg = if ($SourceMessage) { $SourceMessage } else { "merge: sync database into main/database" }
+        git commit -m $CommitMsg
+        Write-Host ""
+        Write-Host "  Committed to main: $CommitMsg"
+    } else {
+        Write-Host "  Nothing to commit - main/database is already up to date."
+    }
+    Write-Host ""
+    Write-Host "  Pushing main to origin..."
+    git push origin main
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  Push succeeded."
+    } else {
+        Write-Warning "  Push failed (exit code $LASTEXITCODE)."
+    }
+} finally {
+    Pop-Location
+}
+
+Write-Host ""
+Write-Host "  Done."
+Write-Host ""

@@ -127,3 +127,13 @@ export async function getAvailableShops(): Promise<ApiResponse<ShopOption[]>> {
   });
   return handleResponse<ShopOption[]>(res);
 }
+
+export async function deletePoi(
+  poiId: number,
+  hardDelete = false
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`${POI_PROXY_BASE}/${poiId}?hard=${hardDelete}`, {
+    method: "DELETE",
+  });
+  return handleResponse<null>(res);
+}

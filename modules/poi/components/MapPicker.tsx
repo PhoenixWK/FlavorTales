@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -69,14 +69,41 @@ interface MapPickerProps {
 export default function MapPicker({ lat, lng, radius, onChange }: MapPickerProps) {
   useFixLeafletIcons();
 
+  // Capture the initial center once on mount; MapContainer.center is not reactive.
+  const initialCenter = useRef<[number, number]>(
+    lat !== null && lng !== null ? [lat, lng] : BOUNDARY_CENTER
+  );
+
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const position: [number, number] | null =
     lat !== null && lng !== null ? [lat, lng] : null;
 
-  const handleSearchSelect = (sLat: number, sLng: number) => {
+  const handleSearchSelect = useCallback((sLat: number, sLng: number) => {
     onChange(sLat, sLng);
     setFlyTarget([sLat, sLng]);
-  };
+  }, [onChange]);
+
+  const boundaryPathOptions = useMemo(() => ({
+    color: "#f97316",
+    weight: 2,
+    dashArray: "6 4",
+    fillColor: "#fed7aa",
+    fillOpacity: 0.07,
+  }), []);
+
+  const markerCirclePathOptions = useMemo(() => ({
+    color: "#ea580c",
+    weight: 2,
+    fillColor: "#fb923c",
+    fillOpacity: 0.25,
+  }), []);
+
+  const markerEventHandlers = useMemo(() => ({
+    dragend(e: L.LeafletEvent) {
+      const pos = (e.target as L.Marker).getLatLng();
+      onChange(pos.lat, pos.lng);
+    },
+  }), [onChange]);
 
   return (
     <div className="space-y-2">
@@ -86,9 +113,10 @@ export default function MapPicker({ lat, lng, radius, onChange }: MapPickerProps
       {/* Map */}
       <div className="rounded-xl overflow-hidden border border-gray-200" style={{ height: 360 }}>
         <MapContainer
-          center={BOUNDARY_CENTER}
-          zoom={15}
+          center={initialCenter.current}
+          zoom={lat !== null && lng !== null ? 17 : 6}
           style={{ height: "100%", width: "100%" }}
+          preferCanvas
         >
           {/* OpenStreetMap tiles */}
           <TileLayer
@@ -103,13 +131,7 @@ export default function MapPicker({ lat, lng, radius, onChange }: MapPickerProps
           <Circle
             center={BOUNDARY_CENTER}
             radius={BOUNDARY_RADIUS_M}
-            pathOptions={{
-              color: "#f97316",
-              weight: 2,
-              dashArray: "6 4",
-              fillColor: "#fed7aa",
-              fillOpacity: 0.07,
-            }}
+            pathOptions={boundaryPathOptions}
           />
 
           {/* Click anywhere on the map to place / move marker */}
@@ -121,22 +143,12 @@ export default function MapPicker({ lat, lng, radius, onChange }: MapPickerProps
               <Marker
                 position={position}
                 draggable
-                eventHandlers={{
-                  dragend(e) {
-                    const pos = (e.target as L.Marker).getLatLng();
-                    onChange(pos.lat, pos.lng);
-                  },
-                }}
+                eventHandlers={markerEventHandlers}
               />
               <Circle
                 center={position}
                 radius={radius}
-                pathOptions={{
-                  color: "#ea580c",
-                  weight: 2,
-                  fillColor: "#fb923c",
-                  fillOpacity: 0.25,
-                }}
+                pathOptions={markerCirclePathOptions}
               />
             </>
           )}

@@ -69,3 +69,40 @@ export async function PUT(
   const json = await res.json();
   return NextResponse.json(json, { status: res.status });
 }
+
+/**
+ * DELETE /api/poi/[poiId]?hard=false  →  backend DELETE /api/poi/{poiId}
+ * Soft-deletes (default) or hard-deletes a POI owned by the authenticated vendor.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ poiId: string }> }
+) {
+  const accessToken = await getAccessToken();
+  if (!accessToken) {
+    return NextResponse.json(
+      { success: false, message: "Session expired" },
+      { status: 401 }
+    );
+  }
+
+  const { poiId } = await params;
+  const { searchParams } = new URL(request.url);
+  const hard = searchParams.get("hard") ?? "false";
+
+  const res = await fetch(`${API_BASE}/api/poi/${poiId}?hard=${hard}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  const text = await res.text();
+  try {
+    const json = JSON.parse(text);
+    return NextResponse.json(json, { status: res.status });
+  } catch {
+    return NextResponse.json(
+      { success: false, message: "Server error. Please try again." },
+      { status: res.status >= 400 ? res.status : 500 }
+    );
+  }
+}

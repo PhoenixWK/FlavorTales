@@ -70,7 +70,7 @@ export default function PoiListPage() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             {paginated.map((poi) => (
-              <PoiCard key={poi.poiId} poi={poi} />
+              <PoiCard key={poi.poiId} poi={poi} onDeleted={fetchPois} />
             ))}
           </div>
 

@@ -290,6 +290,49 @@ public class PoiService {
         );
     }
 
+    // ── Delete ────────────────────────────────────────────────────────────────
+
+    /**
+     * FR-PM-DEL: Delete POI (soft or hard).
+     *
+     * <p>Soft delete (default): sets {@code status = deleted} and {@code deleted_at = now()}.
+     * The POI is removed from the map and active list but kept in the DB for 30 days.
+     *
+     * <p>Hard delete: permanently removes the row.
+     *
+     * <p>In both cases the linked shop's {@code poi_id} is cleared so the shop
+     * remains intact (per requirements: "Thông tin cửa hàng được giữ nguyên").
+     */
+    @Transactional
+    public void deletePoi(Integer poiId, String vendorEmail, boolean hardDelete) {
+        // 1. Load POI and verify ownership
+        Poi poi = poiRepository.findById(poiId)
+                .orElseThrow(() -> new PoiNotFoundException("POI not found with id: " + poiId));
+        Integer vendorId = resolveVendorId(vendorEmail);
+        if (!poi.getVendorId().equals(vendorId)) {
+            throw new IllegalArgumentException("You do not own this POI");
+        }
+
+        // 2. Unlink any associated shop (keep shop data intact)
+        jdbcTemplate.update("UPDATE shop SET poi_id = NULL WHERE poi_id = ?", poiId);
+
+        if (hardDelete) {
+            // 3a. Hard delete – permanent removal
+            poiRepository.delete(poi);
+            log.info("POI {} hard-deleted by vendor {}", poiId, vendorEmail);
+        } else {
+            // 3b. Soft delete – mark as deleted with timestamp
+            poi.setStatus(PoiStatus.deleted);
+            poi.setDeletedAt(java.time.LocalDateTime.now());
+            poiRepository.save(poi);
+            log.info("POI {} soft-deleted by vendor {}", poiId, vendorEmail);
+        }
+
+        // 4. Evict from cache
+        poiCacheService.evict(poiId);
+        poiCacheService.evictActivePoisList();
+    }
+
     // ── Validation helpers ────────────────────────────────────────────────────
 
     private void validateBoundary(double lat, double lng) {

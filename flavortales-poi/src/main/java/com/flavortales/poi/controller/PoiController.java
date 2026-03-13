@@ -137,6 +137,32 @@ public class PoiController {
         return ResponseEntity.ok(ApiResponse.success("Active POIs retrieved", pois));
     }
 
+    /**
+     * DELETE /api/poi/{poiId}?hard=false
+     * Soft-deletes (default) or hard-deletes the POI owned by the authenticated vendor.
+     * Soft delete: sets status=deleted and deleted_at timestamp (recoverable within 30 days).
+     * Hard delete: permanently removes the POI row.
+     */
+    @DeleteMapping("/{poiId}")
+    public ResponseEntity<ApiResponse<Void>> deletePoi(
+            @PathVariable Integer poiId,
+            @RequestParam(name = "hard", defaultValue = "false") boolean hardDelete,
+            Authentication authentication) {
+
+        if (!hasRole(authentication, "ROLE_vendor")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Only vendors can delete POIs"));
+        }
+
+        String vendorEmail = authentication.getName();
+        poiService.deletePoi(poiId, vendorEmail, hardDelete);
+
+        String message = hardDelete
+                ? "POI permanently deleted"
+                : "POI deleted successfully";
+        return ResponseEntity.ok(ApiResponse.success(message, null));
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private boolean hasRole(Authentication auth, String role) {

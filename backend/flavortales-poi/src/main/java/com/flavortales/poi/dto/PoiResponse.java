@@ -18,6 +18,7 @@ public class PoiResponse {
     private BigDecimal radius;
     private String status;
     private Integer linkedShopId;
+    private String linkedShopName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

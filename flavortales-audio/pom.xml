@@ -29,6 +29,12 @@
             <artifactId>flavortales-poi</artifactId>
         </dependency>
 
+        <!-- File module for R2 storage -->
+        <dependency>
+            <groupId>com.flavortales</groupId>
+            <artifactId>flavortales-file</artifactId>
+        </dependency>
+
         <!-- MapStruct -->
         <dependency>
             <groupId>org.mapstruct</groupId>

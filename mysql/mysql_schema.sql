@@ -182,4 +182,30 @@ CREATE TABLE audio (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ============================================================================
+-- SHOP PROFILE EXTENSIONS (FR-CM-001)
+-- ============================================================================
+
+-- Extend shop table with tags, opening hours, audio file references, and draft support
+ALTER TABLE shop
+    ADD COLUMN tags          JSON    DEFAULT NULL  COMMENT 'Array of tag strings, max 5',
+    ADD COLUMN opening_hours JSON    DEFAULT NULL  COMMENT 'Array of {day,open,close,closed} objects',
+    ADD COLUMN vi_audio_file_id INT  NULL          COMMENT 'FK → file_asset for Vietnamese TTS audio',
+    ADD COLUMN en_audio_file_id INT  NULL          COMMENT 'FK → file_asset for English TTS audio',
+    ADD COLUMN draft_data    JSON    DEFAULT NULL  COMMENT 'Auto-save draft payload',
+    ADD CONSTRAINT fk_shop_vi_audio FOREIGN KEY (vi_audio_file_id) REFERENCES file_asset(file_id) ON DELETE SET NULL,
+    ADD CONSTRAINT fk_shop_en_audio FOREIGN KEY (en_audio_file_id) REFERENCES file_asset(file_id) ON DELETE SET NULL;
+
+-- Additional shop images (gallery)
+CREATE TABLE shop_image (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    shop_id    INT NOT NULL,
+    file_id    INT NOT NULL,
+    sort_order INT DEFAULT 0 COMMENT 'Display order; drag-to-reorder updates this',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (shop_id) REFERENCES shop(shop_id) ON DELETE CASCADE,
+    FOREIGN KEY (file_id) REFERENCES file_asset(file_id) ON DELETE CASCADE,
+    INDEX idx_shop_sort (shop_id, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 

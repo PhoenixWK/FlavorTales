@@ -1,8 +1,11 @@
 package com.flavortales.content.controller;
 
 import com.flavortales.common.dto.ApiResponse;
+import com.flavortales.content.dto.ShopCreateRequest;
+import com.flavortales.content.dto.ShopCreateResponse;
 import com.flavortales.content.dto.ShopResponse;
 import com.flavortales.content.service.ShopService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,32 @@ import java.util.List;
 public class ShopController {
 
     private final ShopService shopService;
+
+    /**
+     * POST /api/shop
+     * Creates a new shop profile for the authenticated vendor.
+     * The shop is created with status=pending and the admin is notified.
+     */
+    @PostMapping
+    public ResponseEntity<ApiResponse<ShopCreateResponse>> createShop(
+            @Valid @RequestBody ShopCreateRequest request,
+            Authentication authentication) {
+
+        if (!hasRole(authentication, "ROLE_vendor")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Only vendors can create shops"));
+        }
+
+        try {
+            String vendorEmail = authentication.getName();
+            ShopCreateResponse response = shopService.createShop(request, vendorEmail);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success(response.getMessage(), response));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        }
+    }
 
     /**
      * GET /api/shop/my

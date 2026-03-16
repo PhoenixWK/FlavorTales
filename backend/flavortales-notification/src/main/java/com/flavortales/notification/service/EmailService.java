@@ -166,4 +166,39 @@ public class EmailService {
             log.error("Failed to send POI creation email to {}: {}", toEmail, e.getMessage());
         }
     }
+
+    // ── Shop profile notification (FR-CM-001) ─────────────────────────────────
+
+    /**
+     * Notifies admin that a new shop profile has been submitted and is pending review.
+     */
+    @Async
+    public void sendAdminNewShopNotification(String shopName, String vendorEmail) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(adminEmail);
+            helper.setSubject("New Shop Profile Pending Review – " + companyName);
+            helper.setText(buildShopNotificationBody(shopName, vendorEmail), false);
+
+            mailSender.send(message);
+            log.info("Admin notified of new shop: {} by {}", shopName, vendorEmail);
+        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
+            log.error("Failed to send admin shop notification for {}: {}", shopName, e.getMessage());
+        }
+    }
+
+    private String buildShopNotificationBody(String shopName, String vendorEmail) {
+        return "Hello Admin,\n\n" +
+                "A new shop profile has been submitted and is pending your review.\n\n" +
+                "Shop Details:\n" +
+                "  Shop Name : " + shopName + "\n" +
+                "  Vendor    : " + vendorEmail + "\n\n" +
+                "Please log in to the admin panel to review and approve or reject this shop.\n\n" +
+                "Best regards,\n" +
+                companyName;
+    }
 }
+

@@ -9,6 +9,7 @@ const API_BASE =
 /**
  * GET /api/shop/my  →  backend GET /api/shop/my
  * Returns shops belonging to the authenticated vendor.
+ * Parses the openingHours and tags JSON strings into objects.
  */
 export async function GET() {
   const cookieStore = await cookies();
@@ -27,5 +28,18 @@ export async function GET() {
   });
 
   const json = await res.json();
+
+  if (json.success && Array.isArray(json.data)) {
+    json.data = json.data.map((shop: Record<string, unknown>) => ({
+      ...shop,
+      openingHours: typeof shop.openingHours === "string"
+        ? JSON.parse(shop.openingHours)
+        : shop.openingHours ?? null,
+      tags: typeof shop.tags === "string"
+        ? JSON.parse(shop.tags)
+        : shop.tags ?? null,
+    }));
+  }
+
   return NextResponse.json(json, { status: res.status });
 }

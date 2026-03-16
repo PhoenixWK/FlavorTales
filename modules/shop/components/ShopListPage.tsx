@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMyShops, ShopResponse } from "@/modules/shop/services/shopApi";
+import Link from "next/link";
+import { getMyShops, ShopResponse, OpeningHourEntry } from "@/modules/shop/services/shopApi";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -43,11 +44,44 @@ function IconMapPin() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
-      className="w-3.5 h-3.5">
+      className="w-3.5 h-3.5 shrink-0">
       <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
     </svg>
   );
+}
+
+function IconClock() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+      className="w-3.5 h-3.5 shrink-0">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function IconDotsVertical() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+      className="w-5 h-5">
+      <circle cx="12" cy="5" r="1.5" />
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="12" cy="19" r="1.5" />
+    </svg>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Returns today's opening hours entry (0=Mon…6=Sun backend, 0=Sun JS) */
+function getTodayHours(hours: OpeningHourEntry[] | null): OpeningHourEntry | null {
+  if (!hours || hours.length === 0) return null;
+  // JS getDay(): 0=Sun,1=Mon…6=Sat → backend day: 0=Mon…6=Sun
+  const jsDay = new Date().getDay();
+  const backendDay = jsDay === 0 ? 6 : jsDay - 1;
+  return hours.find((h) => h.day === backendDay && !h.closed) ?? null;
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -74,47 +108,120 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// ── Kebab menu ────────────────────────────────────────────────────────────────
+
+function KebabMenu({ shopId }: { shopId: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={(e) => { e.preventDefault(); setOpen((v) => !v); }}
+        className="p-1 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition"
+        aria-label="More options"
+      >
+        <IconDotsVertical />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 mt-1 w-36 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-20 text-sm">
+            <Link
+              href={`/vendor/shop/${shopId}/edit`}
+              className="block px-4 py-2 text-gray-700 hover:bg-gray-50"
+              onClick={() => setOpen(false)}
+            >
+              Chỉnh sửa
+            </Link>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Cover image placeholder ───────────────────────────────────────────────────
+
+function CoverPlaceholder() {
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-orange-300 gap-2">
+      <IconShopEmpty />
+      <span className="text-xs text-orange-300">Chưa có ảnh</span>
+    </div>
+  );
+}
+
 // ── Shop card ─────────────────────────────────────────────────────────────────
 
 function ShopCard({ shop }: { shop: ShopResponse }) {
+  const todayHours = getTodayHours(shop.openingHours);
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-3 hover:shadow-md transition-shadow">
-      {/* Name + status */}
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">{shop.name}</h3>
-        <StatusBadge status={shop.status} />
-      </div>
+    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
 
-      {/* Meta info */}
-      <div className="space-y-1">
-        {shop.cuisineStyle && (
-          <p className="text-xs text-gray-500">
-            <span className="font-medium text-gray-700">Phong cách:</span> {shop.cuisineStyle}
-          </p>
-        )}
-        {shop.featuredDish && (
-          <p className="text-xs text-gray-500">
-            <span className="font-medium text-gray-700">Món nổi bật:</span> {shop.featuredDish}
-          </p>
-        )}
-        {shop.description && (
-          <p className="text-xs text-gray-400 mt-1 line-clamp-2">{shop.description}</p>
-        )}
-      </div>
-
-      {/* POI link indicator */}
-      <div className="pt-2 border-t border-gray-100">
-        {shop.poiId ? (
-          <span className="inline-flex items-center gap-1.5 text-xs text-green-600 font-medium">
-            <IconMapPin />
-            Đã liên kết POI #{shop.poiId}
-          </span>
+      {/* ── Cover photo ── */}
+      <div className="relative h-44 w-full bg-gray-100">
+        {shop.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={shop.avatarUrl}
+            alt={shop.name}
+            className="w-full h-full object-cover"
+          />
         ) : (
-          <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
-            <IconMapPin />
-            Chưa có vị trí POI
-          </span>
+          <CoverPlaceholder />
         )}
+        {/* Status chip — top right of photo */}
+        <div className="absolute top-2.5 right-2.5">
+          <StatusBadge status={shop.status} />
+        </div>
+      </div>
+
+      {/* ── Card body ── */}
+      <div className="px-4 pt-3 pb-4 flex flex-col gap-2.5 flex-1">
+
+        {/* Name + kebab */}
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-bold text-gray-900 text-[15px] leading-snug line-clamp-2 flex-1">
+            {shop.name}
+          </h3>
+          <KebabMenu shopId={shop.shopId} />
+        </div>
+
+        {/* Category chip */}
+        {shop.cuisineStyle && (
+          <div>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+              {shop.cuisineStyle}
+            </span>
+          </div>
+        )}
+
+        {/* Location + Hours */}
+        <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+          {shop.poiName ? (
+            <span className="flex items-center gap-1 text-gray-600">
+              <IconMapPin />
+              {shop.poiName}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-gray-400">
+              <IconMapPin />
+              Chưa có vị trí
+            </span>
+          )}
+
+          {todayHours ? (
+            <span className="flex items-center gap-1 text-gray-600">
+              <IconClock />
+              {todayHours.open} - {todayHours.close}
+            </span>
+          ) : shop.openingHours && shop.openingHours.length > 0 ? (
+            <span className="flex items-center gap-1 text-gray-400">
+              <IconClock />
+              Hôm nay nghỉ
+            </span>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -124,17 +231,19 @@ function ShopCard({ shop }: { shop: ShopResponse }) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-5 animate-pulse space-y-3">
-      <div className="flex justify-between">
-        <div className="h-4 bg-gray-100 rounded w-2/3" />
+    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden animate-pulse">
+      <div className="h-44 bg-gray-100" />
+      <div className="px-4 pt-3 pb-4 space-y-2.5">
+        <div className="flex justify-between items-start gap-2">
+          <div className="h-4 bg-gray-100 rounded w-2/3" />
+          <div className="h-5 w-5 bg-gray-100 rounded-full" />
+        </div>
         <div className="h-5 bg-gray-100 rounded-full w-16" />
+        <div className="flex gap-3">
+          <div className="h-3 bg-gray-100 rounded w-24" />
+          <div className="h-3 bg-gray-100 rounded w-24" />
+        </div>
       </div>
-      <div className="space-y-2">
-        <div className="h-3 bg-gray-100 rounded w-1/2" />
-        <div className="h-3 bg-gray-100 rounded w-3/4" />
-        <div className="h-3 bg-gray-100 rounded w-full" />
-      </div>
-      <div className="h-3 bg-gray-100 rounded w-1/3 mt-2" />
     </div>
   );
 }
@@ -224,6 +333,14 @@ export default function ShopListPage() {
             Xem và theo dõi trạng thái các gian hàng của bạn
           </p>
         </div>
+        <Link
+          href="/vendor/shop/create"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500
+            text-white text-sm font-medium hover:bg-orange-600 transition shrink-0"
+        >
+          <span className="text-base leading-none">+</span>
+          Tạo hồ sơ gian hàng
+        </Link>
       </div>
 
       {/* ── Search + filter bar ── */}

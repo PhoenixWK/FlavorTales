@@ -14,10 +14,15 @@ import type { NextRequest } from "next/server";
  */
 export function middleware(request: NextRequest) {
   const token = request.cookies.get("access_token");
+  const { pathname } = request.nextUrl;
 
   if (!token) {
-    const loginUrl = new URL("/auth/vendor/login", request.url);
-    loginUrl.searchParams.set("from", request.nextUrl.pathname);
+    const isAdmin = pathname.startsWith("/admin");
+    const loginUrl = new URL(
+      isAdmin ? "/auth/admin/login" : "/auth/vendor/login",
+      request.url
+    );
+    loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -25,5 +30,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/vendor/:path*"],
+  matcher: ["/vendor/:path*", "/admin/:path*"],
 };

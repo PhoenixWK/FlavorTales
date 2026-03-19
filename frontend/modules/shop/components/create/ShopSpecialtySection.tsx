@@ -20,6 +20,8 @@ interface Props {
   openingHours: OpeningHoursDto[];
   tags: string[];
   errors: { specialtyDescription?: string; tags?: string };
+  /** Hide the booth-type picker — use when stall type is rendered in a separate section. Defaults to true. */
+  showTags?: boolean;
   onChange: (
     field: "specialtyDescription" | "openingHours" | "tags",
     value: string | OpeningHoursDto[] | string[]
@@ -33,6 +35,7 @@ export default function ShopSpecialtySection({
   openingHours,
   tags,
   errors,
+  showTags = true,
   onChange,
 }: Props) {
   // ── Opening hours helpers ──────────────────────────────────────────────────
@@ -165,7 +168,7 @@ export default function ShopSpecialtySection({
       </div>
 
       {/* ── Booth type ────────────────────────────────────────────────────── */}
-      <div>
+      {showTags && <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">
           Loại gian hàng{" "}
           <span className="text-gray-400 font-normal">(tuỳ chọn)</span>
@@ -194,7 +197,7 @@ export default function ShopSpecialtySection({
         {errors.tags && (
           <p className="text-xs text-red-500 mt-2">{errors.tags}</p>
         )}
-      </div>
+      </div>}
     </section>
   );
 }

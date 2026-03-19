@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import CreatePoiForm from "@/modules/poi/components/CreatePoiForm";
+import CreatePoiForm from "@/modules/poi/components/create/CreatePoiForm";
 
 export const metadata: Metadata = {
-  title: "Create POI – FlavorTales",
+  title: "Tạo POI & Gian hàng – FlavorTales",
 };
 
 export default function CreatePoiPage() {
@@ -19,13 +19,13 @@ export default function CreatePoiPage() {
           className="w-4 h-4">
           <polyline points="15 18 9 12 15 6" />
         </svg>
-        Back to POI Management
+        Quay lại Quản lý POI
       </Link>
 
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Create New POI</h2>
+      <div className="mb-8">
+        <h2 className="text-xl font-bold text-gray-900">Tạo POI &amp; Gian hàng mới</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Add a Point of Interest on the map to mark your food stall location.
+          Hoàn thành 3 bước để đăng ký vị trí và hồ sơ gian hàng của bạn. Sau khi gửi, hệ thống sẽ chờ admin duyệt.
         </p>
       </div>
       <CreatePoiForm />

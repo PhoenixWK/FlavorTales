@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { previewAudio } from "@/modules/shop/services/audioApi";
 import { useToast } from "@/shared/hooks/useToast";
 
@@ -16,9 +16,13 @@ interface Props {
   enAudioUrl: string | null;
   error?: string;
   onAudioGenerated: (language: Language, blob: Blob, blobUrl: string) => void;
+  /** Max chars for TTS script. Defaults to 5000. */
+  maxTtsChars?: number;
 }
 
 const MAX_TTS_CHARS = 5000;
+const MIN_TTS_CHARS = 50;
+const MAX_AUDIO_MB = 10;
 
 function IconMic() {
   return (
@@ -83,6 +87,7 @@ export default function ShopAudioSection({
   enAudioUrl,
   error,
   onAudioGenerated,
+  maxTtsChars,
 }: Props) {
   const { addToast, updateToast } = useToast();
   const [showPicker, setShowPicker] = useState(false);
@@ -92,6 +97,11 @@ export default function ShopAudioSection({
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const effectiveMax = maxTtsChars ?? MAX_TTS_CHARS;
+
+  // File upload refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadLangRef = useRef<Language | null>(null);
 
   // Track active blob URLs so we can revoke them when the user regenerates
   const blobUrls = useRef<Partial<Record<Language, string>>>({});
@@ -132,11 +142,47 @@ export default function ShopAudioSection({
     setGenError(null);
   };
 
+  const validateAudioFile = (file: File): string | null => {
+    const byExt = /\.(mp3|m4a|wav)$/i.test(file.name);
+    const byMime = ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav", "audio/aac"].includes(file.type);
+    if (!byExt && !byMime) return "Chỉ chấp nhận file MP3, M4A hoặc WAV.";
+    if (file.size > MAX_AUDIO_MB * 1024 * 1024) return `File không được vượt quá ${MAX_AUDIO_MB} MB.`;
+    return null;
+  };
+
+  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadLangRef.current) return;
+    const err = validateAudioFile(file);
+    if (err) {
+      setGenError(err);
+      e.target.value = "";
+      return;
+    }
+    const lang = uploadLangRef.current;
+    const old = blobUrls.current[lang];
+    if (old) URL.revokeObjectURL(old);
+    const blobUrl = URL.createObjectURL(file);
+    blobUrls.current[lang] = blobUrl;
+    onAudioGenerated(lang, file, blobUrl);
+    setGenError(null);
+    e.target.value = "";
+  };
+
+  const triggerFileUpload = (lang: Language) => {
+    uploadLangRef.current = lang;
+    fileInputRef.current?.click();
+  };
+
   const handleGenerate = async () => {
     if (!selectedLang) return;
     const text = texts[selectedLang];
     if (!text.trim()) {
       setGenError("Vui lòng nhập đoạn thuyết minh trước khi tạo audio.");
+      return;
+    }
+    if (text.trim().length < MIN_TTS_CHARS) {
+      setGenError(`Đoạn thuyết minh cần ít nhất ${MIN_TTS_CHARS} ký tự.`);
       return;
     }
     setGenError(null);
@@ -299,7 +345,7 @@ export default function ShopAudioSection({
           <div>
             <textarea
               value={texts[selectedLang]}
-              maxLength={MAX_TTS_CHARS}
+              maxLength={effectiveMax}
               rows={5}
               onChange={(e) => {
                 const v = e.target.value;
@@ -315,9 +361,12 @@ export default function ShopAudioSection({
                 placeholder-gray-400 resize-none focus:outline-none focus:ring-2
                 focus:ring-orange-400 focus:border-transparent border-gray-200"
             />
-            <div className="flex justify-end mt-1">
+            <div className="flex justify-between mt-1">
               <span className="text-xs text-gray-400">
-                {texts[selectedLang].length}/{MAX_TTS_CHARS}
+                {texts[selectedLang].length}/{effectiveMax}
+                {texts[selectedLang].length < MIN_TTS_CHARS && (
+                  <span className="ml-1 text-red-400">(tối thiểu {MIN_TTS_CHARS})</span>
+                )}
               </span>
             </div>
           </div>
@@ -352,6 +401,28 @@ export default function ShopAudioSection({
               {genError}
             </p>
           )}
+
+          {/* ── Alternative: upload existing audio file ─────────────────────── */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-xs text-gray-400">hoặc</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+          <button
+            type="button"
+            onClick={() => triggerFileUpload(selectedLang)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5
+              rounded-xl text-sm font-medium text-gray-600 border border-gray-200
+              bg-white hover:bg-gray-50 hover:border-gray-300 transition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none"
+              stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415
+                6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+            Tải lên file có sẵn (MP3/M4A/WAV, ≤ 10 MB)
+          </button>
 
           {/* Preview for the selected language */}
           {currentAudioUrl && (
@@ -390,6 +461,15 @@ export default function ShopAudioSection({
       {error && (
         <p className="text-xs text-red-500">{error}</p>
       )}
+
+      {/* Hidden file input for audio upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
     </section>
   );
 }

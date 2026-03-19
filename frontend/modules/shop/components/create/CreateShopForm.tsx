@@ -11,8 +11,7 @@ import {
   OpeningHoursDto,
 } from "@/modules/shop/types/shop";
 import { createShop } from "@/modules/shop/services/shopApi";
-import { uploadAudio } from "@/modules/shop/services/audioApi";
-import { uploadImage } from "@/modules/shop/services/fileApi";
+import { uploadImages, uploadAudios, stripHtml } from "@/modules/shop/services/uploadShopAssets";
 import { useToast } from "@/shared/hooks/useToast";
 
 import ShopBasicInfoSection from "./ShopBasicInfoSection";
@@ -193,49 +192,28 @@ export default function CreateShopForm() {
 
     setSubmitting(true);
     try {
-      // 1. Upload images to R2
-      if (!imageFiles.avatar) {
-        throw new Error("Vui lòng chọn ảnh đại diện trước khi gửi.");
-      }
-      const avatarResult = await uploadImage(imageFiles.avatar);
-      if (!avatarResult.success) throw new Error(avatarResult.message ?? "Tải ảnh đại diện thất bại");
+      // 1. Upload images (throws on failure)
+      const { avatarFileId, additionalImageIds } = await uploadImages(imageFiles);
 
-      const additionalResults = await Promise.all(
-        imageFiles.additional.map((f) => uploadImage(f))
-      );
-      for (const r of additionalResults) {
-        if (!r.success) throw new Error(r.message ?? "Tải ảnh bổ sung thất bại");
-      }
-
-      const avatarFileId = avatarResult.data.fileId;
-      const additionalImageIds = additionalResults.map((r) => r.data.fileId);
-
-      // 2. Upload audio blobs to R2
+      // 2. Upload audio blobs to R2 (throws if required audio is missing/failed)
       if (!audioBlobs.vi && !audioBlobs.en) {
         throw new Error("Vui lòng tạo ít nhất một audio thuyết minh trước khi gửi.");
       }
+      const { viFileId, enFileId } = await uploadAudios(audioBlobs);
+      if (!viFileId && audioBlobs.vi) throw new Error("Tải audio tiếng Việt thất bại.");
+      if (!enFileId && audioBlobs.en) throw new Error("Tải audio tiếng Anh thất bại.");
 
-      const [viResult, enResult] = await Promise.all([
-        audioBlobs.vi ? uploadAudio(audioBlobs.vi, "vi") : Promise.resolve(null),
-        audioBlobs.en ? uploadAudio(audioBlobs.en, "en") : Promise.resolve(null),
-      ]);
-
-      if (viResult && !viResult.success)
-        throw new Error(viResult.message ?? "Tải audio tiếng Việt thất bại");
-      if (enResult && !enResult.success)
-        throw new Error(enResult.message ?? "Tải audio tiếng Anh thất bại");
-
-      // 3. Create the shop
+      // 3. Create the shop — strip HTML before sending so @Size counts plain text
       const res = await createShop({
         name: draft.name.trim(),
-        description: draft.description,
+        description: stripHtml(draft.description),
         avatarFileId,
         additionalImageIds,
         specialtyDescription: draft.specialtyDescription,
         openingHours: draft.openingHours,
         tags: draft.tags,
-        viAudioFileId: viResult?.data.fileId ?? null,
-        enAudioFileId: enResult?.data.fileId ?? null,
+        viAudioFileId: viFileId,
+        enAudioFileId: enFileId,
       });
 
       if (!res.success) throw new Error(res.message);

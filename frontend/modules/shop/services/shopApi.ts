@@ -26,6 +26,13 @@ export interface ShopResponse {
   updatedAt: string | null;
 }
 
+/** Full shop detail including gallery + audio URLs (vendor-facing). */
+export interface ShopDetail extends ShopResponse {
+  galleryUrls: string[] | null;
+  viAudioUrl: string | null;
+  enAudioUrl: string | null;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -37,6 +44,19 @@ export async function getMyShops(): Promise<ApiResponse<ShopResponse[]>> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     return { success: false, message: err.message ?? "Failed to fetch shops", data: [] };
+  }
+  return res.json();
+}
+
+export async function getMyShopDetail(shopId: number): Promise<ApiResponse<ShopDetail>> {
+  const res = await fetch(`/api/shop/${shopId}`, { method: "GET" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    return {
+      success: false,
+      message: err.message ?? "Failed to fetch shop detail",
+      data: null as unknown as ShopDetail,
+    };
   }
   return res.json();
 }
@@ -56,3 +76,4 @@ export async function createShop(
 
   return res.json();
 }
+

@@ -1,17 +1,35 @@
 // POI API calls go through Next.js proxy routes (/api/poi/*) so that the
 // HttpOnly access_token cookie (scoped to the frontend domain) is read
 // server-side and forwarded as an Authorization header to the backend.
-// Direct browser fetch to the backend would not include the cookie because
-// it is scoped to the frontend domain, not the backend domain.
 const POI_PROXY_BASE = "/api/poi";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export interface OpeningHoursDto {
+  day: number;
+  open: string;
+  close: string;
+  closed: boolean;
+}
+
+/** Combined POI + shop creation payload (UC-14 / FR-PM-001) */
 export interface CreatePoiPayload {
+  // Step 1: POI location
   name: string;
   latitude: number;
   longitude: number;
   radius: number;
+  // Step 2: Shop info
+  shopName: string;
+  shopDescription: string;
+  avatarFileId: number;
+  additionalImageIds?: number[];
+  specialtyDescription?: string;
+  openingHours?: OpeningHoursDto[];
+  tags?: string[];
+  // Step 3: Audio
+  viAudioFileId?: number | null;
+  enAudioFileId?: number | null;
 }
 
 export interface UpdatePoiPayload {
@@ -19,13 +37,6 @@ export interface UpdatePoiPayload {
   latitude?: number;
   longitude?: number;
   radius?: number;
-  /** null = no change | 0 = unlink | positive = link to this shop */
-  shopId?: number | null;
-}
-
-export interface ShopOption {
-  shopId: number;
-  name: string;
 }
 
 export interface PoiResponse {
@@ -37,6 +48,8 @@ export interface PoiResponse {
   status: string;
   linkedShopId: number | null;
   linkedShopName: string | null;
+  linkedShopAvatarUrl: string | null;
+  message?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,7 +75,14 @@ async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
       return new Promise(() => {});
     }
     const message = json?.message ?? json?.error ?? "An unexpected error occurred.";
-    const err = new Error(message) as Error & { status: number };
+    // When Spring's @Valid returns field-level errors they are in json.data (Map<field,msg>).
+    // Build a readable string from them so the toast shows exactly what failed.
+    const fieldErrors: Record<string, string> | undefined = json?.data;
+    const detail =
+      fieldErrors && typeof fieldErrors === "object" && !Array.isArray(fieldErrors)
+        ? Object.values(fieldErrors).join(" | ")
+        : undefined;
+    const err = new Error(detail ? `${message}: ${detail}` : message) as Error & { status: number };
     err.status = res.status;
     throw err;
   }
@@ -95,37 +115,18 @@ export async function updatePoi(
 }
 
 export async function getPoiById(poiId: number): Promise<ApiResponse<PoiResponse>> {
-  const res = await fetch(`${POI_PROXY_BASE}/${poiId}`, {
-    method: "GET",
-  });
+  const res = await fetch(`${POI_PROXY_BASE}/${poiId}`, { method: "GET" });
   return handleResponse<PoiResponse>(res);
 }
 
 export async function getActivePois(): Promise<ApiResponse<PoiResponse[]>> {
-  const res = await fetch(`${POI_PROXY_BASE}`, {
-    method: "GET",
-  });
+  const res = await fetch(`${POI_PROXY_BASE}`, { method: "GET" });
   return handleResponse<PoiResponse[]>(res);
 }
 
-/**
- * Fetches POIs belonging to the currently authenticated vendor.
- */
 export async function getMyPois(): Promise<ApiResponse<PoiResponse[]>> {
-  const res = await fetch(`${POI_PROXY_BASE}/my`, {
-    method: "GET",
-  });
+  const res = await fetch(`${POI_PROXY_BASE}/my`, { method: "GET" });
   return handleResponse<PoiResponse[]>(res);
-}
-
-/**
- * Fetches the vendor's active shops that have no POI yet (for the shop dropdown).
- */
-export async function getAvailableShops(): Promise<ApiResponse<ShopOption[]>> {
-  const res = await fetch(`${POI_PROXY_BASE}/shops/available`, {
-    method: "GET",
-  });
-  return handleResponse<ShopOption[]>(res);
 }
 
 export async function deletePoi(

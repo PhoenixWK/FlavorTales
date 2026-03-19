@@ -14,6 +14,10 @@ interface Props {
   /** file is null when the avatar is cleared */
   onAvatarChange: (file: File | null, previewUrl: string | null) => void;
   onAdditionalChange: (slots: ImageSlot[]) => void;
+  /** Cap on additional images (default 5). Set to 4 to keep total ≤ 5. */
+  maxAdditional?: number;
+  /** Hide the avatar upload — use when avatar is rendered in a separate section. Defaults to true. */
+  showAvatar?: boolean;
 }
 
 const MAX_SIZE_MB = 5;
@@ -93,10 +97,13 @@ export default function ShopImageUpload({
   errors,
   onAvatarChange,
   onAdditionalChange,
+  maxAdditional,
+  showAvatar = true,
 }: Props) {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const additionalInputRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const effectiveMax = maxAdditional ?? MAX_ADDITIONAL;
 
   // Track every blob URL we create so we can revoke them on unmount or replacement.
   const blobUrlsRef = useRef<Set<string>>(new Set());
@@ -145,7 +152,7 @@ export default function ShopImageUpload({
 
   const handleAdditionalFiles = useCallback(
     (files: FileList) => {
-      const remaining = MAX_ADDITIONAL - additionalSlots.length;
+      const remaining = effectiveMax - additionalSlots.length;
       const toProcess = Array.from(files).slice(0, remaining);
       if (toProcess.length === 0) return;
 
@@ -171,7 +178,7 @@ export default function ShopImageUpload({
   return (
     <section className="space-y-5">
       {/* ── Avatar ──────────────────────────────────────────────────────── */}
-      <div>
+      {showAvatar && <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Ảnh đại diện <span className="text-red-500">*</span>
         </label>
@@ -230,14 +237,14 @@ export default function ShopImageUpload({
         {errors.avatar && (
           <p className="text-xs text-red-500 mt-1">{errors.avatar}</p>
         )}
-      </div>
+      </div>}
 
       {/* ── Additional images ────────────────────────────────────────────── */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Ảnh bổ sung{" "}
           <span className="text-gray-400 font-normal">
-            (tuỳ chọn, tối đa {MAX_ADDITIONAL} ảnh)
+            (tuỳ chọn, tối đa {effectiveMax} ảnh)
           </span>
         </label>
 
@@ -252,7 +259,7 @@ export default function ShopImageUpload({
             />
           ))}
 
-          {additionalSlots.length < MAX_ADDITIONAL && (
+          {additionalSlots.length < effectiveMax && (
             <button
               type="button"
               onClick={() => additionalInputRef.current?.click()}

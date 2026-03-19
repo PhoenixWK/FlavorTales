@@ -1,15 +1,14 @@
-package com.flavortales.poi.service;
+﻿package com.flavortales.poi.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flavortales.common.annotation.ReadOnly;
 import com.flavortales.common.exception.DuplicatePoiLocationException;
 import com.flavortales.common.exception.PoiNotFoundException;
-import com.flavortales.common.exception.ShopAlreadyHasPoiException;
-import com.flavortales.common.exception.ShopNotFoundException;
 import com.flavortales.common.exception.UserNotFoundException;
 import com.flavortales.notification.service.EmailService;
 import com.flavortales.poi.dto.CreatePoiRequest;
 import com.flavortales.poi.dto.PoiResponse;
-import com.flavortales.poi.dto.ShopOptionDto;
 import com.flavortales.poi.dto.UpdatePoiRequest;
 import com.flavortales.poi.entity.Poi;
 import com.flavortales.poi.entity.PoiStatus;
@@ -20,28 +19,28 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Statement;
 import java.util.List;
-import java.util.Map;
 
 /**
- * FR-PM-001: Create POI
- *
- * <p>Read path: Redis → (cache miss) Slave DB via {@link PoiCacheService} + {@code @ReadOnly}.
- * Write path: Master DB via {@code @Transactional}, then cache update / eviction.
+ * FR-PM-001 / UC-14: POI management service.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class PoiService {
 
-    private final PoiRepository    poiRepository;
-    private final PoiCacheService  poiCacheService;
-    private final PoiMapper        poiMapper;
-    private final JdbcTemplate     jdbcTemplate;
-    private final EmailService     emailService;
+    private final PoiRepository   poiRepository;
+    private final PoiCacheService poiCacheService;
+    private final PoiMapper       poiMapper;
+    private final JdbcTemplate    jdbcTemplate;
+    private final EmailService    emailService;
+    private final ObjectMapper    objectMapper;
 
     @Value("${app.poi.boundary.center-lat}")
     private double boundaryCenterLat;
@@ -52,8 +51,13 @@ public class PoiService {
     @Value("${app.poi.boundary.max-radius-m}")
     private double boundaryMaxRadiusM;
 
-    // ── Create ────────────────────────────────────────────────────────────────
+    //  Create 
 
+    /**
+     * UC-14 / FR-PM-001: Atomically create a POI + shop profile in one transaction.
+     * The POI and shop are both saved with status = pending;
+     * admin is notified for review.
+     */
     @Transactional
     public PoiResponse createPoi(CreatePoiRequest request, String vendorEmail) {
         double lat = request.getLatitude().doubleValue();
@@ -62,59 +66,81 @@ public class PoiService {
         // 1. Validate coordinates within the food-street boundary
         validateBoundary(lat, lng);
 
-        // 2. Validate shop if provided: exists, belongs to this vendor, has no POI yet
-        if (request.getShopId() != null) {
-            validateShop(request.getShopId(), vendorEmail);
-        }
-
-        // 3. Check for proximity conflict (no existing POI within 5 m)
+        // 2. Check for proximity conflict (no existing POI within 5 m)
         checkProximityConflict(lat, lng);
 
-        // 4. Persist POI (status = active per FR-PM-001)
+        // 3. Validate shop name uniqueness
+        boolean nameExists = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) > 0 FROM shop WHERE name = ? AND status != 'disabled'",
+                Boolean.class, request.getShopName()));
+        if (nameExists) {
+            throw new IllegalArgumentException("Ten gian hang da ton tai, vui long chon ten khac.");
+        }
+
         Integer vendorId = resolveVendorId(vendorEmail);
+
+        // 4. Persist POI with status = pending
         Poi poi = Poi.builder()
                 .vendorId(vendorId)
                 .name(request.getName())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
-                .radius(request.getRadius())
-                .status(PoiStatus.active)
+                .radius(java.math.BigDecimal.valueOf(request.getRadius()))
+                .status(PoiStatus.pending)
                 .build();
         poi = poiRepository.save(poi);
+        final int poiId = poi.getPoiId();
 
-        // 5. Link the shop to this POI if shopId was provided
-        if (request.getShopId() != null) {
-            jdbcTemplate.update(
-                    "UPDATE shop SET poi_id = ? WHERE shop_id = ?",
-                    poi.getPoiId(), request.getShopId()
-            );
+        // 5. Create shop row linked to the new POI
+        String tagsJson  = toJson(request.getTags());
+        String hoursJson = toJson(request.getOpeningHours());
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(con -> {
+            var ps = con.prepareStatement(
+                    "INSERT INTO shop (vendor_id, poi_id, avatar_file_id, name, description, cuisine_style, tags, opening_hours, vi_audio_file_id, en_audio_file_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())",
+                    Statement.RETURN_GENERATED_KEYS);
+            ps.setInt(1, vendorId);
+            ps.setInt(2, poiId);
+            ps.setObject(3, request.getAvatarFileId());
+            ps.setString(4, request.getShopName());
+            ps.setString(5, request.getShopDescription());
+            ps.setString(6, request.getSpecialtyDescription());
+            ps.setString(7, tagsJson);
+            ps.setString(8, hoursJson);
+            ps.setObject(9, request.getViAudioFileId());
+            ps.setObject(10, request.getEnAudioFileId());
+            return ps;
+        }, keyHolder);
+
+        int shopId = keyHolder.getKey().intValue();
+
+        // 6. Insert additional shop images
+        if (request.getAdditionalImageIds() != null) {
+            for (int i = 0; i < request.getAdditionalImageIds().size(); i++) {
+                jdbcTemplate.update(
+                        "INSERT INTO shop_image (shop_id, file_id, sort_order) VALUES (?, ?, ?)",
+                        shopId, request.getAdditionalImageIds().get(i), i);
+            }
         }
 
-        // 6. Build response and update cache
+        // 7. Build response (pending POIs are not cached in the active list)
         PoiResponse response = poiMapper.toResponse(poi);
-        response.setLinkedShopId(request.getShopId());
-        poiCacheService.put(response);
-        poiCacheService.evictActivePoisList();
+        response.setLinkedShopId(shopId);
+        response.setLinkedShopName(request.getShopName());
+        response.setMessage("Tao gian hang thanh cong, dang cho duyet");
 
-        // 7. Notify vendor (async, fire-and-forget)
-        emailService.sendPoiCreatedEmail(vendorEmail, response.getName());
+        // 8. Notify admin async
+        emailService.sendAdminNewShopNotification(request.getShopName(), vendorEmail);
 
-        log.info("POI {} created by vendor {} (shopId={})",
-                poi.getPoiId(), vendorEmail, request.getShopId());
+        log.info("POI {} (pending) + shop {} created by vendor {}", poiId, shopId, vendorEmail);
         return response;
     }
 
-    // ── Update ────────────────────────────────────────────────────────────────
+    //  Update 
 
-    /**
-     * FR-PM-004: Update POI
-     *
-     * <p>Only the POI's owner (vendor) may perform updates.
-     * All fields are optional; omitted fields keep their current value.
-     */
     @Transactional
     public PoiResponse updatePoi(Integer poiId, UpdatePoiRequest request, String vendorEmail) {
-        // 1. Load POI and verify ownership
         Poi poi = poiRepository.findById(poiId)
                 .orElseThrow(() -> new PoiNotFoundException("POI not found with id: " + poiId));
         Integer vendorId = resolveVendorId(vendorEmail);
@@ -122,7 +148,6 @@ public class PoiService {
             throw new IllegalArgumentException("You do not own this POI");
         }
 
-        // 2. Determine effective coordinates for validation
         boolean coordsChanged = (request.getLatitude() != null || request.getLongitude() != null)
                 && (request.getLatitude() != null && request.getLatitude().compareTo(poi.getLatitude()) != 0
                     || request.getLongitude() != null && request.getLongitude().compareTo(poi.getLongitude()) != 0);
@@ -136,77 +161,43 @@ public class PoiService {
             checkProximityConflict(newLat, newLng, poiId);
         }
 
-        // 3. Resolve the current linked shop
         List<Integer> currentShopIds = jdbcTemplate.query(
                 "SELECT shop_id FROM shop WHERE poi_id = ?",
                 (rs, rowNum) -> rs.getInt("shop_id"),
-                poiId
-        );
+                poiId);
         Integer currentShopId = currentShopIds.isEmpty() ? null : currentShopIds.get(0);
 
-        // 4. Handle shop link changes
-        boolean shopChanged = false;
-        Integer newLinkedShopId = currentShopId; // default: keep current
-        if (request.getShopId() != null) {
-            int requestedShopId = request.getShopId();
-            if (requestedShopId == 0) {
-                // Unlink current shop
-                if (currentShopId != null) {
-                    jdbcTemplate.update("UPDATE shop SET poi_id = NULL WHERE poi_id = ?", poiId);
-                    shopChanged = true;
-                }
-                newLinkedShopId = null;
-            } else if (requestedShopId != (currentShopId != null ? currentShopId : -1)) {
-                // Link to a different shop — validate & relink
-                validateShopForUpdate(requestedShopId, vendorEmail);
-                if (currentShopId != null) {
-                    jdbcTemplate.update("UPDATE shop SET poi_id = NULL WHERE poi_id = ?", poiId);
-                }
-                jdbcTemplate.update("UPDATE shop SET poi_id = ? WHERE shop_id = ?", poiId, requestedShopId);
-                shopChanged = true;
-                newLinkedShopId = requestedShopId;
-            }
-        }
-
-        // 5. Apply field updates to entity
         if (request.getName()      != null) poi.setName(request.getName());
         if (request.getLatitude()  != null) poi.setLatitude(request.getLatitude());
         if (request.getLongitude() != null) poi.setLongitude(request.getLongitude());
         if (request.getRadius()    != null) poi.setRadius(request.getRadius());
         poi = poiRepository.save(poi);
 
-        // 6. Build response
         PoiResponse response = poiMapper.toResponse(poi);
-        response.setLinkedShopId(newLinkedShopId);
+        response.setLinkedShopId(currentShopId);
 
-        // 7. Invalidate cache
         poiCacheService.evict(poiId);
         poiCacheService.evictActivePoisList();
 
-        // 8. Notify vendor for significant changes (location or shop)
-        if (coordsChanged || shopChanged) {
+        if (coordsChanged) {
             emailService.sendPoiUpdatedEmail(vendorEmail, response.getName());
         }
 
-        log.info("POI {} updated by vendor {} (coordsChanged={}, shopChanged={})",
-                poiId, vendorEmail, coordsChanged, shopChanged);
+        log.info("POI {} updated by vendor {} (coordsChanged={})", poiId, vendorEmail, coordsChanged);
         return response;
     }
 
-    // ── Get single POI (vendor-scoped) ────────────────────────────────────────
+    //  Get single POI 
 
     @ReadOnly
     public PoiResponse getPoiById(Integer poiId, String vendorEmail) {
         Integer vendorId = resolveVendorId(vendorEmail);
         List<PoiResponse> results = jdbcTemplate.query(
-                """
-                SELECT p.poi_id, p.name, p.latitude, p.longitude,
-                       p.radius, p.status, p.created_at, p.updated_at,
-                       s.shop_id AS linked_shop_id, s.name AS linked_shop_name
-                FROM poi p
-                LEFT JOIN shop s ON s.poi_id = p.poi_id
-                WHERE p.poi_id = ? AND p.vendor_id = ?
-                """,
+                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.created_at, p.updated_at, " +
+                "s.shop_id AS linked_shop_id, s.name AS linked_shop_name, fa.file_url AS shop_avatar_url " +
+                "FROM poi p LEFT JOIN shop s ON s.poi_id = p.poi_id " +
+                "LEFT JOIN file_asset fa ON fa.file_id = s.avatar_file_id " +
+                "WHERE p.poi_id = ? AND p.vendor_id = ?",
                 (rs, rowNum) -> PoiResponse.builder()
                         .poiId(rs.getInt("poi_id"))
                         .name(rs.getString("name"))
@@ -216,39 +207,23 @@ public class PoiService {
                         .status(rs.getString("status"))
                         .linkedShopId(rs.getObject("linked_shop_id") != null ? rs.getInt("linked_shop_id") : null)
                         .linkedShopName(rs.getString("linked_shop_name"))
-                        .createdAt(rs.getTimestamp("created_at") != null
-                                ? rs.getTimestamp("created_at").toLocalDateTime() : null)
-                        .updatedAt(rs.getTimestamp("updated_at") != null
-                                ? rs.getTimestamp("updated_at").toLocalDateTime() : null)
+                        .linkedShopAvatarUrl(rs.getString("shop_avatar_url"))
+                        .createdAt(rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null)
+                        .updatedAt(rs.getTimestamp("updated_at") != null ? rs.getTimestamp("updated_at").toLocalDateTime() : null)
                         .build(),
-                poiId, vendorId
-        );
+                poiId, vendorId);
         if (results.isEmpty()) {
             throw new PoiNotFoundException("POI not found with id: " + poiId);
         }
         return results.get(0);
     }
 
-    // ── Vendor shop dropdown (shops without a POI) ────────────────────────────
-
-    @ReadOnly
-    public List<ShopOptionDto> getAvailableShops(String vendorEmail) {
-        Integer vendorId = resolveVendorId(vendorEmail);
-        return jdbcTemplate.query(
-                "SELECT shop_id, name FROM shop WHERE vendor_id = ? AND poi_id IS NULL AND status = 'active'",
-                (rs, rowNum) -> new ShopOptionDto(rs.getInt("shop_id"), rs.getString("name")),
-                vendorId
-        );
-    }
-
-    // ── Active POI list (with Redis read-through to slave) ───────────────────
+    //  Active POI list 
 
     @ReadOnly
     public List<PoiResponse> getActivePois() {
         List<PoiResponse> cached = poiCacheService.getActivePoisFromCache();
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
         List<PoiResponse> pois = poiRepository.findByStatus(PoiStatus.active)
                 .stream()
                 .map(poiMapper::toResponse)
@@ -257,21 +232,17 @@ public class PoiService {
         return pois;
     }
 
-    // ── My POIs (vendor-specific, direct vendor_id lookup) ───────────────────
+    //  My POIs 
 
     @ReadOnly
     public List<PoiResponse> getMyPois(String vendorEmail) {
         Integer vendorId = resolveVendorId(vendorEmail);
         return jdbcTemplate.query(
-                """
-                SELECT p.poi_id, p.name, p.latitude, p.longitude,
-                       p.radius, p.status, p.created_at, p.updated_at,
-                       s.shop_id AS linked_shop_id, s.name AS linked_shop_name
-                FROM poi p
-                LEFT JOIN shop s ON s.poi_id = p.poi_id
-                WHERE p.vendor_id = ?
-                ORDER BY p.created_at DESC
-                """,
+                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.created_at, p.updated_at, " +
+                "s.shop_id AS linked_shop_id, s.name AS linked_shop_name, fa.file_url AS shop_avatar_url " +
+                "FROM poi p LEFT JOIN shop s ON s.poi_id = p.poi_id " +
+                "LEFT JOIN file_asset fa ON fa.file_id = s.avatar_file_id " +
+                "WHERE p.vendor_id = ? ORDER BY p.created_at DESC",
                 (rs, rowNum) -> PoiResponse.builder()
                         .poiId(rs.getInt("poi_id"))
                         .name(rs.getString("name"))
@@ -281,31 +252,17 @@ public class PoiService {
                         .status(rs.getString("status"))
                         .linkedShopId(rs.getObject("linked_shop_id") != null ? rs.getInt("linked_shop_id") : null)
                         .linkedShopName(rs.getString("linked_shop_name"))
-                        .createdAt(rs.getTimestamp("created_at") != null
-                                ? rs.getTimestamp("created_at").toLocalDateTime() : null)
-                        .updatedAt(rs.getTimestamp("updated_at") != null
-                                ? rs.getTimestamp("updated_at").toLocalDateTime() : null)
+                        .linkedShopAvatarUrl(rs.getString("shop_avatar_url"))
+                        .createdAt(rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null)
+                        .updatedAt(rs.getTimestamp("updated_at") != null ? rs.getTimestamp("updated_at").toLocalDateTime() : null)
                         .build(),
-                vendorId
-        );
+                vendorId);
     }
 
-    // ── Delete ────────────────────────────────────────────────────────────────
+    //  Delete 
 
-    /**
-     * FR-PM-DEL: Delete POI (soft or hard).
-     *
-     * <p>Soft delete (default): sets {@code status = deleted} and {@code deleted_at = now()}.
-     * The POI is removed from the map and active list but kept in the DB for 30 days.
-     *
-     * <p>Hard delete: permanently removes the row.
-     *
-     * <p>In both cases the linked shop's {@code poi_id} is cleared so the shop
-     * remains intact (per requirements: "Thông tin cửa hàng được giữ nguyên").
-     */
     @Transactional
     public void deletePoi(Integer poiId, String vendorEmail, boolean hardDelete) {
-        // 1. Load POI and verify ownership
         Poi poi = poiRepository.findById(poiId)
                 .orElseThrow(() -> new PoiNotFoundException("POI not found with id: " + poiId));
         Integer vendorId = resolveVendorId(vendorEmail);
@@ -313,78 +270,30 @@ public class PoiService {
             throw new IllegalArgumentException("You do not own this POI");
         }
 
-        // 2. Unlink any associated shop (keep shop data intact)
         jdbcTemplate.update("UPDATE shop SET poi_id = NULL WHERE poi_id = ?", poiId);
 
         if (hardDelete) {
-            // 3a. Hard delete – permanent removal
             poiRepository.delete(poi);
             log.info("POI {} hard-deleted by vendor {}", poiId, vendorEmail);
         } else {
-            // 3b. Soft delete – mark as deleted with timestamp
             poi.setStatus(PoiStatus.deleted);
             poi.setDeletedAt(java.time.LocalDateTime.now());
             poiRepository.save(poi);
             log.info("POI {} soft-deleted by vendor {}", poiId, vendorEmail);
         }
 
-        // 4. Evict from cache
         poiCacheService.evict(poiId);
         poiCacheService.evictActivePoisList();
     }
 
-    // ── Validation helpers ────────────────────────────────────────────────────
+    //  Helpers 
 
     private void validateBoundary(double lat, double lng) {
         double distanceM = haversineMetres(lat, lng, boundaryCenterLat, boundaryCenterLng);
         if (distanceM > boundaryMaxRadiusM) {
             throw new IllegalArgumentException(
-                    "Coordinates are outside the permitted food-street area (%.0f m from centre, max %.0f m)"
-                            .formatted(distanceM, boundaryMaxRadiusM)
-            );
-        }
-    }
-
-    private void validateShop(Integer shopId, String vendorEmail) {
-        Integer vendorId = resolveVendorId(vendorEmail);
-
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT vendor_id, poi_id FROM shop WHERE shop_id = ?",
-                shopId
-        );
-        if (rows.isEmpty()) {
-            throw new ShopNotFoundException("Shop not found with id: " + shopId);
-        }
-
-        Map<String, Object> shop = rows.get(0);
-        Integer shopVendorId = (Integer) shop.get("vendor_id");
-        if (!shopVendorId.equals(vendorId)) {
-            throw new IllegalArgumentException("Shop does not belong to this vendor");
-        }
-        if (shop.get("poi_id") != null) {
-            throw new ShopAlreadyHasPoiException("Shop already has a POI assigned to it");
-        }
-    }
-
-    /**
-     * Validates a shop for use in a POI update (ownership check only;
-     * the shop must be unlinked — i.e. not already assigned to any POI).
-     */
-    private void validateShopForUpdate(Integer shopId, String vendorEmail) {
-        Integer vendorId = resolveVendorId(vendorEmail);
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT vendor_id, poi_id FROM shop WHERE shop_id = ?",
-                shopId
-        );
-        if (rows.isEmpty()) {
-            throw new ShopNotFoundException("Shop not found with id: " + shopId);
-        }
-        Map<String, Object> shop = rows.get(0);
-        if (!((Integer) shop.get("vendor_id")).equals(vendorId)) {
-            throw new IllegalArgumentException("Shop does not belong to this vendor");
-        }
-        if (shop.get("poi_id") != null) {
-            throw new ShopAlreadyHasPoiException("Shop already has a POI assigned to it");
+                    "Toa do nam ngoai khu pho am thuc (cach tam %.0f m, toi da %.0f m)"
+                            .formatted(distanceM, boundaryMaxRadiusM));
         }
     }
 
@@ -399,36 +308,37 @@ public class PoiService {
             double distanceM = haversineMetres(
                     lat, lng,
                     existing.getLatitude().doubleValue(),
-                    existing.getLongitude().doubleValue()
-            );
+                    existing.getLongitude().doubleValue());
             if (distanceM < 5.0) {
                 throw new DuplicatePoiLocationException(
                         "A POI already exists within 5 metres of the given location (POI id: %d, distance: %.2f m)"
-                                .formatted(existing.getPoiId(), distanceM)
-                );
+                                .formatted(existing.getPoiId(), distanceM));
             }
         }
     }
-
-    // ── Utilities ─────────────────────────────────────────────────────────────
 
     private Integer resolveVendorId(String vendorEmail) {
         try {
             return jdbcTemplate.queryForObject(
                     "SELECT user_id FROM user WHERE email = ?",
-                    Integer.class,
-                    vendorEmail
-            );
+                    Integer.class, vendorEmail);
         } catch (EmptyResultDataAccessException e) {
             throw new UserNotFoundException("Vendor not found: " + vendorEmail);
         }
     }
 
-    /**
-     * Haversine formula – returns distance in metres between two WGS-84 coordinates.
-     */
+    private String toJson(Object value) {
+        if (value == null) return null;
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize value to JSON: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private static double haversineMetres(double lat1, double lng1, double lat2, double lng2) {
-        final double R = 6_371_000.0; // Earth radius in metres
+        final double R = 6_371_000.0;
         double dLat = Math.toRadians(lat2 - lat1);
         double dLng = Math.toRadians(lng2 - lng1);
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)

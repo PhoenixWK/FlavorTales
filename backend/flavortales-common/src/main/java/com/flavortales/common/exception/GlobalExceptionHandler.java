@@ -2,8 +2,10 @@ package com.flavortales.common.exception;
 
 import com.flavortales.common.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -148,14 +150,25 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(JpaSystemException.class)
+    public ResponseEntity<ApiResponse<Void>> handleJpaSystemException(JpaSystemException ex) {
+        log.error("Database error: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Đã xảy ra lỗi khi lưu dữ liệu. Vui lòng thử lại."));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        log.error("Data integrity violation: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Dữ liệu không hợp lệ hoặc vi phạm ràng buộc. Vui lòng kiểm tra lại."));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<Void>> handleRuntimeException(RuntimeException ex) {
         log.error("Runtime error: {}", ex.getMessage(), ex);
-        String message = (ex.getMessage() != null && !ex.getMessage().isBlank())
-                ? ex.getMessage()
-                : "An unexpected error occurred";
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(message));
+                .body(ApiResponse.error("Đã xảy ra lỗi không mong muốn. Vui lòng thử lại."));
     }
 
     @ExceptionHandler(Exception.class)

@@ -1,36 +1,85 @@
 package com.flavortales.poi.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
+/**
+ * Combined POI + shop creation request (UC-14 / FR-PM-001).
+ * Step 1: POI location fields; Step 2: shop info; Step 3: audio.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class CreatePoiRequest {
 
-    @NotBlank(message = "POI name is required")
-    @Size(min = 3, max = 100, message = "POI name must be between 3 and 100 characters")
+    // ── Step 1: POI location ─────────────────────────────────────────────────
+
+    @NotBlank(message = "Tên POI là bắt buộc")
+    @Size(min = 3, max = 100, message = "Tên POI phải từ 3 đến 100 ký tự")
     private String name;
 
-    @NotNull(message = "Latitude is required")
-    @DecimalMin(value = "-90.0", inclusive = true, message = "Latitude must be between -90 and 90")
-    @DecimalMax(value = "90.0",  inclusive = true, message = "Latitude must be between -90 and 90")
-    @Digits(integer = 3, fraction = 6, message = "Latitude supports up to 6 decimal places")
+    @NotNull(message = "Latitude là bắt buộc")
+    @DecimalMin(value = "-90.0",  inclusive = true, message = "Latitude phải từ -90 đến 90")
+    @DecimalMax(value = "90.0",   inclusive = true, message = "Latitude phải từ -90 đến 90")
+    @Digits(integer = 3, fraction = 6, message = "Latitude tối đa 6 chữ số thập phân")
     private BigDecimal latitude;
 
-    @NotNull(message = "Longitude is required")
-    @DecimalMin(value = "-180.0", inclusive = true, message = "Longitude must be between -180 and 180")
-    @DecimalMax(value = "180.0",  inclusive = true, message = "Longitude must be between -180 and 180")
-    @Digits(integer = 4, fraction = 6, message = "Longitude supports up to 6 decimal places")
+    @NotNull(message = "Longitude là bắt buộc")
+    @DecimalMin(value = "-180.0", inclusive = true, message = "Longitude phải từ -180 đến 180")
+    @DecimalMax(value = "180.0",  inclusive = true, message = "Longitude phải từ -180 đến 180")
+    @Digits(integer = 4, fraction = 6, message = "Longitude tối đa 6 chữ số thập phân")
     private BigDecimal longitude;
 
-    @NotNull(message = "Radius is required")
-    @DecimalMin(value = "10.0",  inclusive = true, message = "Radius must be at least 10 metres")
-    @DecimalMax(value = "200.0", inclusive = true, message = "Radius must not exceed 200 metres")
-    private BigDecimal radius;
+    @NotNull(message = "Bán kính là bắt buộc")
+    @Min(value = 10,  message = "Bán kính tối thiểu 10 mét")
+    @Max(value = 100, message = "Bán kính tối đa 100 mét")
+    private Integer radius;
 
-    private Integer shopId;
+    // ── Step 2: Shop information ─────────────────────────────────────────────
+
+    @NotBlank(message = "Tên gian hàng là bắt buộc")
+    @Size(min = 3, max = 100, message = "Tên gian hàng phải từ 3 đến 100 ký tự")
+    private String shopName;
+
+    @NotBlank(message = "Mô tả giới thiệu là bắt buộc")
+    @Size(max = 500, message = "Mô tả không vượt quá 500 ký tự")
+    private String shopDescription;
+
+    @NotNull(message = "Ảnh đại diện gian hàng là bắt buộc")
+    private Integer avatarFileId;
+
+    @Size(max = 5, message = "Tối đa 5 ảnh bổ sung")
+    private List<Integer> additionalImageIds;
+
+    @Size(max = 200, message = "Mô tả đặc sản không vượt quá 200 ký tự")
+    private String specialtyDescription;
+
+    @Valid
+    private List<OpeningHoursDto> openingHours;
+
+    @Size(max = 5, message = "Tối đa 5 tags")
+    private List<String> tags;
+
+    // ── Step 3: Audio ────────────────────────────────────────────────────────
+
+    private Integer viAudioFileId;
+    private Integer enAudioFileId;
+
+    // ── Nested DTO ───────────────────────────────────────────────────────────
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class OpeningHoursDto {
+        @Min(0) @Max(6)
+        private int day;
+        private String open;
+        private String close;
+        private boolean closed;
+    }
 }

@@ -19,6 +19,8 @@ public class PoiResponse {
     private String status;
     private Integer linkedShopId;
     private String linkedShopName;
+    private String linkedShopAvatarUrl;
+    private String message;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

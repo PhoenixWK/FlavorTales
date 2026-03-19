@@ -3,7 +3,6 @@ package com.flavortales.poi.controller;
 import com.flavortales.common.dto.ApiResponse;
 import com.flavortales.poi.dto.CreatePoiRequest;
 import com.flavortales.poi.dto.PoiResponse;
-import com.flavortales.poi.dto.ShopOptionDto;
 import com.flavortales.poi.dto.UpdatePoiRequest;
 import com.flavortales.poi.service.PoiService;
 import jakarta.validation.Valid;
@@ -31,7 +30,8 @@ public class PoiController {
 
     /**
      * POST /api/poi
-     * Creates a new POI for the authenticated vendor.
+     * Atomically creates a new POI + shop profile for the authenticated vendor.
+     * Both are saved with status=pending and admin is notified for review.
      */
     @PostMapping
     public ResponseEntity<ApiResponse<PoiResponse>> createPoi(
@@ -46,26 +46,7 @@ public class PoiController {
         String vendorEmail = authentication.getName();
         PoiResponse response = poiService.createPoi(request, vendorEmail);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("POI created successfully", response));
-    }
-
-    /**
-     * GET /api/poi/shops/available
-     * Returns the vendor's active shops that do not yet have a POI linked.
-     * Used to populate the shop dropdown in the create-POI form.
-     */
-    @GetMapping("/shops/available")
-    public ResponseEntity<ApiResponse<List<ShopOptionDto>>> getAvailableShops(
-            Authentication authentication) {
-
-        if (!hasRole(authentication, "ROLE_vendor")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Only vendors can access this resource"));
-        }
-
-        String vendorEmail = authentication.getName();
-        List<ShopOptionDto> shops = poiService.getAvailableShops(vendorEmail);
-        return ResponseEntity.ok(ApiResponse.success("Available shops retrieved", shops));
+                .body(ApiResponse.success("Tạo gian hàng thành công, đang chờ duyệt", response));
     }
 
     /**

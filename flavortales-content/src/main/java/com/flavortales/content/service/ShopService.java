@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flavortales.common.annotation.ReadOnly;
 import com.flavortales.common.exception.UserNotFoundException;
+import com.flavortales.content.dto.AdminShopResponse;
 import com.flavortales.content.dto.ShopCreateRequest;
 import com.flavortales.content.dto.ShopCreateResponse;
 import com.flavortales.content.dto.ShopResponse;
@@ -144,8 +145,204 @@ public class ShopService {
         );
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // ── Admin ─────────────────────────────────────────────────────────────────
 
+    /** Returns full detail for a single shop owned by the vendor (any status). */
+    @ReadOnly
+    public AdminShopResponse getMyShopDetail(Integer shopId, String vendorEmail) {
+        Integer vendorId = resolveVendorId(vendorEmail);
+
+        List<AdminShopResponse> rows = jdbcTemplate.query(
+                """
+                SELECT s.shop_id, s.name, s.description, s.cuisine_style, s.featured_dish,
+                       s.status, s.poi_id, s.opening_hours, s.tags,
+                       s.created_at, s.updated_at,
+                       fa_avatar.file_url             AS avatar_url,
+                       fa_vi.file_url                 AS vi_audio_url,
+                       fa_en.file_url                 AS en_audio_url,
+                       p.name                         AS poi_name
+                FROM shop s
+                LEFT JOIN file_asset fa_avatar ON fa_avatar.file_id = s.avatar_file_id
+                LEFT JOIN file_asset fa_vi     ON fa_vi.file_id     = s.vi_audio_file_id
+                LEFT JOIN file_asset fa_en     ON fa_en.file_id     = s.en_audio_file_id
+                LEFT JOIN poi        p          ON p.poi_id          = s.poi_id
+                WHERE s.shop_id = ? AND s.vendor_id = ?
+                """,
+                (rs, rowNum) -> AdminShopResponse.builder()
+                        .shopId(rs.getInt("shop_id"))
+                        .name(rs.getString("name"))
+                        .description(rs.getString("description"))
+                        .cuisineStyle(rs.getString("cuisine_style"))
+                        .featuredDish(rs.getString("featured_dish"))
+                        .status(rs.getString("status"))
+                        .poiId(rs.getObject("poi_id") != null ? rs.getInt("poi_id") : null)
+                        .poiName(rs.getString("poi_name"))
+                        .avatarUrl(rs.getString("avatar_url"))
+                        .openingHours(rs.getString("opening_hours"))
+                        .tags(rs.getString("tags"))
+                        .viAudioUrl(rs.getString("vi_audio_url"))
+                        .enAudioUrl(rs.getString("en_audio_url"))
+                        .createdAt(rs.getTimestamp("created_at") != null
+                                ? rs.getTimestamp("created_at").toLocalDateTime() : null)
+                        .updatedAt(rs.getTimestamp("updated_at") != null
+                                ? rs.getTimestamp("updated_at").toLocalDateTime() : null)
+                        .build(),
+                shopId, vendorId
+        );
+
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException("Shop not found with id: " + shopId);
+        }
+
+        AdminShopResponse shop = rows.get(0);
+
+        List<String> galleryUrls = jdbcTemplate.query(
+                """
+                SELECT fa.file_url
+                FROM shop_image si
+                JOIN file_asset fa ON fa.file_id = si.file_id
+                WHERE si.shop_id = ?
+                ORDER BY si.sort_order ASC
+                """,
+                (rs, rowNum) -> rs.getString("file_url"),
+                shopId
+        );
+        shop.setGalleryUrls(galleryUrls);
+
+        return shop;
+    }
+
+    /** Returns all shops with status='pending', ordered newest first. */
+    @ReadOnly
+    public List<AdminShopResponse> getPendingShops() {
+        return jdbcTemplate.query(
+                """
+                SELECT s.shop_id, s.name, s.description, s.cuisine_style, s.featured_dish,
+                       s.status, s.poi_id, s.opening_hours, s.tags,
+                       s.created_at, s.updated_at,
+                       fa.file_url   AS avatar_url,
+                       p.name        AS poi_name,
+                       u.email       AS vendor_email
+                FROM shop s
+                LEFT JOIN file_asset fa ON fa.file_id = s.avatar_file_id
+                LEFT JOIN poi        p  ON p.poi_id   = s.poi_id
+                LEFT JOIN user       u  ON u.user_id  = s.vendor_id
+                WHERE s.status = 'pending'
+                ORDER BY s.created_at DESC
+                """,
+                (rs, rowNum) -> AdminShopResponse.builder()
+                        .shopId(rs.getInt("shop_id"))
+                        .name(rs.getString("name"))
+                        .description(rs.getString("description"))
+                        .cuisineStyle(rs.getString("cuisine_style"))
+                        .featuredDish(rs.getString("featured_dish"))
+                        .status(rs.getString("status"))
+                        .poiId(rs.getObject("poi_id") != null ? rs.getInt("poi_id") : null)
+                        .poiName(rs.getString("poi_name"))
+                        .avatarUrl(rs.getString("avatar_url"))
+                        .openingHours(rs.getString("opening_hours"))
+                        .tags(rs.getString("tags"))
+                        .vendorEmail(rs.getString("vendor_email"))
+                        .createdAt(rs.getTimestamp("created_at") != null
+                                ? rs.getTimestamp("created_at").toLocalDateTime() : null)
+                        .updatedAt(rs.getTimestamp("updated_at") != null
+                                ? rs.getTimestamp("updated_at").toLocalDateTime() : null)
+                        .build()
+        );
+    }
+
+    /** Returns full detail for a single shop (any status) for admin review. */
+    @ReadOnly
+    public AdminShopResponse getShopDetailForAdmin(Integer shopId) {
+        List<AdminShopResponse> rows = jdbcTemplate.query(
+                """
+                SELECT s.shop_id, s.name, s.description, s.cuisine_style, s.featured_dish,
+                       s.status, s.poi_id, s.opening_hours, s.tags,
+                       s.created_at, s.updated_at,
+                       fa_avatar.file_url             AS avatar_url,
+                       fa_vi.file_url                 AS vi_audio_url,
+                       fa_en.file_url                 AS en_audio_url,
+                       p.name                         AS poi_name,
+                       u.email                        AS vendor_email
+                FROM shop s
+                LEFT JOIN file_asset fa_avatar ON fa_avatar.file_id = s.avatar_file_id
+                LEFT JOIN file_asset fa_vi     ON fa_vi.file_id     = s.vi_audio_file_id
+                LEFT JOIN file_asset fa_en     ON fa_en.file_id     = s.en_audio_file_id
+                LEFT JOIN poi        p          ON p.poi_id          = s.poi_id
+                LEFT JOIN user       u          ON u.user_id         = s.vendor_id
+                WHERE s.shop_id = ?
+                """,
+                (rs, rowNum) -> AdminShopResponse.builder()
+                        .shopId(rs.getInt("shop_id"))
+                        .name(rs.getString("name"))
+                        .description(rs.getString("description"))
+                        .cuisineStyle(rs.getString("cuisine_style"))
+                        .featuredDish(rs.getString("featured_dish"))
+                        .status(rs.getString("status"))
+                        .poiId(rs.getObject("poi_id") != null ? rs.getInt("poi_id") : null)
+                        .poiName(rs.getString("poi_name"))
+                        .avatarUrl(rs.getString("avatar_url"))
+                        .openingHours(rs.getString("opening_hours"))
+                        .tags(rs.getString("tags"))
+                        .viAudioUrl(rs.getString("vi_audio_url"))
+                        .enAudioUrl(rs.getString("en_audio_url"))
+                        .vendorEmail(rs.getString("vendor_email"))
+                        .createdAt(rs.getTimestamp("created_at") != null
+                                ? rs.getTimestamp("created_at").toLocalDateTime() : null)
+                        .updatedAt(rs.getTimestamp("updated_at") != null
+                                ? rs.getTimestamp("updated_at").toLocalDateTime() : null)
+                        .build(),
+                shopId
+        );
+
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException("Shop not found with id: " + shopId);
+        }
+
+        AdminShopResponse shop = rows.get(0);
+
+        // Fetch gallery image URLs
+        List<String> galleryUrls = jdbcTemplate.query(
+                """
+                SELECT fa.file_url
+                FROM shop_image si
+                JOIN file_asset fa ON fa.file_id = si.file_id
+                WHERE si.shop_id = ?
+                ORDER BY si.sort_order ASC
+                """,
+                (rs, rowNum) -> rs.getString("file_url"),
+                shopId
+        );
+        shop.setGalleryUrls(galleryUrls);
+
+        return shop;
+    }
+
+    /** Approves a pending shop (sets status='active'). */
+    @Transactional
+    public void approveShop(Integer shopId) {
+        int updated = jdbcTemplate.update(
+                "UPDATE shop SET status = 'active', updated_at = NOW() WHERE shop_id = ? AND status = 'pending'",
+                shopId);
+        if (updated == 0) {
+            throw new IllegalArgumentException("Shop not found or is not in pending status: " + shopId);
+        }
+        log.info("Admin approved shopId={}", shopId);
+    }
+
+    /** Rejects a pending shop (sets status='rejected'). */
+    @Transactional
+    public void rejectShop(Integer shopId) {
+        int updated = jdbcTemplate.update(
+                "UPDATE shop SET status = 'rejected', updated_at = NOW() WHERE shop_id = ? AND status = 'pending'",
+                shopId);
+        if (updated == 0) {
+            throw new IllegalArgumentException("Shop not found or is not in pending status: " + shopId);
+        }
+        log.info("Admin rejected shopId={}", shopId);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
     private Integer resolveVendorId(String vendorEmail) {
         try {
             return jdbcTemplate.queryForObject(

@@ -83,7 +83,7 @@ CREATE TABLE poi (
     latitude DECIMAL(10, 8) NOT NULL,
     longitude DECIMAL(11, 8) NOT NULL,
     radius DECIMAL(8, 2) NOT NULL COMMENT 'Unit: meters',
-    status ENUM('active', 'inactive', 'deleted') DEFAULT 'active',
+    status ENUM('pending', 'active', 'inactive', 'rejected', 'deleted') DEFAULT 'pending',
     deleted_at TIMESTAMP NULL COMMENT 'Soft-delete timestamp; NULL means not deleted; set on soft delete for 30-day recovery window',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

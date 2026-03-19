@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PoiResponse } from "@/modules/poi/services/poiApi";
+import { proxyFileUrl } from "@/shared/utils/mediaProxy";
 import DeletePoiDialog from "./DeletePoiDialog";
 import Toast from "@/shared/components/Toast";
 import type { ToastData } from "@/shared/components/Toast";
@@ -21,7 +22,6 @@ function IconDotsVertical() {
   );
 }
 
-/** Crosshair — GPS coordinates */
 function IconCrosshair({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -36,7 +36,6 @@ function IconCrosshair({ className }: { className?: string }) {
   );
 }
 
-/** Broadcast ripple — coverage radius */
 function IconBroadcast({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -45,6 +44,17 @@ function IconBroadcast({ className }: { className?: string }) {
       <circle cx="12" cy="20" r="1" fill="currentColor" stroke="none" />
       <path d="M8.5 16.5a5 5 0 0 1 7 0" />
       <path d="M5 12.5a10 10 0 0 1 14 0" />
+    </svg>
+  );
+}
+
+function IconMapPin({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+      className={className}>
+      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
     </svg>
   );
 }
@@ -89,18 +99,27 @@ function IconTrash({ className }: { className?: string }) {
 // ── Status Badge ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-  const isActive = status.toLowerCase() === "active";
+  const s = status.toLowerCase();
+  const styles =
+    s === "active"
+      ? { bg: "bg-emerald-500/90", dot: "bg-white" }
+      : s === "pending"
+      ? { bg: "bg-amber-400/90", dot: "bg-white" }
+      : { bg: "bg-gray-500/80", dot: "bg-gray-300" };
+
+  const label = s === "active" ? "Active" : s === "pending" ? "Pending Review" : "Inactive";
+
   return (
-    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full shadow-sm backdrop-blur-sm ${
-      isActive ? "bg-emerald-500/90 text-white" : "bg-gray-500/80 text-white"
-    }`}>
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? "bg-white" : "bg-gray-300"}`} />
-      {isActive ? "Active" : "Inactive"}
+    <span
+      className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full shadow-sm backdrop-blur-sm ${styles.bg} text-white`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${styles.dot}`} />
+      {label}
     </span>
   );
 }
 
-// ── Kebab menu (delete only — edit/view are in the action footer) ──────────────
+// ── Kebab menu ────────────────────────────────────────────────────────────────
 
 function KebabMenu({ name, onDeleteClick }: { name: string; onDeleteClick: () => void }) {
   const [open, setOpen] = useState(false);
@@ -131,22 +150,36 @@ function KebabMenu({ name, onDeleteClick }: { name: string; onDeleteClick: () =>
   );
 }
 
-// ── Map Thumbnail ─────────────────────────────────────────────────────────────
+// ── Cover Image ───────────────────────────────────────────────────────────────
 
-function MapThumbnail({ lat, lng, name }: { lat: number; lng: number; name: string }) {
-  const delta = 0.003;
-  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta},${lat - delta},${lng + delta},${lat + delta}&layer=mapnik&marker=${lat},${lng}`;
+function CoverImage({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const proxied = proxyFileUrl(avatarUrl);
+  const showImage = !!proxied && !failed;
+
   return (
-    <div className="relative h-40 overflow-hidden bg-orange-50">
-      <iframe
-        title={`Map for ${name}`}
-        src={src}
-        width="100%"
-        height="100%"
-        style={{ border: 0, pointerEvents: "none", marginTop: "-30px" }}
-        loading="lazy"
-        referrerPolicy="no-referrer"
-      />
+    <div className="relative h-44 overflow-hidden bg-gradient-to-br from-orange-50 to-amber-100">
+      {showImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={proxied}
+          alt={name}
+          onError={() => setFailed(true)}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-orange-300">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth={1.5} className="w-10 h-10">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span className="text-xs font-medium">No cover image</span>
+        </div>
+      )}
+      {/* subtle bottom gradient */}
+      <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
     </div>
   );
 }
@@ -162,6 +195,8 @@ export default function PoiCard({
 }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
+
+  const isPending = poi.status.toLowerCase() === "pending";
 
   const handleDeleted = () => {
     setShowDeleteDialog(false);
@@ -187,13 +222,11 @@ export default function PoiCard({
         />
       )}
 
-      <div className="group bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col">
+      <div className="group bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
 
-        {/* ── Map ── */}
+        {/* ── Cover Image ── */}
         <div className="relative">
-          <MapThumbnail lat={poi.latitude} lng={poi.longitude} name={poi.name} />
-          {/* bottom gradient for readability */}
-          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+          <CoverImage avatarUrl={poi.linkedShopAvatarUrl} name={poi.linkedShopName ?? poi.name} />
           {/* status — top left */}
           <div className="absolute top-2.5 left-2.5 z-10">
             <StatusBadge status={poi.status} />
@@ -202,26 +235,38 @@ export default function PoiCard({
           <div className="absolute top-2 right-2 z-10">
             <KebabMenu name={poi.name} onDeleteClick={() => setShowDeleteDialog(true)} />
           </div>
+          {/* POI name badge — bottom left over gradient */}
+          <div className="absolute bottom-2.5 left-3 right-3 z-10">
+            <p className="text-white font-bold text-[15px] leading-snug line-clamp-1 drop-shadow-sm">
+              {poi.linkedShopName ?? poi.name}
+            </p>
+          </div>
         </div>
 
         {/* ── Body ── */}
         <div className="flex flex-col flex-1 px-4 pt-3 pb-4 gap-3">
 
-          {/* Name */}
-          <h3 className="font-bold text-gray-900 text-[15px] leading-snug line-clamp-2">
-            {poi.name}
-          </h3>
+          {/* Address row */}
+          <div className="flex items-start gap-2">
+            <IconMapPin className="w-3.5 h-3.5 shrink-0 text-orange-400 mt-0.5" />
+            <span className="text-xs text-gray-600 leading-snug line-clamp-2">
+              {poi.name}
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-gray-100" />
 
           {/* Coordinate + Radius chips */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2 rounded-lg bg-orange-50 px-2.5 py-1.5">
-              <IconCrosshair className="w-3.5 h-3.5 flex-shrink-0 text-orange-500" />
+              <IconCrosshair className="w-3.5 h-3.5 shrink-0 text-orange-500" />
               <span className="font-mono text-xs text-orange-900 truncate leading-none">
                 {poi.latitude.toFixed(5)},&nbsp;{poi.longitude.toFixed(5)}
               </span>
             </div>
             <div className="flex items-center gap-2 rounded-lg bg-orange-50 px-2.5 py-1.5">
-              <IconBroadcast className="w-3.5 h-3.5 flex-shrink-0 text-orange-500" />
+              <IconBroadcast className="w-3.5 h-3.5 shrink-0 text-orange-500" />
               <span className="text-xs text-orange-900 leading-none">
                 {poi.radius} m radius
               </span>
@@ -230,13 +275,26 @@ export default function PoiCard({
 
           {/* ── Action footer ── */}
           <div className="flex gap-2 pt-1 mt-auto">
-            <Link
-              href={`/vendor/poi/${poi.poiId}/edit`}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold py-2 transition-colors"
-            >
-              <IconPencil className="w-3.5 h-3.5" />
-              Edit
-            </Link>
+            {isPending ? (
+              <Link
+                href={`/vendor/poi/${poi.poiId}`}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-xs font-semibold py-2 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                View Submission
+              </Link>
+            ) : (
+              <Link
+                href={`/vendor/poi/${poi.poiId}/edit`}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold py-2 transition-colors"
+              >
+                <IconPencil className="w-3.5 h-3.5" />
+                Edit
+              </Link>
+            )}
             <a
               href={`https://www.openstreetmap.org/?mlat=${poi.latitude}&mlon=${poi.longitude}&zoom=18`}
               target="_blank"
@@ -252,3 +310,4 @@ export default function PoiCard({
     </>
   );
 }
+

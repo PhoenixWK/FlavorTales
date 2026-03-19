@@ -8,7 +8,6 @@ import {
   IconMapPin,
   IconReviews,
   IconSettings,
-  IconShop,
   IconLogout,
   IconClose,
 } from "./VendorIcons";
@@ -25,12 +24,11 @@ interface NavItem {
 // ── Nav items config ──────────────────────────────────────────────────────────
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/vendor/dashboard", label: "Dashboard",          icon: <IconDashboard /> },
-  { href: "/vendor/poi",       label: "Quản lý POI",        icon: <IconMapPin />,    matchPrefix: true },
-  { href: "/vendor/shop",      label: "Quản lý gian hàng",  icon: <IconShop />,      matchPrefix: true },
-  { href: "/vendor/analytics", label: "Analytics",          icon: <IconAnalytics />, matchPrefix: true },
-  { href: "/vendor/reviews",   label: "Reviews",            icon: <IconReviews />,   matchPrefix: true },
-  { href: "/vendor/settings",  label: "Settings",           icon: <IconSettings />,  matchPrefix: true },
+  { href: "/vendor/dashboard", label: "Dashboard",   icon: <IconDashboard /> },
+  { href: "/vendor/poi",       label: "Quản lý POI", icon: <IconMapPin />,    matchPrefix: true },
+  { href: "/vendor/analytics", label: "Analytics",   icon: <IconAnalytics />, matchPrefix: true },
+  { href: "/vendor/reviews",   label: "Reviews",     icon: <IconReviews />,   matchPrefix: true },
+  { href: "/vendor/settings",  label: "Settings",    icon: <IconSettings />,  matchPrefix: true },
 ];
 
 // ── SideNavItem ───────────────────────────────────────────────────────────────

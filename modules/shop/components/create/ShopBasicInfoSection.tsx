@@ -7,6 +7,12 @@ interface Props {
   description: string;
   errors: { name?: string; description?: string };
   onChange: (field: "name" | "description", value: string) => void;
+  maxDescChars?: number;
+  showRemaining?: boolean;
+  /** Hide the name field — use when name is rendered in a separate section. Defaults to true. */
+  showName?: boolean;
+  onBlurName?: () => void;
+  onBlurDescription?: () => void;
 }
 
 const MAX_DESC = 1000;
@@ -42,9 +48,15 @@ export default function ShopBasicInfoSection({
   description,
   errors,
   onChange,
+  maxDescChars,
+  showRemaining,
+  showName = true,
+  onBlurName,
+  onBlurDescription,
 }: Props) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [plainLen, setPlainLen] = useState(0);
+  const maxChars = maxDescChars ?? MAX_DESC;
 
   // Sync incoming description → editor (only on first mount)
   useEffect(() => {
@@ -74,14 +86,14 @@ export default function ShopBasicInfoSection({
   const lenColor =
     plainLen < MIN_DESC
       ? "text-red-500"
-      : plainLen > MAX_DESC
+      : plainLen > maxChars
       ? "text-red-500"
       : "text-gray-400";
 
   return (
     <section className="space-y-5">
       {/* ── Shop Name ──────────────────────────────────────────────────── */}
-      <div>
+      {showName && <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Tên gian hàng <span className="text-red-500">*</span>
         </label>
@@ -90,6 +102,7 @@ export default function ShopBasicInfoSection({
           value={name}
           maxLength={100}
           onChange={(e) => onChange("name", e.target.value)}
+          onBlur={onBlurName}
           placeholder="VD: Bún bò Huế Mẹ Loan"
           className={`w-full px-3 py-2.5 rounded-xl border text-sm bg-white text-gray-900
             placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400
@@ -103,7 +116,7 @@ export default function ShopBasicInfoSection({
           )}
           <span className="text-xs text-gray-400">{name.length}/100</span>
         </div>
-      </div>
+      </div>}
 
       {/* ── Description (Rich Text) ─────────────────────────────────────── */}
       <div>
@@ -117,6 +130,7 @@ export default function ShopBasicInfoSection({
           contentEditable
           suppressContentEditableWarning
           onInput={handleInput}
+          onBlur={onBlurDescription}
           data-placeholder="Mô tả gian hàng của bạn (tối thiểu 50 ký tự)…"
           className={`min-h-[140px] max-h-[280px] overflow-y-auto w-full px-3 py-2.5 rounded-xl border
             text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400
@@ -133,7 +147,9 @@ export default function ShopBasicInfoSection({
             <span />
           )}
           <span className={`text-xs ${lenColor}`}>
-            {plainLen}/{MAX_DESC}
+            {showRemaining
+              ? `${Math.max(0, maxChars - plainLen)} ký tự còn lại`
+              : `${plainLen}/${maxChars}`}
           </span>
         </div>
       </div>

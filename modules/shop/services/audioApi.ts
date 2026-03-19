@@ -52,7 +52,11 @@ export async function uploadAudio(
   language: "vi" | "en"
 ): Promise<ApiResponse<TtsResult>> {
   const formData = new FormData();
-  formData.append("file", blob, `shop_${language}_${Date.now()}.mp3`);
+  const filename =
+    blob instanceof File && blob.name
+      ? blob.name
+      : `shop_${language}_${Date.now()}.mp3`;
+  formData.append("file", blob, filename);
   formData.append("language", language);
 
   const res = await fetch("/api/audio/upload", {

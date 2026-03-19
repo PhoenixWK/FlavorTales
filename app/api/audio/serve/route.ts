@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isPrivateR2Url, buildSignedR2Request } from "@/shared/utils/r2Signing";
 
 /**
  * GET /api/audio/serve?url=<encoded-r2-url>
@@ -56,15 +57,22 @@ export async function GET(request: NextRequest) {
 
   // ── Proxy the request ───────────────────────────────────────────────────────
   try {
-    const upstreamHeaders: Record<string, string> = {};
+    let fetchUrl = url;
+    let upstreamHeaders: Record<string, string> = {};
 
-    // Forward Range header so the browser can seek inside the audio.
-    const range = request.headers.get("range");
-    if (range) {
-      upstreamHeaders["Range"] = range;
+    if (isPrivateR2Url(url)) {
+      // Private R2 endpoint requires AWS SigV4 signing
+      const range = request.headers.get("range");
+      const signed = buildSignedR2Request(url, range ?? undefined);
+      fetchUrl = signed.url;
+      upstreamHeaders = signed.headers;
+    } else {
+      // Public CDN URL — forward Range header for seek support
+      const range = request.headers.get("range");
+      if (range) upstreamHeaders["Range"] = range;
     }
 
-    const res = await fetch(url, { headers: upstreamHeaders });
+    const res = await fetch(fetchUrl, { headers: upstreamHeaders });
 
     const responseHeaders: Record<string, string> = {
       "Accept-Ranges": "bytes",

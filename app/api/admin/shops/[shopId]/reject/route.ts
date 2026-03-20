@@ -11,7 +11,7 @@ interface RouteParams {
 }
 
 /** PATCH /api/admin/shops/[shopId]/reject → backend PATCH /api/shop/admin/{shopId}/reject */
-export async function PATCH(_req: NextRequest, { params }: RouteParams) {
+export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const { shopId } = await params;
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("access_token")?.value;
@@ -23,9 +23,15 @@ export async function PATCH(_req: NextRequest, { params }: RouteParams) {
     );
   }
 
+  const body = await req.text();
+
   const res = await fetch(`${API_BASE}/api/shop/admin/${shopId}/reject`, {
     method: "PATCH",
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: body || undefined,
   });
 
   const json = await res.json();

@@ -1,241 +1,298 @@
 ﻿"use client";
 
-import { useState, useMemo } from "react";
-import dynamic from "next/dynamic";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   updatePoi,
   type PoiResponse,
 } from "@/modules/poi/services/poiApi";
+import { updateShop, type ShopDetail } from "@/modules/shop/services/shopApi";
+import { uploadImage } from "@/modules/shop/services/fileApi";
+import { uploadAudios } from "@/modules/shop/services/uploadShopAssets";
+import type { ImageSlot } from "@/modules/shop/components/create/ShopImageUpload";
 import Toast, { type ToastData } from "@/shared/components/Toast";
 import ChangesSummary, { type FieldChange } from "./ChangesSummary";
+import FormSection from "./create/FormSection";
+import EditPoiNameSection from "./edit/EditPoiNameSection";
+import EditPoiLocationSection from "./edit/EditPoiLocationSection";
+import EditShopSection, {
+  type ShopEditDraft,
+  type ShopEditErrors,
+  initShopEditDraft,
+  validateShopEdit,
+} from "./edit/EditShopSection";
 
-// Load MapPicker client-side only -- Leaflet requires the DOM (no SSR)
-const MapPicker = dynamic(() => import("./MapPicker"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-[340px] rounded-xl border border-gray-200 bg-gray-50 animate-pulse flex items-center justify-center text-sm text-gray-400">
-      Đang tải bản đồ…
-    </div>
-  ),
-});
+// ── POI form state & validation ───────────────────────────────────────────────
 
-// -- Types -----------------------------------------------------------------------
-
-interface FormData {
+interface PoiFormData {
   name: string;
   lat: number | null;
   lng: number | null;
   radius: string;
 }
 
-interface FormErrors {
+interface PoiFormErrors {
   name?: string;
   location?: string;
   radius?: string;
 }
 
-// -- Validation ------------------------------------------------------------------
-
-function validate(data: FormData): FormErrors {
-  const errors: FormErrors = {};
-
+function validatePoi(data: PoiFormData): PoiFormErrors {
+  const errors: PoiFormErrors = {};
   if (!data.name.trim()) {
     errors.name = "Tên POI là bắt buộc.";
   } else if (data.name.trim().length < 3 || data.name.trim().length > 100) {
     errors.name = "Tên POI phải từ 3 đến 100 ký tự.";
   }
-
   if (data.lat === null || data.lng === null) {
     errors.location = "Vui lòng chọn vị trí trên bản đồ.";
   }
-
   const radius = parseFloat(data.radius);
   if (!data.radius.trim()) {
     errors.radius = "Bán kính là bắt buộc.";
   } else if (isNaN(radius) || radius < 10 || radius > 100) {
     errors.radius = "Bán kính phải từ 10 đến 100 mét.";
   }
-
   return errors;
 }
 
-// -- Change tracking -------------------------------------------------------------
-
-function computeChanges(initial: PoiResponse, current: FormData): FieldChange[] {
+function computePoiChanges(initial: PoiResponse, current: PoiFormData): FieldChange[] {
   const changes: FieldChange[] = [];
-
   if (current.name.trim() !== initial.name) {
-    changes.push({ label: "Tên", oldValue: initial.name, newValue: current.name.trim() });
+    changes.push({ label: "Tên POI", oldValue: initial.name, newValue: current.name.trim() });
   }
-
-  const latChanged = current.lat !== null && Math.abs(current.lat - Number(initial.latitude)) > 1e-7;
-  const lngChanged = current.lng !== null && Math.abs(current.lng - Number(initial.longitude)) > 1e-7;
-  if (latChanged || lngChanged) {
+  const latDiff = current.lat !== null && Math.abs(current.lat - Number(initial.latitude)) > 1e-7;
+  const lngDiff = current.lng !== null && Math.abs(current.lng - Number(initial.longitude)) > 1e-7;
+  if (latDiff || lngDiff) {
     changes.push({
       label: "Vị trí",
       oldValue: `${Number(initial.latitude).toFixed(6)}, ${Number(initial.longitude).toFixed(6)}`,
       newValue: `${(current.lat ?? 0).toFixed(6)}, ${(current.lng ?? 0).toFixed(6)}`,
     });
   }
-
-  const currentRadius = parseFloat(current.radius);
-  if (!isNaN(currentRadius) && Math.abs(currentRadius - Number(initial.radius)) > 0.01) {
-    changes.push({ label: "Bán kính", oldValue: `${initial.radius} m`, newValue: `${currentRadius} m` });
+  const r = parseFloat(current.radius);
+  if (!isNaN(r) && Math.abs(r - Number(initial.radius)) > 0.01) {
+    changes.push({ label: "Bán kính", oldValue: `${initial.radius} m`, newValue: `${r} m` });
   }
-
   return changes;
 }
 
-// -- Props -----------------------------------------------------------------------
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface EditPoiFormProps {
   initialPoi: PoiResponse;
+  shopDetail: ShopDetail;
 }
 
-// -- Form ------------------------------------------------------------------------
+// ── Form ──────────────────────────────────────────────────────────────────────
 
-export default function EditPoiForm({ initialPoi }: EditPoiFormProps) {
+export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps) {
   const router = useRouter();
 
-  const [formData, setFormData] = useState<FormData>({
+  // POI fields
+  const [poiData, setPoiData] = useState<PoiFormData>({
     name: initialPoi.name,
     lat: Number(initialPoi.latitude),
     lng: Number(initialPoi.longitude),
     radius: String(initialPoi.radius),
   });
+  const [poiErrors, setPoiErrors] = useState<PoiFormErrors>({});
 
-  const [errors, setErrors]       = useState<FormErrors>({});
+  // Shop fields
+  const [shopDraft, setShopDraft] = useState<ShopEditDraft>(() => initShopEditDraft(shopDetail));
+  const [shopErrors, setShopErrors] = useState<ShopEditErrors>({});
+
+  // Files held outside draft (not serialisable)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
+  // Initialise slots from existing gallery so current images are visible on load
+  const [additionalSlots, setAdditionalSlots] = useState<ImageSlot[]>(() =>
+    (shopDetail.galleryUrls ?? []).map((url) => ({ previewUrl: url }))
+  );
+  const [audioBlobs, setAudioBlobs] = useState<{ vi?: Blob; en?: Blob }>({});
+
   const [isLoading, setIsLoading] = useState(false);
-  const [toast, setToast]         = useState<ToastData | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
 
-  const previewRadius = parseFloat(formData.radius) || 50;
-  const changes = useMemo(() => computeChanges(initialPoi, formData), [initialPoi, formData]);
+  const poiChanges = useMemo(() => computePoiChanges(initialPoi, poiData), [initialPoi, poiData]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (name in errors) setErrors((prev) => ({ ...prev, [name]: undefined }));
-  };
+  const handleLocationChange = useCallback((lat: number, lng: number) => {
+    setPoiData((prev) => ({ ...prev, lat, lng }));
+    setPoiErrors((prev) => ({ ...prev, location: undefined }));
+  }, []);
 
-  const handleMapChange = (lat: number, lng: number) => {
-    setFormData((prev) => ({ ...prev, lat, lng }));
-    setErrors((prev) => ({ ...prev, location: undefined }));
-  };
+  // ── Handlers ─────────────────────────────────────────────────────────────────
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const updatePoiField = useCallback(
+    <K extends keyof PoiFormData>(key: K, value: PoiFormData[K]) => {
+      setPoiData((prev) => ({ ...prev, [key]: value }));
+      setPoiErrors((prev) => ({ ...prev, [key]: undefined }));
+    },
+    []
+  );
 
-    const validationErrors = validate(formData);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+  const handleShopChange = useCallback((patch: Partial<ShopEditDraft>) => {
+    setShopDraft((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const handleClearShopError = useCallback((field: keyof ShopEditErrors) => {
+    setShopErrors((prev) => ({ ...prev, [field]: undefined }));
+  }, []);
+
+  const handleAudioGenerated = useCallback((language: "vi" | "en", blob: Blob, blobUrl: string) => {
+    setAudioBlobs((prev) => ({ ...prev, [language]: blob }));
+    if (language === "vi") setShopDraft((prev) => ({ ...prev, viAudioUrl: blobUrl }));
+    else setShopDraft((prev) => ({ ...prev, enAudioUrl: blobUrl }));
+  }, []);
+
+  // ── Submit ────────────────────────────────────────────────────────────────────
+
+  const handleSubmit = async () => {
+    const pErrors = validatePoi(poiData);
+    const sErrors = validateShopEdit(shopDraft);
+    if (Object.keys(pErrors).length > 0 || Object.keys(sErrors).length > 0) {
+      setPoiErrors(pErrors);
+      setShopErrors(sErrors);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     setIsLoading(true);
     try {
-      const res = await updatePoi(initialPoi.poiId, {
-        name: formData.name.trim(),
-        latitude: parseFloat((formData.lat!).toFixed(6)),
-        longitude: parseFloat((formData.lng!).toFixed(6)),
-        radius: parseFloat(formData.radius),
+      // Upload new avatar if changed, otherwise null → backend keeps existing
+      let newAvatarFileId: number | null = null;
+      if (avatarFile) {
+        const res = await uploadImage(avatarFile);
+        if (!res.success) throw new Error(res.message ?? "Tải ảnh bìa thất bại.");
+        newAvatarFileId = res.data.fileId;
+      }
+
+      // Upload new gallery images if any
+      let additionalImageIds: number[] | undefined;
+      if (additionalFiles.length > 0) {
+        const results = await Promise.all(additionalFiles.map((f) => uploadImage(f)));
+        for (const r of results) {
+          if (!r.success) throw new Error(r.message ?? "Tải ảnh bổ sung thất bại.");
+        }
+        additionalImageIds = results.map((r) => r.data.fileId);
+      }
+
+      // Upload new audio blobs if generated
+      const { viFileId, enFileId } = await uploadAudios(audioBlobs);
+
+      // Update shop (resets shop + POI to pending)
+      await updateShop(shopDetail.shopId, {
+        name: shopDraft.name.trim(),
+        description: shopDraft.description,
+        avatarFileId: newAvatarFileId ?? undefined,
+        additionalImageIds,
+        specialtyDescription: shopDraft.specialtyDescription,
+        openingHours: shopDraft.openingHours,
+        tags: shopDraft.tags,
+        viAudioFileId: viFileId,
+        enAudioFileId: enFileId,
       });
-      setToast({ type: "success", message: res.message ?? "Cập nhật POI thành công!" });
+
+      // Update POI location/name if changed
+      if (poiChanges.length > 0) {
+        await updatePoi(initialPoi.poiId, {
+          name: poiData.name.trim(),
+          latitude: parseFloat((poiData.lat!).toFixed(6)),
+          longitude: parseFloat((poiData.lng!).toFixed(6)),
+          radius: parseFloat(poiData.radius),
+        });
+      }
+
+      setToast({
+        type: "success",
+        message: "Cập nhật thành công! POI đang chờ duyệt lại.",
+      });
       setTimeout(() => router.push("/vendor/poi"), 2500);
     } catch (err) {
       setToast({
         type: "error",
-        message: err instanceof Error ? err.message : "Cập nhật POI thất bại. Vui lòng thử lại.",
+        message: err instanceof Error ? err.message : "Cập nhật thất bại. Vui lòng thử lại.",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────────
+
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto space-y-5">
       {toast && <Toast toast={toast} onDismiss={() => setToast(null)} />}
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-5">
-        {/* POI Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tên POI <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="VD: Bún chả Hương Liên"
-            className={`w-full px-4 py-2.5 rounded-lg border text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 ${
-              errors.name ? "border-red-400 bg-red-50" : "border-gray-300"
-            }`}
+      {/* Review notice */}
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0 mt-0.5">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        Sau khi lưu, thông tin sẽ được gửi cho admin xem xét. POI sẽ chuyển sang trạng
+        thái <strong>Đang chờ duyệt</strong> trong thời gian đó.
+      </div>
+
+      {/* ── Thông tin gian hàng ──────────────────────────────────────────────── */}
+      <EditShopSection
+        draft={shopDraft}
+        errors={shopErrors}
+        additionalSlots={additionalSlots}
+        onChange={handleShopChange}
+        onAvatarFileChange={(file, _previewUrl) => setAvatarFile(file)}
+        onAdditionalSlotsChange={(slots, files) => {
+          setAdditionalSlots(slots);
+          setAdditionalFiles(files);
+        }}
+        onAudioGenerated={handleAudioGenerated}
+        onClearError={handleClearShopError}
+      />
+
+      {/* ── Vị trí POI ───────────────────────────────────────────────────────── */}
+      <FormSection title="Vị trí & Bán kính">
+        <EditPoiNameSection
+          name={poiData.name}
+          error={poiErrors.name}
+          onChange={(value) => updatePoiField("name", value)}
+        />
+        <div className="mt-4">
+          <EditPoiLocationSection
+            lat={poiData.lat}
+            lng={poiData.lng}
+            radius={poiData.radius}
+            errors={{ location: poiErrors.location, radius: poiErrors.radius }}
+            onLocationChange={handleLocationChange}
+            onRadiusChange={(value) => updatePoiField("radius", value)}
           />
-          {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
         </div>
+      </FormSection>
 
-        {/* Location */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Vị trí trên bản đồ <span className="text-red-500">*</span>
-            <span className="ml-2 text-xs text-gray-400 font-normal">Kéo marker để điều chỉnh</span>
-          </label>
-          <MapPicker
-            lat={formData.lat}
-            lng={formData.lng}
-            radius={previewRadius}
-            onChange={handleMapChange}
-          />
-          {formData.lat !== null && formData.lng !== null ? (
-            <p className="mt-1.5 text-xs text-gray-500">
-              Đã chọn:{" "}
-              <span className="font-mono text-gray-700">
-                {formData.lat.toFixed(6)}, {formData.lng.toFixed(6)}
-              </span>
-            </p>
-          ) : (
-            <p className="mt-1.5 text-xs text-gray-400">Chưa chọn vị trí.</p>
-          )}
-          {errors.location && <p className="mt-1 text-xs text-red-500">{errors.location}</p>}
-        </div>
+      {/* ── Tóm tắt thay đổi vị trí ─────────────────────────────────────────── */}
+      {poiChanges.length > 0 && <ChangesSummary changes={poiChanges} />}
 
-        {/* Radius */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Bán kính (mét) <span className="text-red-500">*</span>
-            <span className="ml-2 text-xs text-gray-400 font-normal">10 – 100 m</span>
-          </label>
-          <input
-            type="number"
-            name="radius"
-            value={formData.radius}
-            onChange={handleChange}
-            placeholder="50"
-            min="10"
-            max="100"
-            step="1"
-            className={`w-full px-4 py-2.5 rounded-lg border text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 ${
-              errors.radius ? "border-red-400 bg-red-50" : "border-gray-300"
-            }`}
-          />
-          {errors.radius && <p className="mt-1 text-xs text-red-500">{errors.radius}</p>}
-        </div>
-
-        {/* Change summary */}
-        <ChangesSummary changes={changes} />
-
-        {/* Submit */}
+      {/* ── Hành động ────────────────────────────────────────────────────────── */}
+      <div className="flex justify-end gap-3 pb-2">
         <button
-          type="submit"
+          type="button"
+          onClick={() => router.push("/vendor/poi")}
           disabled={isLoading}
-          className="w-full py-3 rounded-xl bg-orange-500 text-white font-semibold text-sm hover:bg-orange-600 active:scale-[.98] transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition"
         >
-          {isLoading
-            ? "Đang lưu…"
-            : `Lưu thay đổi${changes.length > 0 ? ` (${changes.length} trường)` : ""}`}
+          Hủy
         </button>
-      </form>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={isLoading}
+          className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60 active:scale-[.98] transition"
+        >
+          {isLoading ? "Đang lưu…" : "Lưu & Gửi duyệt"}
+        </button>
+      </div>
     </div>
   );
 }
+

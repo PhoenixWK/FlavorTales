@@ -5,7 +5,7 @@ import {
   fetchPendingShops,
   type AdminShopListItem,
 } from "@/modules/admin/services/adminShopApi";
-import PendingStallCard from "./PendingStallCard";
+import AdminPoiCard from "./AdminPoiCard";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -24,7 +24,7 @@ function IconSearch() {
 function SkeletonCard() {
   return (
     <div className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm animate-pulse">
-      <div className="w-full aspect-[16/9] bg-gray-200" />
+      <div className="w-full aspect-video bg-gray-200" />
       <div className="px-3 py-2.5 space-y-2">
         <div className="h-3.5 bg-gray-200 rounded w-3/4" />
         <div className="h-3 bg-gray-100 rounded w-1/3" />
@@ -73,7 +73,7 @@ function Pagination({
 
 const PAGE_SIZE = 9;
 
-export default function PendingReviewsList() {
+export default function AdminPoiList() {
   const [shops, setShops] = useState<AdminShopListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +134,7 @@ export default function PendingReviewsList() {
           {paginated.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {paginated.map((shop) => (
-                <PendingStallCard key={shop.shopId} shop={shop} />
+                <AdminPoiCard key={shop.shopId} shop={shop} />
               ))}
             </div>
           ) : (

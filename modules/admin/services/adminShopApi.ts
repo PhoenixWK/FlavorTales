@@ -27,6 +27,9 @@ export interface AdminShopDetail extends AdminShopListItem {
   galleryUrls: string[];
   viAudioUrl: string | null;
   enAudioUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  radius: number | null;
 }
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -54,16 +57,20 @@ export async function fetchShopDetail(shopId: number): Promise<AdminShopDetail> 
   return handleResponse<AdminShopDetail>(res);
 }
 
-export async function approveShop(shopId: number): Promise<void> {
+export async function approveShop(shopId: number, notes?: string): Promise<void> {
   const res = await fetch(`/api/admin/shops/${shopId}/approve`, {
     method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes: notes ?? "" }),
   });
   await handleResponse<void>(res);
 }
 
-export async function rejectShop(shopId: number): Promise<void> {
+export async function rejectShop(shopId: number, notes?: string): Promise<void> {
   const res = await fetch(`/api/admin/shops/${shopId}/reject`, {
     method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes: notes ?? "" }),
   });
   await handleResponse<void>(res);
 }

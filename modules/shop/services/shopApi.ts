@@ -1,6 +1,7 @@
 import type {
   ShopCreatePayload,
   ShopCreateResponse,
+  OpeningHoursDto,
 } from "@/modules/shop/types/shop";
 
 export interface OpeningHourEntry {
@@ -8,6 +9,18 @@ export interface OpeningHourEntry {
   open: string;   // "HH:mm"
   close: string;  // "HH:mm"
   closed: boolean;
+}
+
+export interface ShopUpdatePayload {
+  name: string;
+  description: string;
+  avatarFileId?: number;
+  additionalImageIds?: number[];
+  specialtyDescription?: string;
+  openingHours?: OpeningHoursDto[];
+  tags?: string[];
+  viAudioFileId?: number | null;
+  enAudioFileId?: number | null;
 }
 
 export interface ShopResponse {
@@ -75,5 +88,32 @@ export async function createShop(
   }
 
   return res.json();
+}
+
+export async function updateShop(
+  shopId: number,
+  payload: ShopUpdatePayload
+): Promise<ApiResponse<null>> {
+  const res = await fetch(`/api/shop/${shopId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (res.status === 401) {
+    window.location.href = "/auth/vendor/login";
+  }
+
+  const json = await res.json();
+  if (!res.ok) {
+    const fieldErrors: Record<string, string> | undefined = json?.data;
+    const detail =
+      fieldErrors && typeof fieldErrors === "object" && !Array.isArray(fieldErrors)
+        ? Object.values(fieldErrors).join(" | ")
+        : undefined;
+    const msg = json?.message ?? "Cập nhật gian hàng thất bại.";
+    throw new Error(detail ? `${msg}: ${detail}` : msg);
+  }
+  return json;
 }
 

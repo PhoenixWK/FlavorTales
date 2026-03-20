@@ -121,7 +121,15 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── Kebab menu ────────────────────────────────────────────────────────────────
 
-function KebabMenu({ name, onDeleteClick }: { name: string; onDeleteClick: () => void }) {
+function KebabMenu({
+  name,
+  editHref,
+  onDeleteClick,
+}: {
+  name: string;
+  editHref?: string;
+  onDeleteClick: () => void;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -135,13 +143,23 @@ function KebabMenu({ name, onDeleteClick }: { name: string; onDeleteClick: () =>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-1 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-20">
+          <div className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-20">
+            {editHref && (
+              <Link
+                href={editHref}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition w-full"
+              >
+                <IconPencil className="w-3.5 h-3.5" />
+                Chỉnh sửa
+              </Link>
+            )}
             <button
               onClick={() => { setOpen(false); onDeleteClick(); }}
               className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition w-full text-left"
             >
               <IconTrash className="w-3.5 h-3.5" />
-              Delete POI
+              Xóa POI
             </button>
           </div>
         </>
@@ -233,7 +251,11 @@ export default function PoiCard({
           </div>
           {/* kebab — top right */}
           <div className="absolute top-2 right-2 z-10">
-            <KebabMenu name={poi.name} onDeleteClick={() => setShowDeleteDialog(true)} />
+            <KebabMenu
+              name={poi.name}
+              editHref={isPending ? undefined : `/vendor/poi/${poi.poiId}/edit`}
+              onDeleteClick={() => setShowDeleteDialog(true)}
+            />
           </div>
           {/* POI name badge — bottom left over gradient */}
           <div className="absolute bottom-2.5 left-3 right-3 z-10">
@@ -275,26 +297,16 @@ export default function PoiCard({
 
           {/* ── Action footer ── */}
           <div className="flex gap-2 pt-1 mt-auto">
-            {isPending ? (
-              <Link
-                href={`/vendor/poi/${poi.poiId}`}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-xs font-semibold py-2 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                View Submission
-              </Link>
-            ) : (
-              <Link
-                href={`/vendor/poi/${poi.poiId}/edit`}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold py-2 transition-colors"
-              >
-                <IconPencil className="w-3.5 h-3.5" />
-                Edit
-              </Link>
-            )}
+            <Link
+              href={`/vendor/poi/${poi.poiId}`}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold py-2 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Xem
+            </Link>
             <a
               href={`https://www.openstreetmap.org/?mlat=${poi.latitude}&mlon=${poi.longitude}&zoom=18`}
               target="_blank"

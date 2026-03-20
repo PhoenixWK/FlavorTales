@@ -23,6 +23,9 @@ public class AdminShopResponse {
     private String  status;
     private Integer poiId;
     private String  poiName;
+    private Double  latitude;
+    private Double  longitude;
+    private Integer radius;
     private String  avatarUrl;
     private String  openingHours;   // JSON string: [{day,open,close,closed}]
     private String  tags;           // JSON string: ["tag1","tag2"]

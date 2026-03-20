@@ -200,5 +200,71 @@ public class EmailService {
                 "Best regards,\n" +
                 companyName;
     }
+
+    // ── Shop review result notifications ──────────────────────────────────────
+
+    /**
+     * Notifies vendor that their shop (and linked POI) has been approved.
+     */
+    @Async
+    public void sendShopApprovedEmail(String toEmail, String shopName, String notes) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("Your shop has been approved – " + companyName);
+            helper.setText(buildShopApprovedBody(shopName, notes), false);
+            mailSender.send(message);
+            log.info("Shop approved email sent to {}", toEmail);
+        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
+            log.error("Failed to send shop approved email to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    /**
+     * Notifies vendor that their shop (and linked POI) has been rejected.
+     */
+    @Async
+    public void sendShopRejectedEmail(String toEmail, String shopName, String notes) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("Your shop submission was declined – " + companyName);
+            helper.setText(buildShopRejectedBody(shopName, notes), false);
+            mailSender.send(message);
+            log.info("Shop rejected email sent to {}", toEmail);
+        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
+            log.error("Failed to send shop rejected email to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String buildShopApprovedBody(String shopName, String notes) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Hello,\n\n")
+          .append("Great news! Your shop \"").append(shopName).append("\" and its linked location (POI) ")
+          .append("have been reviewed and approved.\n\n")
+          .append("Your shop is now live and visible to customers.\n");
+        if (notes != null && !notes.isBlank()) {
+            sb.append("\nNote from admin:\n").append(notes).append("\n");
+        }
+        sb.append("\nBest regards,\n").append(companyName);
+        return sb.toString();
+    }
+
+    private String buildShopRejectedBody(String shopName, String notes) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Hello,\n\n")
+          .append("We regret to inform you that your shop \"").append(shopName)
+          .append("\" and its linked location (POI) have not been approved at this time.\n");
+        if (notes != null && !notes.isBlank()) {
+            sb.append("\nReason / notes from admin:\n").append(notes).append("\n");
+        }
+        sb.append("\nIf you have questions, please contact us at ").append(supportEmail).append(".\n")
+          .append("\nBest regards,\n").append(companyName);
+        return sb.toString();
+    }
 }
 

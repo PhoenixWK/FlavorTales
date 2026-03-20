@@ -47,15 +47,6 @@ function IconGlobe() {
   );
 }
 
-function IconChevron() {
-  return (
-    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor"
-      strokeWidth={2} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-    </svg>
-  );
-}
-
 /**
  * Returns a URL suitable for <audio src>.
  * Local blob: URLs are used directly; R2/external URLs go through
@@ -90,13 +81,10 @@ export default function ShopAudioSection({
   maxTtsChars,
 }: Props) {
   const { addToast, updateToast } = useToast();
-  const [showPicker, setShowPicker] = useState(false);
-  const [search, setSearch] = useState("");
   const [selectedLang, setSelectedLang] = useState<Language | null>(null);
   const [texts, setTexts] = useState<Record<Language, string>>({ vi: "", en: "" });
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
   const effectiveMax = maxTtsChars ?? MAX_TTS_CHARS;
 
   // File upload refs
@@ -119,26 +107,8 @@ export default function ShopAudioSection({
     };
   }, []);
 
-  // Close picker when clicking outside
-  useEffect(() => {
-    if (!showPicker) return;
-    const handler = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        setShowPicker(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showPicker]);
-
-  const filtered = LANGUAGES.filter((l) =>
-    l.name.toLowerCase().includes(search.toLowerCase())
-  );
-
   const handleSelectLang = (code: Language) => {
     setSelectedLang(code);
-    setShowPicker(false);
-    setSearch("");
     setGenError(null);
   };
 
@@ -231,96 +201,36 @@ export default function ShopAudioSection({
         Chọn ngôn ngữ, dán đoạn thuyết minh và tạo audio. Cần tạo ít nhất một ngôn ngữ.
       </p>
 
-      {/* ── Per-language status strip ───────────────────────────────── */}
+      {/* ── Language selector tabs ──────────────────────────────────────── */}
       <div className="flex gap-2 flex-wrap">
         {LANGUAGES.map((lang) => {
           const done = lang.code === "vi" ? !!viAudioUrl : !!enAudioUrl;
+          const isSelected = selectedLang === lang.code;
           return (
-            <span
+            <button
               key={lang.code}
-              className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1
-                rounded-full border transition
+              type="button"
+              onClick={() => handleSelectLang(lang.code)}
+              className={`flex items-center gap-1.5 text-sm font-medium px-4 py-2
+                rounded-xl border transition-all
                 ${
-                  done
-                    ? "bg-green-50 text-green-700 border-green-200"
-                    : "bg-gray-50 text-gray-400 border-gray-200"
+                  isSelected
+                    ? "bg-orange-50 text-orange-700 border-orange-400 ring-2 ring-orange-100"
+                    : done
+                    ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                 }`}
             >
-              {lang.flag}&nbsp;{lang.name}
-              <span className={done ? "text-green-600" : "text-gray-300"}>
-                {done ? "✓" : "×"}
-              </span>
-            </span>
+              <IconGlobe />
+              <span>{lang.flag}&nbsp;{lang.name}</span>
+              {done && (
+                <span className={`text-xs font-bold ${
+                  isSelected ? "text-orange-500" : "text-green-500"
+                }`}>✓</span>
+              )}
+            </button>
           );
         })}
-      </div>
-
-      {/* ── Language picker ─────────────────────────────────────────────────── */}
-      <div className="relative" ref={pickerRef}>
-        <button
-          type="button"
-          onClick={() => setShowPicker((v) => !v)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
-            border border-gray-200 bg-white hover:bg-gray-50 transition text-gray-700"
-        >
-          <IconGlobe />
-          {selectedInfo ? (
-            <span>{selectedInfo.flag} {selectedInfo.name}</span>
-          ) : (
-            <span>Chọn ngôn ngữ</span>
-          )}
-          <IconChevron />
-        </button>
-
-        {showPicker && (
-          <div className="absolute left-0 top-full mt-2 z-20 w-64 bg-white border
-            border-gray-200 rounded-2xl shadow-xl overflow-hidden">
-            {/* Search */}
-            <div className="p-3 border-b border-gray-100">
-              <input
-                autoFocus
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm kiếm quốc gia…"
-                className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-200
-                  focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-              />
-            </div>
-
-            {/* Language list */}
-            <ul className="py-1 max-h-52 overflow-y-auto">
-              {filtered.length === 0 && (
-                <li className="px-4 py-3 text-xs text-gray-400 text-center">
-                  Không tìm thấy
-                </li>
-              )}
-              {filtered.map((lang) => (
-                <li key={lang.code}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectLang(lang.code)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left
-                      hover:bg-orange-50 transition
-                      ${selectedLang === lang.code
-                        ? "bg-orange-50 text-orange-700 font-medium"
-                        : "text-gray-700"
-                      }`}
-                  >
-                    <span className="text-xl">{lang.flag}</span>
-                    <div>
-                      <p className="font-medium">{lang.name}</p>
-                      <p className="text-xs text-gray-400">{lang.engine}</p>
-                    </div>
-                    {selectedLang === lang.code && (
-                      <span className="ml-auto text-orange-500 text-xs">✓</span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
 
       {/* ── Text area + generate (shown after language selected) ────────────── */}

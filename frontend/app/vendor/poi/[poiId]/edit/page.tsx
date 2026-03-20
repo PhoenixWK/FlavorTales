@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import EditPoiForm from "@/modules/poi/components/EditPoiForm";
 import type { PoiResponse } from "@/modules/poi/services/poiApi";
+import type { ShopDetail } from "@/modules/shop/services/shopApi";
 
 export const metadata: Metadata = {
   title: "Edit POI – FlavorTales",
@@ -33,6 +34,32 @@ async function fetchPoi(poiId: string): Promise<PoiResponse | null> {
   }
 }
 
+async function fetchShopDetail(shopId: number): Promise<ShopDetail | null> {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("access_token")?.value;
+  if (!accessToken) return null;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/shop/my/${shopId}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json.success || !json.data) return null;
+    const d = json.data;
+    return {
+      ...d,
+      openingHours:
+        typeof d.openingHours === "string" ? JSON.parse(d.openingHours) : d.openingHours ?? null,
+      tags: typeof d.tags === "string" ? JSON.parse(d.tags) : d.tags ?? null,
+    } as ShopDetail;
+  } catch {
+    return null;
+  }
+}
+
 export default async function EditPoiPage({
   params,
 }: {
@@ -44,6 +71,10 @@ export default async function EditPoiPage({
   if (!poi) notFound();
 
   const isPending = poi.status.toLowerCase() === "pending";
+  if (isPending) notFound(); // pending POIs are not editable
+
+  const shopDetail = poi.linkedShopId ? await fetchShopDetail(poi.linkedShopId) : null;
+  if (!shopDetail) notFound();
 
   return (
     <main className="p-4 sm:p-6 md:p-8">
@@ -71,49 +102,12 @@ export default async function EditPoiPage({
         <h2 className="text-xl font-bold text-gray-900">Edit POI</h2>
         <p className="text-sm text-gray-500 mt-1">
           Update the details for{" "}
-          <span className="font-medium text-gray-700">{poi.name}</span>.
-          {!isPending && (
-            <>
-              {" "}Fields marked with <span className="text-red-500">*</span> are required.
-            </>
-          )}
+          <span className="font-medium text-gray-700">{poi.name}</span>.{" "}
+          Fields marked with <span className="text-red-500">*</span> are required.
         </p>
       </div>
 
-      {isPending ? (
-        <div className="max-w-2xl mx-auto">
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 flex gap-4">
-            <div className="shrink-0 mt-0.5">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5 text-amber-500"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-amber-800">
-                POI is currently under review
-              </h3>
-              <p className="text-sm text-amber-700 mt-1">
-                This POI has been submitted and is awaiting admin approval. You cannot
-                make changes while it is being reviewed. Please check back after the
-                review is complete.
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <EditPoiForm initialPoi={poi} />
-      )}
+      <EditPoiForm initialPoi={poi} shopDetail={shopDetail} />
     </main>
   );
 }

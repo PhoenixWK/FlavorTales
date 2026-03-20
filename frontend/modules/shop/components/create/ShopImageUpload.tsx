@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { resolveImgSrc } from "@/shared/utils/mediaProxy";
 
 export interface ImageSlot {
-  file: File;
+  /** undefined for existing remote images (no local File object). */
+  file?: File;
   previewUrl: string;
 }
 
@@ -73,8 +75,10 @@ function SquarePreview({
     <div className={`relative ${size} rounded-xl overflow-hidden border border-gray-200 bg-gray-50 flex-shrink-0`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={src}
+        src={resolveImgSrc(src) ?? src}
         alt={alt}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
         className="w-full h-full object-cover"
       />
       {onRemove && (
@@ -254,7 +258,7 @@ export default function ShopImageUpload({
               key={slot.previewUrl}
               src={slot.previewUrl}
               alt={`Ảnh ${idx + 1}`}
-              onRemove={() => removeAdditional(idx)}
+              onRemove={slot.file ? () => removeAdditional(idx) : undefined}
               size="w-24 h-24"
             />
           ))}

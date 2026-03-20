@@ -84,7 +84,7 @@ export default function CreatePoiForm() {
   const handleAdditionalChange = useCallback(
     (slots: ImageSlot[]) => {
       setAdditionalSlots(slots);
-      setImageFiles((prev) => ({ ...prev, additional: slots.map((s) => s.file) }));
+      setImageFiles((prev) => ({ ...prev, additional: slots.flatMap((s) => s.file ? [s.file] : []) }));
       update("additionalPreviewUrls", slots.map((s) => s.previewUrl));
       update("additionalImageIds", []);
     },

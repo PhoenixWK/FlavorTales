@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
-import StallDetailView from "@/modules/admin/components/StallDetailView";
+import AdminPoiReviewView from "@/modules/admin/components/poi/AdminPoiReviewView";
 import type { AdminShopDetail } from "@/modules/admin/services/adminShopApi";
 
 const INTERNAL_API = process.env.INTERNAL_API_BASE_URL ?? "http://localhost:8080";
@@ -18,7 +18,10 @@ async function getShopDetail(id: string): Promise<AdminShopDetail | null> {
 
   if (!res.ok) return null;
 
-  const data = await res.json();
+  const json = await res.json();
+  if (!json.success || !json.data) return null;
+
+  const data = json.data;
 
   // Parse JSON string fields from backend (same as proxy route logic)
   if (typeof data.openingHours === "string") {
@@ -50,5 +53,5 @@ export default async function PendingReviewDetailPage({ params }: Props) {
   const shop = await getShopDetail(id);
   if (!shop) notFound();
 
-  return <StallDetailView shop={shop} />;
+  return <AdminPoiReviewView shop={shop} />;
 }

@@ -15,3 +15,15 @@ export function proxyAudioUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   return `/api/audio/serve?url=${encodeURIComponent(url)}`;
 }
+
+/**
+ * Returns a safe `src` for <img> tags.
+ * - blob: URLs (local new files) are used directly.
+ * - All other URLs (remote R2) are proxied through /api/file/serve to avoid
+ *   CORS issues and browser tracking-prevention blocking external domains.
+ */
+export function resolveImgSrc(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("blob:") || url.startsWith("/") || url.startsWith("data:")) return url;
+  return proxyFileUrl(url);
+}

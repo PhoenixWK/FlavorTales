@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -27,9 +27,9 @@ function useFixLeafletIcons() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (L.Icon.Default.prototype as any)._getIconUrl;
     L.Icon.Default.mergeOptions({
-      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-      iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      iconUrl: "/marker-icon.png",
+      iconRetinaUrl: "/marker-icon-2x.png",
+      shadowUrl: "/marker-shadow.png",
     });
   }, []);
 }
@@ -66,7 +66,7 @@ interface MapPickerProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function MapPicker({ lat, lng, radius, onChange }: MapPickerProps) {
+export default memo(function MapPicker({ lat, lng, radius, onChange }: MapPickerProps) {
   useFixLeafletIcons();
 
   // Capture the initial center once on mount; MapContainer.center is not reactive.
@@ -122,6 +122,8 @@ export default function MapPicker({ lat, lng, radius, onChange }: MapPickerProps
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            keepBuffer={4}
+            updateWhenZooming={false}
           />
 
           {/* Fly to geocoded result */}
@@ -161,4 +163,4 @@ export default function MapPicker({ lat, lng, radius, onChange }: MapPickerProps
       </p>
     </div>
   );
-}
+});

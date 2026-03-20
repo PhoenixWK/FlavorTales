@@ -5,6 +5,7 @@ import com.flavortales.content.dto.AdminShopResponse;
 import com.flavortales.content.dto.ShopCreateRequest;
 import com.flavortales.content.dto.ShopCreateResponse;
 import com.flavortales.content.dto.ShopResponse;
+import com.flavortales.content.dto.ShopUpdateRequest;
 import com.flavortales.content.service.ShopService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -96,6 +97,31 @@ public class ShopController {
         }
     }
 
+    /**
+     * PUT /api/shop/my/{shopId}
+     * Vendor updates their shop profile. After a successful update the shop and its
+     * linked POI are reset to status = pending for admin re-review.
+     */
+    @PutMapping("/my/{shopId}")
+    public ResponseEntity<ApiResponse<Void>> updateShop(
+            @PathVariable Integer shopId,
+            @Valid @RequestBody ShopUpdateRequest request,
+            Authentication authentication) {
+
+        if (!hasRole(authentication, "ROLE_vendor")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Only vendors can update shops"));
+        }
+
+        try {
+            String vendorEmail = authentication.getName();
+            shopService.updateShop(shopId, request, vendorEmail);
+            return ResponseEntity.ok(ApiResponse.success("Cập nhật gian hàng thành công, đang chờ duyệt lại", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
     // ── Admin endpoints ───────────────────────────────────────────────────────
 
     /** GET /api/shop/admin/pending — List all pending shops. */
@@ -134,6 +160,7 @@ public class ShopController {
     @PatchMapping("/admin/{shopId}/approve")
     public ResponseEntity<ApiResponse<Void>> approveShop(
             @PathVariable Integer shopId,
+            @RequestBody(required = false) java.util.Map<String, String> body,
             Authentication authentication) {
 
         if (!hasRole(authentication, "ROLE_admin")) {
@@ -141,7 +168,8 @@ public class ShopController {
                     .body(ApiResponse.error("Admin access required"));
         }
         try {
-            shopService.approveShop(shopId);
+            String notes = body != null ? body.get("notes") : null;
+            shopService.approveShop(shopId, notes);
             return ResponseEntity.ok(ApiResponse.success("Shop approved", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
@@ -152,6 +180,7 @@ public class ShopController {
     @PatchMapping("/admin/{shopId}/reject")
     public ResponseEntity<ApiResponse<Void>> rejectShop(
             @PathVariable Integer shopId,
+            @RequestBody(required = false) java.util.Map<String, String> body,
             Authentication authentication) {
 
         if (!hasRole(authentication, "ROLE_admin")) {
@@ -159,7 +188,8 @@ public class ShopController {
                     .body(ApiResponse.error("Admin access required"));
         }
         try {
-            shopService.rejectShop(shopId);
+            String notes = body != null ? body.get("notes") : null;
+            shopService.rejectShop(shopId, notes);
             return ResponseEntity.ok(ApiResponse.success("Shop rejected", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

@@ -8,6 +8,7 @@ import com.flavortales.content.dto.AdminShopResponse;
 import com.flavortales.content.dto.ShopCreateRequest;
 import com.flavortales.content.dto.ShopCreateResponse;
 import com.flavortales.content.dto.ShopResponse;
+import com.flavortales.content.dto.ShopUpdateRequest;
 import com.flavortales.notification.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -263,6 +265,9 @@ public class ShopService {
                        fa_vi.file_url                 AS vi_audio_url,
                        fa_en.file_url                 AS en_audio_url,
                        p.name                         AS poi_name,
+                       p.latitude                     AS poi_latitude,
+                       p.longitude                    AS poi_longitude,
+                       p.radius                       AS poi_radius,
                        u.email                        AS vendor_email
                 FROM shop s
                 LEFT JOIN file_asset fa_avatar ON fa_avatar.file_id = s.avatar_file_id
@@ -281,6 +286,9 @@ public class ShopService {
                         .status(rs.getString("status"))
                         .poiId(rs.getObject("poi_id") != null ? rs.getInt("poi_id") : null)
                         .poiName(rs.getString("poi_name"))
+                        .latitude(rs.getObject("poi_latitude") != null ? rs.getDouble("poi_latitude") : null)
+                        .longitude(rs.getObject("poi_longitude") != null ? rs.getDouble("poi_longitude") : null)
+                        .radius(rs.getObject("poi_radius") != null ? rs.getInt("poi_radius") : null)
                         .avatarUrl(rs.getString("avatar_url"))
                         .openingHours(rs.getString("opening_hours"))
                         .tags(rs.getString("tags"))
@@ -318,28 +326,134 @@ public class ShopService {
         return shop;
     }
 
-    /** Approves a pending shop (sets status='active'). */
+    /** Approves a pending shop and its linked POI (sets both to status='active'). */
     @Transactional
-    public void approveShop(Integer shopId) {
+    public void approveShop(Integer shopId, String notes) {
+        // Fetch poi_id and vendor email in one query
+        Map<String, Object> shopMeta = jdbcTemplate.queryForMap(
+                "SELECT s.poi_id, u.email AS vendor_email, s.name " +
+                "FROM shop s JOIN user u ON u.user_id = s.vendor_id " +
+                "WHERE s.shop_id = ? AND s.status = 'pending'",
+                shopId);
+
         int updated = jdbcTemplate.update(
-                "UPDATE shop SET status = 'active', updated_at = NOW() WHERE shop_id = ? AND status = 'pending'",
+                "UPDATE shop SET status = 'active', updated_at = NOW() WHERE shop_id = ?",
                 shopId);
         if (updated == 0) {
             throw new IllegalArgumentException("Shop not found or is not in pending status: " + shopId);
         }
-        log.info("Admin approved shopId={}", shopId);
+
+        Integer poiId = (Integer) shopMeta.get("poi_id");
+        if (poiId != null) {
+            jdbcTemplate.update(
+                    "UPDATE poi SET status = 'active', updated_at = NOW() WHERE poi_id = ?",
+                    poiId);
+        }
+
+        String vendorEmail = (String) shopMeta.get("vendor_email");
+        String shopName    = (String) shopMeta.get("name");
+        emailService.sendShopApprovedEmail(vendorEmail, shopName, notes);
+
+        log.info("Admin approved shopId={}, poiId={}", shopId, poiId);
     }
 
-    /** Rejects a pending shop (sets status='rejected'). */
+    /** Rejects a pending shop and its linked POI (sets both to status='rejected'). */
     @Transactional
-    public void rejectShop(Integer shopId) {
+    public void rejectShop(Integer shopId, String notes) {
+        // Fetch poi_id and vendor email in one query
+        Map<String, Object> shopMeta = jdbcTemplate.queryForMap(
+                "SELECT s.poi_id, u.email AS vendor_email, s.name " +
+                "FROM shop s JOIN user u ON u.user_id = s.vendor_id " +
+                "WHERE s.shop_id = ? AND s.status = 'pending'",
+                shopId);
+
         int updated = jdbcTemplate.update(
-                "UPDATE shop SET status = 'rejected', updated_at = NOW() WHERE shop_id = ? AND status = 'pending'",
+                "UPDATE shop SET status = 'rejected', updated_at = NOW() WHERE shop_id = ?",
                 shopId);
         if (updated == 0) {
             throw new IllegalArgumentException("Shop not found or is not in pending status: " + shopId);
         }
-        log.info("Admin rejected shopId={}", shopId);
+
+        Integer poiId = (Integer) shopMeta.get("poi_id");
+        if (poiId != null) {
+            jdbcTemplate.update(
+                    "UPDATE poi SET status = 'rejected', updated_at = NOW() WHERE poi_id = ?",
+                    poiId);
+        }
+
+        String vendorEmail = (String) shopMeta.get("vendor_email");
+        String shopName    = (String) shopMeta.get("name");
+        emailService.sendShopRejectedEmail(vendorEmail, shopName, notes);
+
+        log.info("Admin rejected shopId={}, poiId={}", shopId, poiId);
+    }
+
+    // ── Update (vendor) ───────────────────────────────────────────────────────
+
+    /**
+     * Vendor updates their shop profile.
+     * All editable fields are replaced with the supplied values.
+     * After update, both the shop and its linked POI transition to status = pending
+     * so that the admin can re-review the new content.
+     */
+    @Transactional
+    public void updateShop(Integer shopId, ShopUpdateRequest req, String vendorEmail) {
+        Integer vendorId = resolveVendorId(vendorEmail);
+
+        // Verify ownership
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT shop_id, poi_id FROM shop WHERE shop_id = ? AND vendor_id = ? AND status != 'disabled'",
+                shopId, vendorId);
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException("Shop not found or you do not own it: " + shopId);
+        }
+        Integer poiId = (Integer) rows.get(0).get("poi_id");
+
+        // Name uniqueness (ignore the current shop itself)
+        boolean nameConflict = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) > 0 FROM shop WHERE name = ? AND shop_id != ? AND status != 'disabled'",
+                Boolean.class, req.getName(), shopId));
+        if (nameConflict) {
+            throw new IllegalArgumentException("A shop with this name already exists.");
+        }
+
+        String tagsJson  = toJson(req.getTags());
+        String hoursJson = toJson(req.getOpeningHours());
+
+        jdbcTemplate.update(
+                """
+                UPDATE shop SET
+                    name = ?, description = ?, cuisine_style = ?,
+                    avatar_file_id = COALESCE(?, avatar_file_id),
+                    tags = ?, opening_hours = ?,
+                    vi_audio_file_id = COALESCE(?, vi_audio_file_id),
+                    en_audio_file_id = COALESCE(?, en_audio_file_id),
+                    status = 'pending', updated_at = NOW()
+                WHERE shop_id = ?
+                """,
+                req.getName(), req.getDescription(), req.getSpecialtyDescription(),
+                req.getAvatarFileId(), tagsJson, hoursJson,
+                req.getViAudioFileId(), req.getEnAudioFileId(),
+                shopId);
+
+        // Replace gallery images only when a new list is explicitly provided
+        if (req.getAdditionalImageIds() != null) {
+            jdbcTemplate.update("DELETE FROM shop_image WHERE shop_id = ?", shopId);
+            for (int i = 0; i < req.getAdditionalImageIds().size(); i++) {
+                jdbcTemplate.update(
+                        "INSERT INTO shop_image (shop_id, file_id, sort_order) VALUES (?, ?, ?)",
+                        shopId, req.getAdditionalImageIds().get(i), i);
+            }
+        }
+
+        // Set linked POI to pending as well
+        if (poiId != null) {
+            jdbcTemplate.update(
+                    "UPDATE poi SET status = 'pending', updated_at = NOW() WHERE poi_id = ?",
+                    poiId);
+        }
+
+        log.info("Shop {} updated by vendor {}, status reset to pending (poiId={})", shopId, vendorEmail, poiId);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

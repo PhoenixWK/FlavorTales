@@ -65,9 +65,8 @@ public class ShopService {
                     INSERT INTO shop
                         (vendor_id, avatar_file_id, name, description,
                          cuisine_style, tags, opening_hours,
-                         vi_audio_file_id, en_audio_file_id,
                          status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())
                     """,
                     Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, vendorId);
@@ -77,8 +76,6 @@ public class ShopService {
             ps.setString(5, req.getSpecialtyDescription());
             ps.setString(6, tagsJson);
             ps.setString(7, hoursJson);
-            ps.setObject(8, req.getViAudioFileId());
-            ps.setObject(9, req.getEnAudioFileId());
             return ps;
         }, keyHolder);
 
@@ -160,13 +157,9 @@ public class ShopService {
                        s.status, s.poi_id, s.opening_hours, s.tags,
                        s.created_at, s.updated_at,
                        fa_avatar.file_url             AS avatar_url,
-                       fa_vi.file_url                 AS vi_audio_url,
-                       fa_en.file_url                 AS en_audio_url,
                        p.name                         AS poi_name
                 FROM shop s
                 LEFT JOIN file_asset fa_avatar ON fa_avatar.file_id = s.avatar_file_id
-                LEFT JOIN file_asset fa_vi     ON fa_vi.file_id     = s.vi_audio_file_id
-                LEFT JOIN file_asset fa_en     ON fa_en.file_id     = s.en_audio_file_id
                 LEFT JOIN poi        p          ON p.poi_id          = s.poi_id
                 WHERE s.shop_id = ? AND s.vendor_id = ?
                 """,
@@ -182,8 +175,6 @@ public class ShopService {
                         .avatarUrl(rs.getString("avatar_url"))
                         .openingHours(rs.getString("opening_hours"))
                         .tags(rs.getString("tags"))
-                        .viAudioUrl(rs.getString("vi_audio_url"))
-                        .enAudioUrl(rs.getString("en_audio_url"))
                         .createdAt(rs.getTimestamp("created_at") != null
                                 ? rs.getTimestamp("created_at").toLocalDateTime() : null)
                         .updatedAt(rs.getTimestamp("updated_at") != null
@@ -262,8 +253,6 @@ public class ShopService {
                        s.status, s.poi_id, s.opening_hours, s.tags,
                        s.created_at, s.updated_at,
                        fa_avatar.file_url             AS avatar_url,
-                       fa_vi.file_url                 AS vi_audio_url,
-                       fa_en.file_url                 AS en_audio_url,
                        p.name                         AS poi_name,
                        p.latitude                     AS poi_latitude,
                        p.longitude                    AS poi_longitude,
@@ -271,8 +260,6 @@ public class ShopService {
                        u.email                        AS vendor_email
                 FROM shop s
                 LEFT JOIN file_asset fa_avatar ON fa_avatar.file_id = s.avatar_file_id
-                LEFT JOIN file_asset fa_vi     ON fa_vi.file_id     = s.vi_audio_file_id
-                LEFT JOIN file_asset fa_en     ON fa_en.file_id     = s.en_audio_file_id
                 LEFT JOIN poi        p          ON p.poi_id          = s.poi_id
                 LEFT JOIN user       u          ON u.user_id         = s.vendor_id
                 WHERE s.shop_id = ?
@@ -292,8 +279,6 @@ public class ShopService {
                         .avatarUrl(rs.getString("avatar_url"))
                         .openingHours(rs.getString("opening_hours"))
                         .tags(rs.getString("tags"))
-                        .viAudioUrl(rs.getString("vi_audio_url"))
-                        .enAudioUrl(rs.getString("en_audio_url"))
                         .vendorEmail(rs.getString("vendor_email"))
                         .createdAt(rs.getTimestamp("created_at") != null
                                 ? rs.getTimestamp("created_at").toLocalDateTime() : null)
@@ -426,14 +411,11 @@ public class ShopService {
                     name = ?, description = ?, cuisine_style = ?,
                     avatar_file_id = COALESCE(?, avatar_file_id),
                     tags = ?, opening_hours = ?,
-                    vi_audio_file_id = COALESCE(?, vi_audio_file_id),
-                    en_audio_file_id = COALESCE(?, en_audio_file_id),
                     status = 'pending', updated_at = NOW()
                 WHERE shop_id = ?
                 """,
                 req.getName(), req.getDescription(), req.getSpecialtyDescription(),
                 req.getAvatarFileId(), tagsJson, hoursJson,
-                req.getViAudioFileId(), req.getEnAudioFileId(),
                 shopId);
 
         // Replace gallery images only when a new list is explicitly provided

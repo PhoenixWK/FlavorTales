@@ -65,10 +65,8 @@ public class CreatePoiRequest {
     @Size(max = 5, message = "Tối đa 5 tags")
     private List<String> tags;
 
-    // ── Step 3: Audio ────────────────────────────────────────────────────────
-
-    private Integer viAudioFileId;
-    private Integer enAudioFileId;
+    // Audio fields removed – managed via POST /api/audio/shop/{shopId}/tts|upload
+    // after POI + shop have been created.
 
     // ── Nested DTO ───────────────────────────────────────────────────────────
 

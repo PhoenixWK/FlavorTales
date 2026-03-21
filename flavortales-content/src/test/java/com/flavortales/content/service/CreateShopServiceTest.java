@@ -75,8 +75,7 @@ class CreateShopServiceTest {
         validRequest.setAvatarFileId(10);
         validRequest.setSpecialtyDescription("Phở bò, phở gà đặc sản");
         validRequest.setTags(List.of("Bình dân", "Gia truyền"));
-        validRequest.setViAudioFileId(20);
-        validRequest.setEnAudioFileId(21);
+
 
         // ObjectMapper.writeValueAsString stub – returns a trivial JSON string
         when(objectMapper.writeValueAsString(any())).thenReturn("[]");

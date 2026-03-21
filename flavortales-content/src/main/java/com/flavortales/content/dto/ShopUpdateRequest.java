@@ -42,9 +42,5 @@ public class ShopUpdateRequest {
     @Size(max = 5, message = "You can add at most 5 tags")
     private List<String> tags;
 
-    /** file_asset.file_id for Vietnamese audio (optional, null = keep existing) */
-    private Integer viAudioFileId;
-
-    /** file_asset.file_id for English audio (optional, null = keep existing) */
-    private Integer enAudioFileId;
+    // Audio fields removed – managed via POST /api/audio/shop/{shopId}/tts|upload
 }

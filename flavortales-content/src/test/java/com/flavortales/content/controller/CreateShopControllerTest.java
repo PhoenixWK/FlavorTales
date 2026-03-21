@@ -83,8 +83,6 @@ class CreateShopControllerTest {
         // description >= 50 chars
         validRequest.setDescription("Phở bò truyền thống Hà Nội với bí quyết ninh xương hơn 8 tiếng.");
         validRequest.setAvatarFileId(10);
-        validRequest.setViAudioFileId(20);
-        validRequest.setEnAudioFileId(21);
     }
 
     // ── Authentication helpers ────────────────────────────────────────────────
@@ -239,29 +237,6 @@ class CreateShopControllerTest {
                     .andExpect(status().isBadRequest());
         }
 
-        @Test
-        @DisplayName("P1 · Returns 400 when viAudioFileId is null")
-        void missingViAudioReturns400() throws Exception {
-            validRequest.setViAudioFileId(null);
-
-            mockMvc.perform(post(URL)
-                            .with(authentication(vendorAuth()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(validRequest)))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("P1 · Returns 400 when enAudioFileId is null")
-        void missingEnAudioReturns400() throws Exception {
-            validRequest.setEnAudioFileId(null);
-
-            mockMvc.perform(post(URL)
-                            .with(authentication(vendorAuth()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(validRequest)))
-                    .andExpect(status().isBadRequest());
-        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

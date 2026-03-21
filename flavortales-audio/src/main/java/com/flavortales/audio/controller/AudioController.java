@@ -1,5 +1,6 @@
 package com.flavortales.audio.controller;
 
+import com.flavortales.audio.dto.AudioResponse;
 import com.flavortales.audio.dto.TtsRequest;
 import com.flavortales.audio.dto.TtsResponse;
 import com.flavortales.audio.service.AudioService;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/audio")
@@ -105,6 +107,69 @@ public class AudioController {
         String vendorEmail = authentication.getName();
         TtsResponse ttsResponse = audioService.uploadAudioFile(file, language, vendorEmail);
         return ResponseEntity.ok(ApiResponse.success("Audio uploaded successfully", ttsResponse));
+    }
+
+    // ── Shop-linked audio endpoints ──────────────────────────────────────────────
+
+    /**
+     * POST /api/audio/shop/{shopId}/tts
+     * Tạo TTS cho ngôn ngữ chỉ định và gắn thẳng vào shop.
+     */
+    @PostMapping("/shop/{shopId}/tts")
+    public ResponseEntity<ApiResponse<TtsResponse>> generateTtsForShop(
+            @PathVariable Integer shopId,
+            @Valid @RequestBody TtsRequest request,
+            Authentication authentication) {
+
+        if (!hasRole(authentication, "ROLE_vendor")) {
+            return ResponseEntity.status(403)
+                    .body(ApiResponse.error("Only vendors can generate audio"));
+        }
+        String vendorEmail = authentication.getName();
+        TtsResponse result = audioService.generateSingleAudio(request, vendorEmail, shopId);
+        return ResponseEntity.ok(ApiResponse.success("Audio generated and linked to shop", result));
+    }
+
+    /**
+     * POST /api/audio/shop/{shopId}/upload
+     * Upload file audio (mp3/m4a/wav) và gắn vào shop.
+     */
+    @PostMapping(value = "/shop/{shopId}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<TtsResponse>> uploadAudioForShop(
+            @PathVariable Integer shopId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("language") String language,
+            Authentication authentication) {
+
+        if (!hasRole(authentication, "ROLE_vendor")) {
+            return ResponseEntity.status(403)
+                    .body(ApiResponse.error("Only vendors can upload audio"));
+        }
+        String vendorEmail = authentication.getName();
+        TtsResponse result = audioService.uploadAudioFile(file, language, vendorEmail, shopId);
+        return ResponseEntity.ok(ApiResponse.success("Audio uploaded and linked to shop", result));
+    }
+
+    /**
+     * GET /api/audio/shop/{shopId}
+     * Lấy danh sách audio của shop (cache-first).
+     */
+    @GetMapping("/shop/{shopId}")
+    public ResponseEntity<ApiResponse<List<AudioResponse>>> getAudioByShop(
+            @PathVariable Integer shopId) {
+        List<AudioResponse> list = audioService.getAudioByShop(shopId);
+        return ResponseEntity.ok(ApiResponse.success("OK", list));
+    }
+
+    /**
+     * GET /api/audio/poi/{poiId}
+     * Lấy danh sách audio của POI (cache-first).
+     */
+    @GetMapping("/poi/{poiId}")
+    public ResponseEntity<ApiResponse<List<AudioResponse>>> getAudioByPoi(
+            @PathVariable Integer poiId) {
+        List<AudioResponse> list = audioService.getAudioByPoi(poiId);
+        return ResponseEntity.ok(ApiResponse.success("OK", list));
     }
 
     private boolean hasRole(Authentication auth, String role) {

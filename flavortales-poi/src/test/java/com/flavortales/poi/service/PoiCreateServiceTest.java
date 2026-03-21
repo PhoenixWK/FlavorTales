@@ -99,7 +99,7 @@ class PoiCreateServiceTest {
 
     /**
      * Fully-populated valid three-step request.
-     * Audio IDs are provided; additional images are omitted to keep the stub simple.
+     * Audio is uploaded separately after POI creation via the audio API.
      */
     private CreatePoiRequest validRequest() {
         return CreatePoiRequest.builder()
@@ -110,8 +110,6 @@ class PoiCreateServiceTest {
                 .shopName("Tiem Bun Bo Gan Troi")
                 .shopDescription("Quan bun bo dac san Hue, gia truyen 30 nam.")
                 .avatarFileId(201)
-                .viAudioFileId(301)
-                .enAudioFileId(302)
                 .build();
     }
 
@@ -231,7 +229,6 @@ class PoiCreateServiceTest {
                 .shopName("Tiem Bun Bo Gan Troi")
                 .shopDescription("Quan bun bo dac san Hue, gia truyen 30 nam.")
                 .avatarFileId(201)
-                .viAudioFileId(301).enAudioFileId(302)
                 .build();
 
         assertThatThrownBy(() -> poiService.createPoi(req, VENDOR_EMAIL))
@@ -316,12 +313,12 @@ class PoiCreateServiceTest {
 
     /**
      * TC-S03-U-001 [P1][Happy]
-     * GIVEN a valid request with both {@code viAudioFileId} and {@code enAudioFileId} = null
+     * GIVEN a valid request without audio (audio is uploaded separately after creation)
      * WHEN  createPoi is called
-     * THEN  the POI and shop are created successfully (audio fields are optional).
+     * THEN  the POI and shop are created successfully.
      */
     @Test
-    @DisplayName("TC-S03-U-001 [P1][Happy] Both audio IDs null → POI created successfully")
+    @DisplayName("TC-S03-U-001 [P1][Happy] No audio in request → POI created successfully")
     void tc_s03_u001_noAudioIds_poiCreatedSuccessfully() {
         stubHappyPath();
         CreatePoiRequest req = CreatePoiRequest.builder()
@@ -332,8 +329,6 @@ class PoiCreateServiceTest {
                 .shopName("Tiem Bun Bo Gan Troi")
                 .shopDescription("Quan bun bo dac san Hue, gia truyen 30 nam.")
                 .avatarFileId(201)
-                .viAudioFileId(null)
-                .enAudioFileId(null)
                 .build();
 
         PoiResponse result = poiService.createPoi(req, VENDOR_EMAIL);
@@ -344,12 +339,12 @@ class PoiCreateServiceTest {
 
     /**
      * TC-S03-U-002 [P2][Happy]
-     * GIVEN a valid request with only {@code viAudioFileId} set and {@code enAudioFileId} = null
+     * GIVEN a valid request (audio is decoupled and uploaded separately via POST /api/audio/shop/{shopId}/tts|upload)
      * WHEN  createPoi is called
      * THEN  the POI and shop are created successfully.
      */
     @Test
-    @DisplayName("TC-S03-U-002 [P2][Happy] Only viAudioFileId set, enAudioFileId null → success")
+    @DisplayName("TC-S03-U-002 [P2][Happy] Valid request without audio fields → POI created successfully")
     void tc_s03_u002_onlyViAudio_poiCreatedSuccessfully() {
         stubHappyPath();
         CreatePoiRequest req = CreatePoiRequest.builder()
@@ -360,8 +355,6 @@ class PoiCreateServiceTest {
                 .shopName("Tiem Bun Bo Gan Troi")
                 .shopDescription("Quan bun bo dac san Hue, gia truyen 30 nam.")
                 .avatarFileId(201)
-                .viAudioFileId(330)
-                .enAudioFileId(null)
                 .build();
 
         PoiResponse result = poiService.createPoi(req, VENDOR_EMAIL);

@@ -74,8 +74,6 @@ class PoiCreateControllerTest {
                 .shopName("Tiem Bun Bo Gan Troi")
                 .shopDescription("Quan bun bo dac san Hue, gia truyen 30 nam.")
                 .avatarFileId(201)
-                .viAudioFileId(301)
-                .enAudioFileId(302)
                 .build();
     }
 
@@ -413,14 +411,13 @@ class PoiCreateControllerTest {
 
     /**
      * TC-S03-I-001 [P2][Happy]
-     * GIVEN a valid request where both {@code viAudioFileId} and {@code enAudioFileId} are null
-     *        (audio fields carry no @NotNull — they are optional)
+     * GIVEN a valid request (audio is uploaded separately after POI creation via the audio API)
      * WHEN  POST /api/poi is called as an authenticated vendor
-     * THEN  the response is 201 Created (audio being null does not fail validation).
+     * THEN  the response is 201 Created.
      */
     @Test
     @WithMockUser(roles = "vendor", username = VENDOR_EMAIL)
-    @DisplayName("TC-S03-I-001 [P2][Happy] Null audio IDs → not a validation error → 201 Created")
+    @DisplayName("TC-S03-I-001 [P2][Happy] Request without audio fields → 201 Created")
     void tc_s03_i001_nullAudioIds_returns201() throws Exception {
         when(poiService.createPoi(any(CreatePoiRequest.class), anyString()))
                 .thenReturn(samplePoiResponse());
@@ -433,8 +430,6 @@ class PoiCreateControllerTest {
                 .shopName("Tiem Bun Bo Gan Troi")
                 .shopDescription("Quan bun bo dac san Hue, gia truyen 30 nam.")
                 .avatarFileId(201)
-                .viAudioFileId(null)
-                .enAudioFileId(null)
                 .build();
 
         mockMvc.perform(post("/api/poi")

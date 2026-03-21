@@ -70,9 +70,6 @@ export default async function EditPoiPage({
 
   if (!poi) notFound();
 
-  const isPending = poi.status.toLowerCase() === "pending";
-  if (isPending) notFound(); // pending POIs are not editable
-
   const shopDetail = poi.linkedShopId ? await fetchShopDetail(poi.linkedShopId) : null;
   if (!shopDetail) notFound();
 

@@ -11,6 +11,7 @@ export interface OpeningHourEntry {
   closed: boolean;
 }
 
+/** Audio is managed separately via POST /api/audio/shop/{shopId}/tts|upload */
 export interface ShopUpdatePayload {
   name: string;
   description: string;
@@ -19,8 +20,6 @@ export interface ShopUpdatePayload {
   specialtyDescription?: string;
   openingHours?: OpeningHoursDto[];
   tags?: string[];
-  viAudioFileId?: number | null;
-  enAudioFileId?: number | null;
 }
 
 export interface ShopResponse {
@@ -39,11 +38,10 @@ export interface ShopResponse {
   updatedAt: string | null;
 }
 
-/** Full shop detail including gallery + audio URLs (vendor-facing). */
+/** Full shop detail including gallery (vendor-facing).
+ *  Audio is fetched separately via GET /api/audio/shop/{shopId}. */
 export interface ShopDetail extends ShopResponse {
   galleryUrls: string[] | null;
-  viAudioUrl: string | null;
-  enAudioUrl: string | null;
 }
 
 interface ApiResponse<T> {

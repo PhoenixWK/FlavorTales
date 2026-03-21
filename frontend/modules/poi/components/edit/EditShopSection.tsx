@@ -22,6 +22,7 @@ export interface ShopEditDraft {
   /** Existing remote audio URLs (or new blob: URLs for playback). */
   viAudioUrl: string | null;
   enAudioUrl: string | null;
+  zhAudioUrl: string | null;
 }
 
 export interface ShopEditErrors {
@@ -30,7 +31,9 @@ export interface ShopEditErrors {
   avatar?: string;
 }
 
-/** Initialise draft from existing shop data. */
+/** Initialise draft from existing shop data.
+ *  Audio URLs are fetched separately via GET /api/audio/shop/{shopId}
+ *  and handled by ShopAudioSection internally. */
 export function initShopEditDraft(shop: ShopDetail): ShopEditDraft {
   return {
     name: shop.name,
@@ -44,8 +47,9 @@ export function initShopEditDraft(shop: ShopDetail): ShopEditDraft {
       closed: false,
     })),
     tags: shop.tags ?? [],
-    viAudioUrl: shop.viAudioUrl,
-    enAudioUrl: shop.enAudioUrl,
+    viAudioUrl: null,
+    enAudioUrl: null,
+    zhAudioUrl: null,
   };
 }
 
@@ -79,7 +83,7 @@ interface Props {
   onChange: (patch: Partial<ShopEditDraft>) => void;
   onAvatarFileChange: (file: File | null, previewUrl: string | null) => void;
   onAdditionalSlotsChange: (slots: ImageSlot[], files: File[]) => void;
-  onAudioGenerated: (language: "vi" | "en", blob: Blob, blobUrl: string) => void;
+  onAudioGenerated: (language: "vi" | "en" | "zh", blob: Blob, blobUrl: string) => void;
   onClearError: (field: keyof ShopEditErrors) => void;
 }
 
@@ -155,6 +159,7 @@ export default function EditShopSection({
         <ShopAudioSection
           viAudioUrl={draft.viAudioUrl}
           enAudioUrl={draft.enAudioUrl}
+          zhAudioUrl={draft.zhAudioUrl}
           onAudioGenerated={onAudioGenerated}
           maxTtsChars={2000}
         />

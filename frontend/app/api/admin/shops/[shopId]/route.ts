@@ -14,7 +14,7 @@ interface RouteParams {
 export async function GET(_req: NextRequest, { params }: RouteParams) {
   const { shopId } = await params;
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get("access_token")?.value;
+  const accessToken = cookieStore.get("admin_access_token")?.value;
 
   if (!accessToken) {
     return NextResponse.json(
@@ -23,28 +23,33 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const res = await fetch(`${API_BASE}/api/shop/admin/${shopId}`, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${API_BASE}/api/shop/admin/${shopId}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    });
 
-  const json = await res.json();
+    const json = await res.json();
 
-  if (json.success && json.data) {
-    const shop = json.data as Record<string, unknown>;
-    json.data = {
-      ...shop,
-      openingHours:
-        typeof shop.openingHours === "string"
-          ? JSON.parse(shop.openingHours)
-          : (shop.openingHours ?? null),
-      tags:
-        typeof shop.tags === "string"
-          ? JSON.parse(shop.tags)
-          : (shop.tags ?? null),
-    };
+    if (json.success && json.data) {
+      const shop = json.data as Record<string, unknown>;
+      json.data = {
+        ...shop,
+        openingHours:
+          typeof shop.openingHours === "string"
+            ? JSON.parse(shop.openingHours)
+            : (shop.openingHours ?? null),
+        tags:
+          typeof shop.tags === "string"
+            ? JSON.parse(shop.tags)
+            : (shop.tags ?? null),
+      };
+    }
+
+    return NextResponse.json(json, { status: res.status });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Cannot connect to backend";
+    return NextResponse.json({ success: false, message }, { status: 502 });
   }
-
-  return NextResponse.json(json, { status: res.status });
 }

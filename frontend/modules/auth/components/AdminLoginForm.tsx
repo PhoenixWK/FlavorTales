@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { vendorLogin } from "@/modules/auth/services/authApi";
-import { saveSession } from "@/shared/utils/auth";
+import { adminLogin } from "@/modules/auth/services/authApi";
+import { saveAdminSession } from "@/shared/utils/auth";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -119,7 +119,7 @@ export default function AdminLoginForm() {
 
     setIsLoading(true);
     try {
-      const res = await vendorLogin({ email, password, rememberMe: false });
+      const res = await adminLogin({ email, password, rememberMe: false });
 
       if (res.data?.role !== "admin") {
         setApiError("Access denied. This portal is for administrators only.");
@@ -127,7 +127,7 @@ export default function AdminLoginForm() {
       }
 
       if (res.data) {
-        saveSession({
+        saveAdminSession({
           userId: res.data.userId,
           username: res.data.username,
           email: res.data.email,

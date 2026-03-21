@@ -33,8 +33,6 @@ export interface ShopCreatePayload {
   specialtyDescription: string;
   openingHours: OpeningHoursDto[];
   tags: string[];
-  viAudioFileId: number | null;
-  enAudioFileId: number | null;
 }
 
 export interface ShopCreateResponse {
@@ -73,10 +71,10 @@ export interface ShopDraftState {
   openingHours: OpeningHoursDto[];
   tags: string[];
   ttsText: string;
-  viAudioFileId: number | null;
-  enAudioFileId: number | null;
+  /** Blob URLs for in-form playback only — not persisted to server. */
   viAudioUrl: string | null;
   enAudioUrl: string | null;
+  zhAudioUrl: string | null;
 }
 
 export const DRAFT_STORAGE_KEY = "ft_shop_create_draft";
@@ -122,8 +120,7 @@ export const DEFAULT_DRAFT: ShopDraftState = {
   })),
   tags: [],
   ttsText: "",
-  viAudioFileId: null,
-  enAudioFileId: null,
   viAudioUrl: null,
   enAudioUrl: null,
+  zhAudioUrl: null,
 };

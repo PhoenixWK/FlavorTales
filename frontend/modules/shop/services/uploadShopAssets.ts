@@ -13,6 +13,7 @@ export interface UploadedImageAssets {
 export interface UploadedAudioAssets {
   viFileId: number | null;
   enFileId: number | null;
+  zhFileId: number | null;
 }
 
 /**
@@ -51,12 +52,13 @@ export async function uploadImages(imageFiles: {
  * instead of throwing, so the caller can still proceed with form submission.
  */
 export async function uploadAudios(
-  audioBlobs: { vi?: Blob; en?: Blob },
-  onError?: (lang: "vi" | "en", message: string) => void
+  audioBlobs: { vi?: Blob; en?: Blob; zh?: Blob },
+  onError?: (lang: "vi" | "en" | "zh", message: string) => void
 ): Promise<UploadedAudioAssets> {
-  const [viResult, enResult] = await Promise.allSettled([
+  const [viResult, enResult, zhResult] = await Promise.allSettled([
     audioBlobs.vi ? uploadAudio(audioBlobs.vi, "vi") : Promise.resolve(null),
     audioBlobs.en ? uploadAudio(audioBlobs.en, "en") : Promise.resolve(null),
+    audioBlobs.zh ? uploadAudio(audioBlobs.zh, "zh") : Promise.resolve(null),
   ]);
 
   const viFileId =
@@ -66,6 +68,10 @@ export async function uploadAudios(
   const enFileId =
     enResult.status === "fulfilled" && enResult.value?.success
       ? enResult.value.data.fileId
+      : null;
+  const zhFileId =
+    zhResult.status === "fulfilled" && zhResult.value?.success
+      ? zhResult.value.data.fileId
       : null;
 
   if (
@@ -90,7 +96,18 @@ export async function uploadAudios(
     onError?.("en", msg);
   }
 
-  return { viFileId, enFileId };
+  if (
+    zhResult.status === "rejected" ||
+    (zhResult.status === "fulfilled" && zhResult.value && !zhResult.value.success)
+  ) {
+    const msg =
+      zhResult.status === "rejected"
+        ? String(zhResult.reason)
+        : (zhResult.value?.message ?? "Tải audio tiếng Trung thất bại.");
+    onError?.("zh", msg);
+  }
+
+  return { viFileId, enFileId, zhFileId };
 }
 
 /** Strips HTML tags from a content-editable string and returns plain text. */

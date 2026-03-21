@@ -1,18 +1,21 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { proxyAudioUrl } from "@/shared/utils/mediaProxy";
+import { getAudioByShop } from "@/modules/audio/services/audioApi";
+import { toAudioByLanguage } from "@/modules/audio/types/audio";
 
-type Lang = "en" | "vi";
+type Lang = "vi" | "en" | "zh";
 
 interface Props {
-  viAudioUrl: string | null;
-  enAudioUrl: string | null;
+  /** shopId is used to fetch audio from GET /api/audio/shop/{shopId} */
+  shopId: number;
 }
 
 const LANG_OPTIONS: { code: Lang; label: string; flag: string }[] = [
   { code: "en", label: "English (International)", flag: "🇬🇧" },
   { code: "vi", label: "Tiếng Việt", flag: "🇻🇳" },
+  { code: "zh", label: "中文", flag: "🇨🇳" },
 ];
 
 function formatTime(s: number) {
@@ -125,13 +128,59 @@ function AudioPlayerCard({ src, lang }: { src: string; lang: Lang }) {
   );
 }
 
-/** Read-only audio section: select a language first, then the player appears. */
-export default function PoiViewAudioSection({ viAudioUrl, enAudioUrl }: Props) {
-  const available = LANG_OPTIONS.filter(
-    (o) => (o.code === "en" && !!enAudioUrl) || (o.code === "vi" && !!viAudioUrl)
-  );
-
+/** Read-only audio section with language tab buttons. */
+export default function PoiViewAudioSection({ shopId }: Props) {
+  const [viAudioUrl, setViAudioUrl] = useState<string | null>(null);
+  const [enAudioUrl, setEnAudioUrl] = useState<string | null>(null);
+  const [zhAudioUrl, setZhAudioUrl] = useState<string | null>(null);
   const [selectedLang, setSelectedLang] = useState<Lang | "">("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    getAudioByShop(shopId)
+      .then((list) => {
+        const byLang = toAudioByLanguage(list);
+        const vi = byLang.vi?.fileUrl ?? null;
+        const en = byLang.en?.fileUrl ?? null;
+        const zh = byLang.zh?.fileUrl ?? null;
+        setViAudioUrl(vi);
+        setEnAudioUrl(en);
+        setZhAudioUrl(zh);
+        // Auto-select the first language that has audio
+        const first = LANG_OPTIONS.find(
+          (o) =>
+            (o.code === "en" && !!en) ||
+            (o.code === "vi" && !!vi) ||
+            (o.code === "zh" && !!zh)
+        );
+        if (first) setSelectedLang(first.code);
+      })
+      .catch(() => {
+        // No audio available or network error — stay empty
+      })
+      .finally(() => setLoading(false));
+  }, [shopId]);
+
+  if (loading) {
+    return (
+      <div className="space-y-3 animate-pulse">
+        <div className="flex gap-2">
+          {LANG_OPTIONS.map((o) => (
+            <div key={o.code} className="h-9 w-32 rounded-xl bg-gray-100" />
+          ))}
+        </div>
+        <div className="h-20 rounded-xl bg-gray-100" />
+      </div>
+    );
+  }
+
+  const available = LANG_OPTIONS.filter(
+    (o) =>
+      (o.code === "en" && !!enAudioUrl) ||
+      (o.code === "vi" && !!viAudioUrl) ||
+      (o.code === "zh" && !!zhAudioUrl)
+  );
 
   if (available.length === 0) {
     return (
@@ -142,45 +191,42 @@ export default function PoiViewAudioSection({ viAudioUrl, enAudioUrl }: Props) {
     );
   }
 
-  const activeUrl = selectedLang === "en" ? enAudioUrl : selectedLang === "vi" ? viAudioUrl : null;
+  const activeUrl =
+    selectedLang === "en" ? enAudioUrl
+    : selectedLang === "vi" ? viAudioUrl
+    : selectedLang === "zh" ? zhAudioUrl
+    : null;
 
   return (
     <div className="space-y-4">
-      {/* Language / Nation selector */}
+      {/* Language tab buttons — custom HTML so emoji flags render correctly on all OS */}
       <div>
         <p className="text-xs text-gray-500 mb-1.5">Language / Nation</p>
-        <div className="relative">
-          <select
-            value={selectedLang}
-            onChange={(e) => setSelectedLang(e.target.value as Lang | "")}
-            className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 cursor-pointer pr-9"
-          >
-            <option value="" disabled>Select language…</option>
-            {available.map((o) => (
-              <option key={o.code} value={o.code}>
-                {o.flag} {o.label}
-              </option>
-            ))}
-          </select>
-          {/* chevron */}
-          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor"
-              strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+        <div className="flex gap-2 flex-wrap">
+          {available.map((o) => {
+            const isSelected = selectedLang === o.code;
+            return (
+              <button
+                key={o.code}
+                type="button"
+                onClick={() => setSelectedLang(o.code)}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm border transition
+                  ${isSelected
+                    ? "bg-orange-500 border-orange-500 text-white font-medium shadow-sm"
+                    : "bg-white border-gray-200 text-gray-700 hover:border-orange-300 hover:text-orange-600 cursor-pointer"
+                  }`}
+              >
+                <span>{o.flag}</span>
+                <span>{o.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Audio player — shown only after a language is chosen */}
+      {/* Player */}
       {selectedLang && activeUrl && (
-        <AudioPlayerCard src={activeUrl} lang={selectedLang as Lang} />
-      )}
-
-      {selectedLang && !activeUrl && (
-        <div className="flex items-center justify-center py-6 rounded-xl border border-dashed border-gray-200 bg-gray-50">
-          <p className="text-sm text-gray-400">No audio available for this language</p>
-        </div>
+        <AudioPlayerCard key={activeUrl} src={activeUrl} lang={selectedLang as Lang} />
       )}
     </div>
   );

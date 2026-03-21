@@ -8,7 +8,7 @@ import {
 } from "@/modules/poi/services/poiApi";
 import { updateShop, type ShopDetail } from "@/modules/shop/services/shopApi";
 import { uploadImage } from "@/modules/shop/services/fileApi";
-import { uploadAudios } from "@/modules/shop/services/uploadShopAssets";
+import { uploadAudiosForShop } from "@/modules/audio/services/audioApi";
 import type { ImageSlot } from "@/modules/shop/components/create/ShopImageUpload";
 import Toast, { type ToastData } from "@/shared/components/Toast";
 import ChangesSummary, { type FieldChange } from "./ChangesSummary";
@@ -109,7 +109,7 @@ export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps
   const [additionalSlots, setAdditionalSlots] = useState<ImageSlot[]>(() =>
     (shopDetail.galleryUrls ?? []).map((url) => ({ previewUrl: url }))
   );
-  const [audioBlobs, setAudioBlobs] = useState<{ vi?: Blob; en?: Blob }>({});
+  const [audioBlobs, setAudioBlobs] = useState<{ vi?: Blob; en?: Blob; zh?: Blob }>({});
 
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
@@ -139,10 +139,11 @@ export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps
     setShopErrors((prev) => ({ ...prev, [field]: undefined }));
   }, []);
 
-  const handleAudioGenerated = useCallback((language: "vi" | "en", blob: Blob, blobUrl: string) => {
+  const handleAudioGenerated = useCallback((language: "vi" | "en" | "zh", blob: Blob, blobUrl: string) => {
     setAudioBlobs((prev) => ({ ...prev, [language]: blob }));
     if (language === "vi") setShopDraft((prev) => ({ ...prev, viAudioUrl: blobUrl }));
-    else setShopDraft((prev) => ({ ...prev, enAudioUrl: blobUrl }));
+    else if (language === "en") setShopDraft((prev) => ({ ...prev, enAudioUrl: blobUrl }));
+    else setShopDraft((prev) => ({ ...prev, zhAudioUrl: blobUrl }));
   }, []);
 
   // ── Submit ────────────────────────────────────────────────────────────────────
@@ -177,8 +178,10 @@ export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps
         additionalImageIds = results.map((r) => r.data.fileId);
       }
 
-      // Upload new audio blobs if generated
-      const { viFileId, enFileId } = await uploadAudios(audioBlobs);
+      // Upload new audio blobs if any; non-blocking per language
+      uploadAudiosForShop(shopDetail.shopId, audioBlobs, (lang, err) => {
+        console.error(`Audio upload failed for ${lang}:`, err);
+      });
 
       // Update shop (resets shop + POI to pending)
       await updateShop(shopDetail.shopId, {
@@ -189,8 +192,6 @@ export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps
         specialtyDescription: shopDraft.specialtyDescription,
         openingHours: shopDraft.openingHours,
         tags: shopDraft.tags,
-        viAudioFileId: viFileId,
-        enAudioFileId: enFileId,
       });
 
       // Update POI location/name if changed
@@ -221,7 +222,7 @@ export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="max-w-4xl mx-auto space-y-5">
       {toast && <Toast toast={toast} onDismiss={() => setToast(null)} />}
 
       {/* Review notice */}

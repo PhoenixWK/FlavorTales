@@ -13,11 +13,12 @@ import type { NextRequest } from "next/server";
  * cookies (including HTTP-only ones), so this is a proper server-side check.
  */
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get("access_token");
   const { pathname } = request.nextUrl;
+  const isAdmin = pathname.startsWith("/admin");
+  const cookieName = isAdmin ? "admin_access_token" : "access_token";
+  const token = request.cookies.get(cookieName);
 
   if (!token) {
-    const isAdmin = pathname.startsWith("/admin");
     const loginUrl = new URL(
       isAdmin ? "/auth/admin/login" : "/auth/vendor/login",
       request.url

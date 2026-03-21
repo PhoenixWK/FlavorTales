@@ -14,7 +14,7 @@ interface ApiResponse<T> {
  */
 export async function previewAudio(
   text: string,
-  language: "vi" | "en",
+  language: "vi" | "en" | "zh",
   signal?: AbortSignal
 ): Promise<Blob> {
   const res = await fetch("/api/audio/preview", {
@@ -49,7 +49,7 @@ export async function previewAudio(
  */
 export async function uploadAudio(
   blob: Blob,
-  language: "vi" | "en"
+  language: "vi" | "en" | "zh"
 ): Promise<ApiResponse<TtsResult>> {
   const formData = new FormData();
   const filename =

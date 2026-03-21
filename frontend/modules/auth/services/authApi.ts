@@ -194,3 +194,38 @@ export async function logout(): Promise<void> {
     // Best-effort – always clear client state even if the request fails
   }
 }
+
+// ---- Admin Auth -------------------------------------------------------------
+
+/**
+ * POST /api/auth/admin/login
+ *
+ * Sends admin credentials and receives an HTTP-only `admin_access_token`
+ * cookie scoped exclusively to admin routes.  This cookie is separate from
+ * the vendor `access_token` so both sessions can coexist in the same browser.
+ */
+export async function adminLogin(
+  payload: LoginRequest
+): Promise<ApiResponse<LoginResponse>> {
+  const res = await fetch(`/api/auth/admin/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<LoginResponse>(res);
+}
+
+/**
+ * POST /api/auth/admin/logout
+ *
+ * Blacklists the admin token and clears the `admin_access_token` cookie.
+ */
+export async function adminLogout(): Promise<void> {
+  try {
+    await fetch(`/api/auth/admin/logout`, {
+      method: "POST",
+    });
+  } catch {
+    // Best-effort – always clear client state even if the request fails
+  }
+}

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { clearDraft, DEFAULT_DRAFT, loadDraft, saveDraft, type PoiCreateDraft } from "@/modules/poi/types/poi";
 import type { OpeningHoursDto } from "@/modules/shop/types/shop";
 import { createPoi } from "@/modules/poi/services/poiApi";
-import { uploadImages, uploadAudios, stripHtml } from "@/modules/shop/services/uploadShopAssets";
+import { uploadImages, stripHtml } from "@/modules/shop/services/uploadShopAssets";
+import { uploadAudiosForShop } from "@/modules/audio/services/audioApi";
 import { useToast } from "@/shared/hooks/useToast";
 import type { ImageSlot } from "@/modules/shop/components/create/ShopImageUpload";
 import ShopImageUpload from "@/modules/shop/components/create/ShopImageUpload";
@@ -36,7 +37,7 @@ export default function CreatePoiForm() {
   const [submitting, setSubmitting] = useState(false);
 
   // Blobs + Files held outside draft (not JSON-serializable)
-  const [audioBlobs, setAudioBlobs] = useState<{ vi?: Blob; en?: Blob }>({});
+  const [audioBlobs, setAudioBlobs] = useState<{ vi?: Blob; en?: Blob; zh?: Blob }>({});
   const [imageFiles, setImageFiles] = useState<{ avatar: File | null; additional: File[] }>({
     avatar: null,
     additional: [],
@@ -103,15 +104,11 @@ export default function CreatePoiForm() {
   );
 
   const handleAudioGenerated = useCallback(
-    (language: "vi" | "en", blob: Blob, blobUrl: string) => {
+    (language: "vi" | "en" | "zh", blob: Blob, blobUrl: string) => {
       setAudioBlobs((prev) => ({ ...prev, [language]: blob }));
-      if (language === "vi") {
-        update("viAudioUrl", blobUrl);
-        update("viAudioFileId", null);
-      } else {
-        update("enAudioUrl", blobUrl);
-        update("enAudioFileId", null);
-      }
+      if (language === "vi") update("viAudioUrl", blobUrl);
+      else if (language === "en") update("enAudioUrl", blobUrl);
+      else update("zhAudioUrl", blobUrl);
     },
     [update]
   );
@@ -133,15 +130,9 @@ export default function CreatePoiForm() {
     setSubmitting(true);
     try {
       const { avatarFileId, additionalImageIds } = await uploadImages(imageFiles);
-
-      const { viFileId, enFileId } = await uploadAudios(
-        audioBlobs,
-        (lang, msg) =>
-          addToast("error", `Tải audio ${lang === "vi" ? "tiếng Việt" : "tiếng Anh"} thất bại: ${msg}`, 4000)
-      );
-
       const plainDescription = stripHtml(draft.shopDescription);
 
+      // 1. Tạo POI + Shop (không có audio)
       const res = await createPoi({
         name: draft.poiName.trim(),
         latitude: parseFloat(draft.lat!.toFixed(6)),
@@ -154,11 +145,21 @@ export default function CreatePoiForm() {
         specialtyDescription: draft.specialtyDescription || undefined,
         openingHours: draft.openingHours,
         tags: draft.tags,
-        viAudioFileId: viFileId ?? undefined,
-        enAudioFileId: enFileId ?? undefined,
       });
 
       if (!res.success) throw new Error(res.message);
+
+      // 2. Upload audio gắn vào shopId vừa tạo
+      const shopId = res.data?.linkedShopId;
+      if (shopId && Object.keys(audioBlobs).length > 0) {
+        await uploadAudiosForShop(shopId, audioBlobs, (lang, msg) =>
+          addToast(
+            "error",
+            `Tải audio ${lang === "vi" ? "tiếng Việt" : lang === "zh" ? "tiếng Trung" : "tiếng Anh"} thất bại: ${msg}`,
+            4000
+          )
+        );
+      }
 
       clearDraft();
       addToast("success", res.data?.message ?? "Tạo gian hàng thành công – đang chờ duyệt.", 6000);
@@ -173,7 +174,7 @@ export default function CreatePoiForm() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="max-w-4xl mx-auto space-y-5">
 
       {/* ── Basic Information ─────────────────────────────────────────────── */}
       <FormSection title="Basic Information">
@@ -244,6 +245,7 @@ export default function CreatePoiForm() {
         <ShopAudioSection
           viAudioUrl={draft.viAudioUrl}
           enAudioUrl={draft.enAudioUrl}
+          zhAudioUrl={draft.zhAudioUrl}
           maxTtsChars={2000}
           onAudioGenerated={handleAudioGenerated}
         />

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { logout } from "@/modules/auth/services/authApi";
-import { getSession, clearSession, VendorSession } from "@/shared/utils/auth";
+import { adminLogout } from "@/modules/auth/services/authApi";
+import { getAdminSession, clearAdminSession, VendorSession } from "@/shared/utils/auth";
 import { AdminSidebar } from "./_components/AdminSidebar";
 import { AdminTopHeader } from "./_components/AdminTopHeader";
 
@@ -18,7 +18,7 @@ export default function AdminLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const s = getSession();
+    const s = getAdminSession();
     if (!s || s.role !== "admin") {
       router.replace(
         "/auth/admin/login?from=" +
@@ -36,8 +36,8 @@ export default function AdminLayout({
   }, [pathname]);
 
   const handleLogout = async () => {
-    await logout();
-    clearSession();
+    await adminLogout();
+    clearAdminSession();
     router.replace("/auth/admin/login");
   };
 

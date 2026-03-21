@@ -4,16 +4,18 @@ import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { previewAudio } from "@/modules/shop/services/audioApi";
 import { useToast } from "@/shared/hooks/useToast";
 
-type Language = "vi" | "en";
+type Language = "vi" | "en" | "zh";
 
 const LANGUAGES = [
   { code: "vi" as Language, flag: "🇻🇳", name: "Tiếng Việt", engine: "FPT AI Voice" },
   { code: "en" as Language, flag: "🇬🇧", name: "English", engine: "Google Cloud TTS" },
+  { code: "zh" as Language, flag: "🇨🇳", name: "中文", engine: "Google Cloud TTS" },
 ];
 
 interface Props {
   viAudioUrl: string | null;
   enAudioUrl: string | null;
+  zhAudioUrl: string | null;
   error?: string;
   onAudioGenerated: (language: Language, blob: Blob, blobUrl: string) => void;
   /** Max chars for TTS script. Defaults to 5000. */
@@ -76,13 +78,14 @@ function AudioPlayer({ label, src }: { label: string; src: string }) {
 export default function ShopAudioSection({
   viAudioUrl,
   enAudioUrl,
+  zhAudioUrl,
   error,
   onAudioGenerated,
   maxTtsChars,
 }: Props) {
   const { addToast, updateToast } = useToast();
   const [selectedLang, setSelectedLang] = useState<Language | null>(null);
-  const [texts, setTexts] = useState<Record<Language, string>>({ vi: "", en: "" });
+  const [texts, setTexts] = useState<Record<Language, string>>({ vi: "", en: "", zh: "" });
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const effectiveMax = maxTtsChars ?? MAX_TTS_CHARS;
@@ -192,8 +195,12 @@ export default function ShopAudioSection({
   };
 
   const selectedInfo = selectedLang ? LANGUAGES.find((l) => l.code === selectedLang) : null;
-  const currentAudioUrl = selectedLang === "vi" ? viAudioUrl : selectedLang === "en" ? enAudioUrl : null;
-  const hasAllAudio = viAudioUrl && enAudioUrl;
+  const currentAudioUrl =
+    selectedLang === "vi" ? viAudioUrl
+    : selectedLang === "en" ? enAudioUrl
+    : selectedLang === "zh" ? zhAudioUrl
+    : null;
+  const hasAllAudio = viAudioUrl && enAudioUrl && zhAudioUrl;
 
   return (
     <section className="space-y-4">
@@ -204,7 +211,10 @@ export default function ShopAudioSection({
       {/* ── Language selector tabs ──────────────────────────────────────── */}
       <div className="flex gap-2 flex-wrap">
         {LANGUAGES.map((lang) => {
-          const done = lang.code === "vi" ? !!viAudioUrl : !!enAudioUrl;
+          const done =
+            lang.code === "vi" ? !!viAudioUrl
+            : lang.code === "en" ? !!enAudioUrl
+            : !!zhAudioUrl;
           const isSelected = selectedLang === lang.code;
           return (
             <button
@@ -265,6 +275,8 @@ export default function ShopAudioSection({
               placeholder={
                 selectedLang === "vi"
                   ? "VD: Chào mừng bạn đến với gian hàng của chúng tôi…"
+                  : selectedLang === "zh"
+                  ? "例如：欢迎来到我们的店铺，我们专注于正宗美食…"
                   : "E.g. Welcome to our shop. We specialize in authentic cuisine…"
               }
               className="w-full px-3 py-2.5 rounded-xl border text-sm text-gray-900 bg-white
@@ -364,6 +376,8 @@ export default function ShopAudioSection({
             <AudioPlayer label="🇻🇳 Tiếng Việt – FPT AI Voice" src={viAudioUrl!} />
             <div className="border-t border-green-200/60" />
             <AudioPlayer label="🇬🇧 English – Google Cloud TTS" src={enAudioUrl!} />
+            <div className="border-t border-green-200/60" />
+            <AudioPlayer label="🇨🇳 中文 – Google Cloud TTS" src={zhAudioUrl!} />
           </div>
         </div>
       )}

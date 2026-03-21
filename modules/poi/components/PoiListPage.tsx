@@ -48,7 +48,7 @@ export default function PoiListPage() {
 
   return (
     <div>
-      <PoiListHeader />
+      <PoiListHeader onRefresh={fetchPois} loading={loading} />
 
       <PoiSearchBar
         search={search}

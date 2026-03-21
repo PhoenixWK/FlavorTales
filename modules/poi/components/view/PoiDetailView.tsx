@@ -111,10 +111,7 @@ export default function PoiDetailView({ poi, shop }: Props) {
 
       {/* Audio Narration */}
       <ViewSection title="Audio Narration">
-        <PoiViewAudioSection
-          viAudioUrl={shop.viAudioUrl}
-          enAudioUrl={shop.enAudioUrl}
-        />
+        <PoiViewAudioSection shopId={shop.shopId} />
       </ViewSection>
 
       {/* Location & Contact */}

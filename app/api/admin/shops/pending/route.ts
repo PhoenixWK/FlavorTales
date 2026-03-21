@@ -9,7 +9,7 @@ const API_BASE =
 /** GET /api/admin/shops/pending → backend GET /api/shop/admin/pending */
 export async function GET() {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get("access_token")?.value;
+  const accessToken = cookieStore.get("admin_access_token")?.value;
 
   if (!accessToken) {
     return NextResponse.json(
@@ -18,20 +18,25 @@ export async function GET() {
     );
   }
 
-  const res = await fetch(`${API_BASE}/api/shop/admin/pending`, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${API_BASE}/api/shop/admin/pending`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    });
 
-  const json = await res.json();
+    const json = await res.json();
 
-  // Parse JSON string fields
-  if (json.success && Array.isArray(json.data)) {
-    json.data = json.data.map(parseShopJsonFields);
+    // Parse JSON string fields
+    if (json.success && Array.isArray(json.data)) {
+      json.data = json.data.map(parseShopJsonFields);
+    }
+
+    return NextResponse.json(json, { status: res.status });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Cannot connect to backend";
+    return NextResponse.json({ success: false, message }, { status: 502 });
   }
-
-  return NextResponse.json(json, { status: res.status });
 }
 
 function parseShopJsonFields(shop: Record<string, unknown>) {

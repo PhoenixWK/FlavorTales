@@ -36,11 +36,10 @@ export interface PoiCreateDraft {
   openingHours: OpeningHoursDto[];
   tags: string[];
 
-  // Step 3: Audio
-  viAudioFileId: number | null;
-  enAudioFileId: number | null;
+  // Step 3: Audio (blob URLs for in-form playback — uploaded after POI/shop creation)
   viAudioUrl: string | null;
   enAudioUrl: string | null;
+  zhAudioUrl: string | null;
 }
 
 export const DRAFT_STORAGE_KEY = "ft_poi_create_draft";
@@ -64,10 +63,9 @@ export const DEFAULT_DRAFT: PoiCreateDraft = {
     closed: false,
   })),
   tags: [],
-  viAudioFileId: null,
-  enAudioFileId: null,
   viAudioUrl: null,
   enAudioUrl: null,
+  zhAudioUrl: null,
 };
 
 export function saveDraft(state: PoiCreateDraft): void {
@@ -81,7 +79,19 @@ export function saveDraft(state: PoiCreateDraft): void {
 export function loadDraft(): PoiCreateDraft | null {
   try {
     const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as PoiCreateDraft) : null;
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as PoiCreateDraft;
+    // Blob URLs are revoked when the page unloads — clear them on restore
+    // so the form shows the clean "no image/audio" placeholder instead of
+    // a broken preview.
+    if (draft.avatarPreviewUrl?.startsWith("blob:")) draft.avatarPreviewUrl = null;
+    if (draft.viAudioUrl?.startsWith("blob:")) draft.viAudioUrl = null;
+    if (draft.enAudioUrl?.startsWith("blob:")) draft.enAudioUrl = null;
+    if (draft.zhAudioUrl?.startsWith("blob:")) draft.zhAudioUrl = null;
+    draft.additionalPreviewUrls = (draft.additionalPreviewUrls ?? []).filter(
+      (u) => !u.startsWith("blob:")
+    );
+    return draft;
   } catch {
     return null;
   }

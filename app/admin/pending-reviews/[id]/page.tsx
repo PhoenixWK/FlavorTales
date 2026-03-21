@@ -8,7 +8,7 @@ const INTERNAL_API = process.env.INTERNAL_API_BASE_URL ?? "http://localhost:8080
 
 async function getShopDetail(id: string): Promise<AdminShopDetail | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const token = cookieStore.get("admin_access_token")?.value;
   if (!token) return null;
 
   const res = await fetch(`${INTERNAL_API}/api/shop/admin/${id}`, {

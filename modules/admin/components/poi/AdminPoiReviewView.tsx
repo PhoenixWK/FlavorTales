@@ -6,6 +6,7 @@ import PoiDetailView from "@/modules/poi/components/view/PoiDetailView";
 import type { PoiResponse } from "@/modules/poi/services/poiApi";
 import type { ShopDetail } from "@/modules/shop/services/shopApi";
 import AdminPoiActionBar from "./AdminPoiActionBar";
+import AdminPoiUpdateBanner from "./AdminPoiUpdateBanner";
 
 interface Props {
   shop: AdminShopDetail;
@@ -46,8 +47,6 @@ function toShopProps(shop: AdminShopDetail): ShopDetail {
     createdAt: shop.createdAt,
     updatedAt: null,
     galleryUrls: shop.galleryUrls,
-    viAudioUrl: shop.viAudioUrl,
-    enAudioUrl: shop.enAudioUrl,
   };
 }
 
@@ -70,6 +69,9 @@ export default function AdminPoiReviewView({ shop }: Props) {
         {" · "}
         {new Date(shop.createdAt).toLocaleDateString()}
       </p>
+
+      {/* Update banner — shown when vendor edited the submission after initial creation */}
+      <AdminPoiUpdateBanner createdAt={shop.createdAt} updatedAt={shop.updatedAt ?? null} />
 
       {/* Full POI detail — reuses vendor view */}
       <PoiDetailView poi={toPoiProps(shop)} shop={toShopProps(shop)} />

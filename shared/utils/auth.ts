@@ -8,9 +8,13 @@
  *
  * IMPORTANT: this data is for UI purposes only. Every protected API call is
  * authenticated by the cookie — never trust localStorage for security decisions.
+ *
+ * Vendor and admin use separate localStorage keys so they can coexist in the
+ * same browser without overwriting each other's session metadata.
  */
 
 const SESSION_KEY = "ft_vendor_session";
+const ADMIN_SESSION_KEY = "ft_admin_session";
 
 export interface VendorSession {
   userId: number;
@@ -19,31 +23,58 @@ export interface VendorSession {
   role: string;
 }
 
-/** Persist session info to localStorage after a successful login. */
-export function saveSession(session: VendorSession): void {
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } catch {
-    // Private browsing or storage quota exceeded – silently ignore
-  }
-}
+// ── Internal helpers ──────────────────────────────────────────────────────────
 
-/** Read the current session. Returns null if not logged in or if SSR. */
-export function getSession(): VendorSession | null {
+function readSession(key: string): VendorSession | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw = localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as VendorSession) : null;
   } catch {
     return null;
   }
 }
 
-/** Remove session info (called on logout). */
-export function clearSession(): void {
+function writeSession(key: string, session: VendorSession): void {
   try {
-    localStorage.removeItem(SESSION_KEY);
+    localStorage.setItem(key, JSON.stringify(session));
+  } catch {
+    // Private browsing or storage quota exceeded – silently ignore
+  }
+}
+
+function deleteSession(key: string): void {
+  try {
+    localStorage.removeItem(key);
   } catch {
     // ignore
   }
+}
+
+// ── Vendor session ────────────────────────────────────────────────────────────
+
+export function saveSession(session: VendorSession): void {
+  writeSession(SESSION_KEY, session);
+}
+
+export function getSession(): VendorSession | null {
+  return readSession(SESSION_KEY);
+}
+
+export function clearSession(): void {
+  deleteSession(SESSION_KEY);
+}
+
+// ── Admin session ─────────────────────────────────────────────────────────────
+
+export function saveAdminSession(session: VendorSession): void {
+  writeSession(ADMIN_SESSION_KEY, session);
+}
+
+export function getAdminSession(): VendorSession | null {
+  return readSession(ADMIN_SESSION_KEY);
+}
+
+export function clearAdminSession(): void {
+  deleteSession(ADMIN_SESSION_KEY);
 }

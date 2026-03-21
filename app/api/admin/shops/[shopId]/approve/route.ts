@@ -14,7 +14,7 @@ interface RouteParams {
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const { shopId } = await params;
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get("access_token")?.value;
+  const accessToken = cookieStore.get("admin_access_token")?.value;
 
   if (!accessToken) {
     return NextResponse.json(

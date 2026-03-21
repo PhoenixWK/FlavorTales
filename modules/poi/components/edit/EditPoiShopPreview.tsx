@@ -60,7 +60,7 @@ export default function EditPoiShopPreview({ shop }: Props) {
       </FormSection>
 
       <FormSection title="Âm thanh thuyết minh">
-        <PoiViewAudioSection viAudioUrl={shop.viAudioUrl} enAudioUrl={shop.enAudioUrl} />
+        <PoiViewAudioSection shopId={shop.shopId} />
       </FormSection>
     </div>
   );

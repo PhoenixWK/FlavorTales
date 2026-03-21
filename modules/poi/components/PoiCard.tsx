@@ -128,9 +128,13 @@ function KebabMenu({
 }: {
   name: string;
   editHref?: string;
-  onDeleteClick: () => void;
+  onDeleteClick?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+
+  // Nothing to show — no edit, no delete
+  if (!editHref && !onDeleteClick) return null;
+
   return (
     <div className="relative">
       <button
@@ -154,13 +158,15 @@ function KebabMenu({
                 Chỉnh sửa
               </Link>
             )}
-            <button
-              onClick={() => { setOpen(false); onDeleteClick(); }}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition w-full text-left"
-            >
-              <IconTrash className="w-3.5 h-3.5" />
-              Xóa POI
-            </button>
+            {onDeleteClick && (
+              <button
+                onClick={() => { setOpen(false); onDeleteClick(); }}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition w-full text-left"
+              >
+                <IconTrash className="w-3.5 h-3.5" />
+                Xóa POI
+              </button>
+            )}
           </div>
         </>
       )}
@@ -214,8 +220,6 @@ export default function PoiCard({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
 
-  const isPending = poi.status.toLowerCase() === "pending";
-
   const handleDeleted = () => {
     setShowDeleteDialog(false);
     setToast({ type: "success", message: "POI deleted successfully." });
@@ -253,8 +257,8 @@ export default function PoiCard({
           <div className="absolute top-2 right-2 z-10">
             <KebabMenu
               name={poi.name}
-              editHref={isPending ? undefined : `/vendor/poi/${poi.poiId}/edit`}
-              onDeleteClick={() => setShowDeleteDialog(true)}
+              editHref={poi.status?.toLowerCase() === "pending" ? undefined : `/vendor/poi/${poi.poiId}/edit`}
+              onDeleteClick={poi.status?.toLowerCase() === "pending" ? undefined : () => setShowDeleteDialog(true)}
             />
           </div>
           {/* POI name badge — bottom left over gradient */}

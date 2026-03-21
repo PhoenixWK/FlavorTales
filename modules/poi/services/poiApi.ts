@@ -12,7 +12,9 @@ export interface OpeningHoursDto {
   closed: boolean;
 }
 
-/** Combined POI + shop creation payload (UC-14 / FR-PM-001) */
+/** Combined POI + shop creation payload (UC-14 / FR-PM-001).
+ *  Audio is uploaded separately via POST /api/audio/shop/{shopId}/tts|upload
+ *  after the POI + shop have been created. */
 export interface CreatePoiPayload {
   // Step 1: POI location
   name: string;
@@ -27,9 +29,6 @@ export interface CreatePoiPayload {
   specialtyDescription?: string;
   openingHours?: OpeningHoursDto[];
   tags?: string[];
-  // Step 3: Audio
-  viAudioFileId?: number | null;
-  enAudioFileId?: number | null;
 }
 
 export interface UpdatePoiPayload {
@@ -72,6 +71,15 @@ async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
     ) {
       const from = encodeURIComponent(window.location.pathname);
       window.location.replace(`/auth/vendor/login?from=${from}&reason=session_expired`);
+      return new Promise(() => {});
+    }
+    if (
+      res.status === 403 &&
+      json?.message === "Only vendors can access this resource" &&
+      typeof window !== "undefined"
+    ) {
+      const from = encodeURIComponent(window.location.pathname);
+      window.location.replace(`/auth/vendor/login?from=${from}&reason=role_required`);
       return new Promise(() => {});
     }
     const message = json?.message ?? json?.error ?? "An unexpected error occurred.";

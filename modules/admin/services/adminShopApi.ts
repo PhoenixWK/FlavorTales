@@ -19,14 +19,14 @@ export interface AdminShopListItem {
   status: string;
   vendorEmail: string;
   createdAt: string;
+  updatedAt: string | null;
 }
 
 export interface AdminShopDetail extends AdminShopListItem {
   description: string | null;
   featuredDish: string | null;
   galleryUrls: string[];
-  viAudioUrl: string | null;
-  enAudioUrl: string | null;
+  /** Audio is fetched separately via GET /api/audio/shop/{shopId} */
   latitude: number | null;
   longitude: number | null;
   radius: number | null;
@@ -37,7 +37,8 @@ export interface AdminShopDetail extends AdminShopListItem {
 async function handleResponse<T>(res: Response): Promise<T> {
   const json = await res.json();
   if (!res.ok || !json.success) {
-    if (res.status === 401) {
+    // 401 = session expired / no token; 403 = wrong role (e.g. vendor token on admin endpoint)
+    if (res.status === 401 || res.status === 403) {
       window.location.href = "/auth/admin/login?reason=session_expired";
     }
     throw Object.assign(new Error(json.message ?? "Request failed"), {

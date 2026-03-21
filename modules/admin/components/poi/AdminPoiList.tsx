@@ -19,6 +19,18 @@ function IconSearch() {
   );
 }
 
+function IconRefresh({ spinning }: { spinning: boolean }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+      className={`w-4 h-4 transition-transform duration-500 ${spinning ? "animate-spin" : ""}`}>
+      <polyline points="23 4 23 10 17 10" />
+      <polyline points="1 20 1 14 7 14" />
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </svg>
+  );
+}
+
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
@@ -76,15 +88,26 @@ const PAGE_SIZE = 9;
 export default function AdminPoiList() {
   const [shops, setShops] = useState<AdminShopListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
+  const loadShops = (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    setError(null);
     fetchPendingShops()
       .then(setShops)
       .catch(() => setError("Failed to load pending stalls. Please try again."))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
+  };
+
+  useEffect(() => {
+    loadShops();
   }, []);
 
   const filtered = shops.filter(
@@ -102,18 +125,29 @@ export default function AdminPoiList() {
 
   return (
     <div>
-      {/* Search bar */}
-      <div className="relative mb-6 max-w-sm">
-        <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-          <IconSearch />
-        </span>
-        <input
-          type="search"
-          value={query}
-          onChange={handleSearch}
-          placeholder="Search pending stalls..."
-          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
-        />
+      {/* Search bar + Refresh */}
+      <div className="flex items-center gap-2 mb-6">
+        <div className="relative max-w-sm flex-1">
+          <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+            <IconSearch />
+          </span>
+          <input
+            type="search"
+            value={query}
+            onChange={handleSearch}
+            placeholder="Search pending stalls..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+          />
+        </div>
+        <button
+          onClick={() => loadShops(true)}
+          disabled={refreshing || loading}
+          title="Làm mới danh sách"
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-orange-500 hover:border-orange-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          <IconRefresh spinning={refreshing} />
+          <span>Làm mới</span>
+        </button>
       </div>
 
       {/* Error */}

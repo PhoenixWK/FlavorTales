@@ -32,11 +32,27 @@ public class GoogleCloudTtsService {
 
     /**
      * Converts English text to MP3 bytes via Google Cloud TTS.
+     * Uses the configured default English voice.
      *
      * @param text English narration text
      * @return Raw MP3 audio bytes
      */
     public byte[] synthesize(String text) {
+        AudioProperties.GoogleTts cfg = audioProperties.getGoogleTts();
+        return synthesize(text, cfg.getLanguageCode(), cfg.getVoiceName());
+    }
+
+    /**
+     * Converts text to MP3 bytes via Google Cloud TTS with an explicit language/voice.
+     * Supports any BCP-47 language code accepted by Google Cloud TTS
+     * (e.g. "en-US", "zh-CN", "ja-JP").
+     *
+     * @param text         Narration text in the target language
+     * @param languageCode BCP-47 language code (e.g. "zh-CN")
+     * @param voiceName    Google TTS voice name (e.g. "cmn-CN-Wavenet-A")
+     * @return Raw MP3 audio bytes
+     */
+    public byte[] synthesize(String text, String languageCode, String voiceName) {
         AudioProperties.GoogleTts cfg = audioProperties.getGoogleTts();
 
         String url = cfg.getEndpoint() + "?key=" + cfg.getApiKey();
@@ -45,8 +61,8 @@ public class GoogleCloudTtsService {
         body.putObject("input").put("text", text);
 
         ObjectNode voice = body.putObject("voice");
-        voice.put("languageCode", cfg.getLanguageCode());
-        voice.put("name", cfg.getVoiceName());
+        voice.put("languageCode", languageCode);
+        voice.put("name", voiceName);
 
         body.putObject("audioConfig").put("audioEncoding", "MP3");
 

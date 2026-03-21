@@ -31,6 +31,7 @@ public class R2FileStorageService {
                 .key(objectKey)
                 .contentType(mimeType)
                 .contentLength((long) data.length)
+                .cacheControl("public, max-age=31536000, immutable")
                 .build();
 
         s3Client.putObject(request, RequestBody.fromBytes(data));

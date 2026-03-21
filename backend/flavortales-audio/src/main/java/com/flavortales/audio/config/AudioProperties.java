@@ -27,4 +27,13 @@ public class AudioProperties {
         private String voiceName = "en-US-Wavenet-D";
         private String languageCode = "en-US";
     }
+
+    @Data
+    public static class ZhTts {
+        /** Uses the same Google Cloud TTS endpoint/key as English. */
+        private String languageCode = "zh-CN";
+        private String voiceName = "cmn-CN-Wavenet-A";
+    }
+
+    private ZhTts zhTts = new ZhTts();
 }

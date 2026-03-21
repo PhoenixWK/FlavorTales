@@ -98,7 +98,7 @@ public class PoiService {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(con -> {
             var ps = con.prepareStatement(
-                    "INSERT INTO shop (vendor_id, poi_id, avatar_file_id, name, description, cuisine_style, tags, opening_hours, vi_audio_file_id, en_audio_file_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())",
+                    "INSERT INTO shop (vendor_id, poi_id, avatar_file_id, name, description, cuisine_style, tags, opening_hours, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())",
                     Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, vendorId);
             ps.setInt(2, poiId);
@@ -108,8 +108,6 @@ public class PoiService {
             ps.setString(6, request.getSpecialtyDescription());
             ps.setString(7, tagsJson);
             ps.setString(8, hoursJson);
-            ps.setObject(9, request.getViAudioFileId());
-            ps.setObject(10, request.getEnAudioFileId());
             return ps;
         }, keyHolder);
 
@@ -269,8 +267,12 @@ public class PoiService {
         if (!poi.getVendorId().equals(vendorId)) {
             throw new IllegalArgumentException("You do not own this POI");
         }
+        if (poi.getStatus() == PoiStatus.pending) {
+            throw new IllegalStateException("Cannot delete a POI that is currently under review");
+        }
 
-        jdbcTemplate.update("UPDATE shop SET poi_id = NULL WHERE poi_id = ?", poiId);
+        // Cascade-delete linked shops (audio records cascade automatically via FK)
+        jdbcTemplate.update("DELETE FROM shop WHERE poi_id = ?", poiId);
 
         if (hardDelete) {
             poiRepository.delete(poi);

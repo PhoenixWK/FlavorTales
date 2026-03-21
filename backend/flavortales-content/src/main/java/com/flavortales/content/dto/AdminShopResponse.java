@@ -30,8 +30,7 @@ public class AdminShopResponse {
     private String  openingHours;   // JSON string: [{day,open,close,closed}]
     private String  tags;           // JSON string: ["tag1","tag2"]
     private List<String> galleryUrls;
-    private String  viAudioUrl;
-    private String  enAudioUrl;
+    // Audio URLs removed – query via GET /api/audio/shop/{shopId}
     private String  vendorEmail;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

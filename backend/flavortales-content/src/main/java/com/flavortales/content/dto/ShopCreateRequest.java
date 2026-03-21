@@ -3,6 +3,7 @@ package com.flavortales.content.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+// Note: audio fields removed – audio is managed via POST /api/audio/shop/{shopId}/tts|upload
 
 import java.util.List;
 
@@ -40,18 +41,6 @@ public class ShopCreateRequest {
     /** Optional tags. Max 5. Values: "Bình dân", "Gia truyền", "Chay". */
     @Size(max = 5, message = "You can add at most 5 tags")
     private List<String> tags;
-
-    /** file_asset.file_id from POST /api/audio/tts for Vietnamese audio (optional) */
-    private Integer viAudioFileId;
-
-    /** file_asset.file_id from POST /api/audio/tts for English audio (optional) */
-    private Integer enAudioFileId;
-
-    /** At least one audio (vi or en) must be provided. */
-    @AssertTrue(message = "At least one audio file (Vietnamese or English) is required")
-    public boolean isAtLeastOneAudioProvided() {
-        return viAudioFileId != null || enAudioFileId != null;
-    }
 
     @Data
     public static class OpeningHoursDto {

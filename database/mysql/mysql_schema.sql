@@ -159,42 +159,47 @@ CREATE TABLE menu_item (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
--- MODULE 4: AUDIO GUIDE — chỉnh lại audio
--- audio module → file module → R2, không lưu file_url trực tiếp
+-- MODULE 4: AUDIO GUIDE
+-- Mỗi shop có tối đa 1 audio per ngôn ngữ (vi/en/zh).
+-- poi_id nullable: shop có thể upload audio trước khi liên kết POI.
 -- ============================================================================
 
 CREATE TABLE audio (
-    audio_id       INT AUTO_INCREMENT PRIMARY KEY,
-    poi_id         INT NOT NULL,
-    shop_id        INT NOT NULL,
-    file_id        INT NOT NULL COMMENT 'FK → file_asset, chứa toàn bộ metadata R2',
-    language_code  VARCHAR(10) NOT NULL COMMENT 'vi, en, zh...',
-    status         ENUM('pending', 'active', 'rejected', 'disabled') DEFAULT 'pending',
-    uploaded_by    INT NOT NULL COMMENT 'vendor user_id',
-    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (poi_id)      REFERENCES poi(poi_id)        ON DELETE CASCADE,
-    FOREIGN KEY (shop_id)     REFERENCES shop(shop_id)      ON DELETE CASCADE,
+    audio_id          INT AUTO_INCREMENT PRIMARY KEY,
+    shop_id           INT NOT NULL               COMMENT 'Gian hàng sở hữu audio',
+    poi_id            INT NULL                   COMMENT 'Nullable – lấy từ shop.poi_id khi shop được liên kết POI',
+    file_id           INT NOT NULL               COMMENT 'FK → file_asset (R2 object)',
+    language_code     VARCHAR(10) NOT NULL        COMMENT 'vi | en | zh',
+    duration_seconds  DECIMAL(8,2) NULL           COMMENT 'Thời lượng audio (giây), NULL khi chưa xác định',
+    tts_provider      VARCHAR(50)  NULL           COMMENT 'fpt_ai | google_tts | upload',
+    processing_status ENUM('processing','completed','failed') NOT NULL DEFAULT 'completed'
+                                                 COMMENT 'completed = sẵn sàng phát; processing = đang tổng hợp TTS không đồng bộ',
+    status            ENUM('pending','active','rejected','disabled') NOT NULL DEFAULT 'pending',
+    uploaded_by       INT NOT NULL               COMMENT 'vendor user_id',
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE  KEY uq_shop_language   (shop_id, language_code)     COMMENT 'Mỗi shop chỉ có 1 audio/ngôn ngữ',
+    FOREIGN KEY (shop_id)     REFERENCES shop(shop_id)       ON DELETE CASCADE,
+    FOREIGN KEY (poi_id)      REFERENCES poi(poi_id)         ON DELETE SET NULL,
     FOREIGN KEY (file_id)     REFERENCES file_asset(file_id) ON DELETE RESTRICT,
-    FOREIGN KEY (uploaded_by) REFERENCES user(user_id)      ON DELETE RESTRICT,
-    INDEX idx_poi_language (poi_id, language_code),
-    INDEX idx_shop_id (shop_id),
-    INDEX idx_status (status)
+    FOREIGN KEY (uploaded_by) REFERENCES user(user_id)       ON DELETE RESTRICT,
+    INDEX idx_shop_id          (shop_id),
+    INDEX idx_poi_id            (poi_id),
+    INDEX idx_language          (language_code),
+    INDEX idx_processing_status (processing_status),
+    INDEX idx_status            (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- SHOP PROFILE EXTENSIONS (FR-CM-001)
 -- ============================================================================
 
--- Extend shop table with tags, opening hours, audio file references, and draft support
+-- Extend shop table with tags, opening hours, and draft support.
+-- Audio references đã được tách sang bảng audio (uq_shop_language).
 ALTER TABLE shop
-    ADD COLUMN tags          JSON    DEFAULT NULL  COMMENT 'Array of tag strings, max 5',
-    ADD COLUMN opening_hours JSON    DEFAULT NULL  COMMENT 'Array of {day,open,close,closed} objects',
-    ADD COLUMN vi_audio_file_id INT  NULL          COMMENT 'FK → file_asset for Vietnamese TTS audio',
-    ADD COLUMN en_audio_file_id INT  NULL          COMMENT 'FK → file_asset for English TTS audio',
-    ADD COLUMN draft_data    JSON    DEFAULT NULL  COMMENT 'Auto-save draft payload',
-    ADD CONSTRAINT fk_shop_vi_audio FOREIGN KEY (vi_audio_file_id) REFERENCES file_asset(file_id) ON DELETE SET NULL,
-    ADD CONSTRAINT fk_shop_en_audio FOREIGN KEY (en_audio_file_id) REFERENCES file_asset(file_id) ON DELETE SET NULL;
+    ADD COLUMN tags          JSON DEFAULT NULL COMMENT 'Array of tag strings, max 5',
+    ADD COLUMN opening_hours JSON DEFAULT NULL COMMENT 'Array of {day,open,close,closed} objects',
+    ADD COLUMN draft_data    JSON DEFAULT NULL COMMENT 'Auto-save draft payload (frontend form state)';
 
 -- Additional shop images (gallery)
 CREATE TABLE shop_image (

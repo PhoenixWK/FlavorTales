@@ -2,6 +2,7 @@ package com.flavortales.common.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 /**
  * Explicitly scopes JPA repositories so Spring Data can unambiguously assign
@@ -13,9 +14,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * goes through the {@link com.flavortales.common.datasource.RoutingDataSource}
  * and respects the master / slave routing set by the AOP aspect.
  *
- * <p>MongoDB repositories: not enabled – MongoDB auto-configuration is excluded
- * at the application level. Re-add {@code @EnableMongoRepositories} here when
- * a MongoDB server is provisioned.
+ * <p>MongoDB repositories ({@code location.*}) use Spring Boot's
+ * auto-configured {@code MongoClient} and are scoped here to avoid
+ * ambiguity with JPA repositories.
  */
 @Configuration
 @EnableJpaRepositories(
@@ -26,6 +27,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
         },
         entityManagerFactoryRef = "entityManagerFactory",
         transactionManagerRef  = "transactionManager"
+)
+@EnableMongoRepositories(
+        basePackages = "com.flavortales.location.repository"
 )
 public class DataStoreConfig {
 }

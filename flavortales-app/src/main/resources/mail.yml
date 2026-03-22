@@ -1,0 +1,22 @@
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  verification:
+    expiration-minutes: 15
+  mail:
+    from: ${SPRING_MAIL_USERNAME}
+    from-name: FlavorTales
+    admin-email: ${SPRING_MAIL_USERNAME}
+    support-email: ${SPRING_MAIL_USERNAME}
+    company-name: FlavorTales

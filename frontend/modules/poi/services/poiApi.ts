@@ -21,10 +21,10 @@ export interface CreatePoiPayload {
   latitude: number;
   longitude: number;
   radius: number;
-  // Step 2: Shop info
-  shopName: string;
-  shopDescription: string;
-  avatarFileId: number;
+  // Step 2: Shop info (optional — form may submit POI-only)
+  shopName?: string;
+  shopDescription?: string;
+  avatarFileId?: number;
   additionalImageIds?: number[];
   specialtyDescription?: string;
   openingHours?: OpeningHoursDto[];

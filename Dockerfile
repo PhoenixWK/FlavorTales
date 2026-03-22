@@ -17,6 +17,9 @@ COPY . .
 ARG NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 
+ARG NEXT_PUBLIC_R2_PUBLIC_URL
+ENV NEXT_PUBLIC_R2_PUBLIC_URL=$NEXT_PUBLIC_R2_PUBLIC_URL
+
 RUN npm run build
 
 # ─── Stage 3: Runtime (standalone output) ─────────────────────────────────────

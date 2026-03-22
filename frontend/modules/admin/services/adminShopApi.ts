@@ -26,7 +26,8 @@ export interface AdminShopDetail extends AdminShopListItem {
   description: string | null;
   featuredDish: string | null;
   galleryUrls: string[];
-  /** Audio is fetched separately via GET /api/audio/shop/{shopId} */
+  viAudioUrl: string | null;
+  enAudioUrl: string | null;
   latitude: number | null;
   longitude: number | null;
   radius: number | null;

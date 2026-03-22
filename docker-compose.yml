@@ -84,6 +84,21 @@ services:
       timeout: 5s
       retries: 5
 
+  mongodb:
+    image: mongo:7.0
+    container_name: flavortales-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - flavortales-mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   pmm-server:
     image: percona/pmm-server:2
     container_name: pmm-server
@@ -129,6 +144,8 @@ services:
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # MongoDB
+      MONGODB_URI: mongodb://mongodb:27017/flavortales
     depends_on:
       mysql-primary:
         condition: service_healthy
@@ -137,6 +154,8 @@ services:
       replication-setup:
         condition: service_completed_successfully
       redis:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     restart: on-failure
 
@@ -177,4 +196,5 @@ volumes:
   flavortales-primary-data:
   flavortales-replicate-data:
   flavortales-redis-data:
+  flavortales-mongodb-data:
   pmm-data:

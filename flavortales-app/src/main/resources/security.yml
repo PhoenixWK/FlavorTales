@@ -1,0 +1,33 @@
+app:
+  # -------------------------------------------------------------------------
+  # CORS Configuration
+  # -------------------------------------------------------------------------
+  cors:
+    allowed-origins: "${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}"
+
+  # -------------------------------------------------------------------------   
+  # JWT Configuration
+  # -------------------------------------------------------------------------   
+  # Generate a new 256-bit secret with:
+  #   openssl rand -base64 32
+  # Replace the placeholder below before going to production.
+  jwt:
+    secret: "${APP_JWT_SECRET}"
+    expiration-hours: 24
+    remember-me-expiration-hours: 168    # 7 days
+    refresh-expiration-days: 30
+
+  # -------------------------------------------------------------------------
+  # Login Security (Rate Limiting & Lockout)
+  # -------------------------------------------------------------------------
+  security:
+    # Rate limit: maximum attempts (any outcome) within the window
+    rate-limit-max-attempts: 5
+    rate-limit-window-minutes: 15
+
+    # Lockout: consecutive failures before account is locked
+    lockout-max-failures: 10
+    lockout-duration-minutes: 30
+
+    # Set to true in production (HTTPS only)
+    cookie-secure: false

@@ -1,0 +1,13 @@
+app:
+  poi:
+    # -----------------------------------------------------------------------
+    # Geofence boundary – coordinates that must be within this area to create a POI.
+    # Vendor-facing form validates that the entered lat/lng falls inside a circle
+    # centred on (center-lat, center-lng) with radius max-radius-m metres.
+    # Adjust these values to match the actual food-street district.
+    # -----------------------------------------------------------------------
+    boundary:
+      # Geographic centre of Vietnam – covers the entire country (radius 1 300 km)
+      center-lat: 16.000000
+      center-lng: 107.500000
+      max-radius-m: 1300000

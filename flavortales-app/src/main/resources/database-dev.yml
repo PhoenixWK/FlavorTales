@@ -1,0 +1,42 @@
+
+spring:
+  datasource:
+    # -----------------------------------------------------------------------
+    # Master (read-write) – PRIMARY node
+    # Routed to by default and for any @Transactional (readOnly = false)
+    # -----------------------------------------------------------------------
+    master:
+      jdbc-url: jdbc:mysql://localhost:3308/flavortales
+      username: root
+      password: root
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      minimum-idle: 5
+      maximum-pool-size: 10
+      idle-timeout: 30000
+      pool-name: FlavorTalesMasterPool
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+    # -----------------------------------------------------------------------
+    # Slave (read-only) – REPLICA node
+    # Routed to for @ReadOnly / @Transactional(readOnly = true)
+    # -----------------------------------------------------------------------
+    slave:
+      jdbc-url: jdbc:mysql://localhost:3309/flavortales
+      username: root
+      password: root
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      minimum-idle: 5
+      maximum-pool-size: 10
+      idle-timeout: 30000
+      pool-name: FlavorTalesSlavePool
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true

@@ -1,0 +1,10 @@
+spring:
+  config:
+    import:
+      - classpath:database-dev.yml
+      - classpath:mail.yml
+      - classpath:security.yml
+      - classpath:redis.yml
+      - classpath:poi.yml
+      - classpath:r2.yml
+      - classpath:audio.yml

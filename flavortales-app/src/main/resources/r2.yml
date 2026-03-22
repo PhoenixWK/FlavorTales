@@ -1,0 +1,7 @@
+app:
+  r2:
+    account-id: ${R2_ACCOUNT_ID}
+    access-key: ${R2_ACCESS_KEY}
+    secret-key: ${R2_SECRET_KEY}
+    bucket: flavortales
+    public-url: ${R2_PUBLIC_URL:https://cdn.flavortales.site}

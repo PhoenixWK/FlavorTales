@@ -1,0 +1,15 @@
+app:
+  audio:
+    fpt-ai:
+      api-key: ${FPT_AI_API_KEY}
+      endpoint: https://api.fpt.ai/hmi/tts/v5
+      voice: banmai
+      speed: 0
+    google-tts:
+      api-key: ${GOOGLE_TTS_API_KEY}
+      endpoint: https://texttospeech.googleapis.com/v1/text:synthesize
+      voice-name: en-US-Wavenet-D
+      language-code: en-US
+    zh-tts:
+      language-code: zh-CN
+      voice-name: cmn-CN-Wavenet-A

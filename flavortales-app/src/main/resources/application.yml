@@ -8,3 +8,7 @@ spring:
       - classpath:poi.yml
       - classpath:r2.yml
       - classpath:audio.yml
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB

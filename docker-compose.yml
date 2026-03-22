@@ -146,10 +146,12 @@ services:
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+        - NEXT_PUBLIC_R2_PUBLIC_URL=${NEXT_PUBLIC_R2_PUBLIC_URL:-https://cdn.flavortales.site}
     ports:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+      - NEXT_PUBLIC_R2_PUBLIC_URL=${NEXT_PUBLIC_R2_PUBLIC_URL:-https://cdn.flavortales.site}
       # Server-side BFF routes use the Docker service hostname (not localhost)
       - INTERNAL_API_BASE_URL=http://backend:8080
       - COOKIE_SECURE=true

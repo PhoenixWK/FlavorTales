@@ -23,6 +23,12 @@
             <artifactId>flavortales-common</artifactId>
         </dependency>
 
+        <!-- MongoDB (tourist anonymous session) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
+
         <!-- MapStruct -->
         <dependency>
             <groupId>org.mapstruct</groupId>

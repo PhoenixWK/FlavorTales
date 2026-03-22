@@ -8,6 +8,7 @@ spring:
       - classpath:poi.yml
       - classpath:r2.yml
       - classpath:audio.yml
+      - classpath:mongodb.yml
   servlet:
     multipart:
       max-file-size: 20MB

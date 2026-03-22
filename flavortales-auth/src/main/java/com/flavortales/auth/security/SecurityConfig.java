@@ -62,6 +62,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     // Public auth endpoints (login, register, verify, logout, refresh)
                     .requestMatchers("/api/auth/**").permitAll()
+                    // Public tourist endpoints (anonymous session – no JWT required)
+                    .requestMatchers("/api/tourist/**").permitAll()
                     // All other routes require a valid JWT
                     .anyRequest().authenticated()
             )

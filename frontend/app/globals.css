@@ -48,6 +48,21 @@ textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* FR-LM-005 §3: User location marker — pulsing blue dot */
+.ft-user-dot {
+  background-color: #3b82f6;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  animation: ft-user-pulse 2s ease-out infinite;
+}
+
+@keyframes ft-user-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.55); }
+  70%  { box-shadow: 0 0 0 12px rgba(59, 130, 246, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
 /* Smooth scroll for iOS momentum */
 .overflow-y-auto,
 .overflow-y-scroll {

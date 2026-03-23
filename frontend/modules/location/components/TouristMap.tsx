@@ -1,11 +1,13 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef } from "react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import { memo, useEffect, useRef } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useUserLocation, type LocationStatus } from "@/shared/hooks/useUserLocation";
+import { type LocationStatus } from "@/shared/hooks/useUserLocation";
+import { useLocationContext } from "@/modules/location/context/LocationContext";
 import { BOUNDARY_CENTER } from "@/modules/poi/components/MapPicker";
+import UserLocationMarker from "./UserLocationMarker";
 
 // ── Leaflet icon fix (Next.js / webpack) ──────────────────────────────────────
 
@@ -21,62 +23,73 @@ function useFixLeafletIcons() {
   }, []);
 }
 
-// ── Fly-to controller (must live inside MapContainer) ────────────────────────
+// ── Map controller (must live inside MapContainer) ────────────────────────────
 
-function FlyTo({ target }: { target: [number, number] | null }) {
+/**
+ * Stores the Leaflet map instance in a ref so TouristMap can call flyTo
+ * without extra child components.
+ */
+function MapController({
+  mapRef,
+}: {
+  mapRef: React.MutableRefObject<L.Map | null>;
+}) {
   const map = useMap();
-  useEffect(() => {
-    if (target) map.flyTo(target, 16, { duration: 1.2 });
-  }, [map, target]);
+  mapRef.current = map;
   return null;
 }
 
-// ── Status banner ─────────────────────────────────────────────────────────────
+// ── Status banner messages ────────────────────────────────────────────────────
 
 const STATUS_MESSAGES: Partial<Record<LocationStatus, string>> = {
-  loading: "Đang xác định vị trí…",
-  denied: "Quyền truy cập vị trí bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt.",
-  unavailable: "Thiết bị của bạn không hỗ trợ định vị GPS.",
-  error: "Không thể lấy vị trí. Hãy thử lại.",
+  loading:     "Đang xác định vị trí…",
+  searching:   "Đang tìm kiếm tín hiệu GPS…",
+  denied:      "Quyền truy cập vị trí bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt.",
+  unavailable: "Không xác định được vị trí.",
+  error:       "Không thể lấy vị trí. Hãy thử lại.",
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
- * UC-10: Tourist-facing map that shows the user's current GPS position.
+ * UC-10 / FR-LM-005: Tourist-facing map with GPS position display.
  *
- * The "Vị trí của tôi" button triggers the browser Geolocation API;
- * on success the map flies to the user's coordinates and places a marker.
+ * Reads GPS state from LocationContext (owned by LocationPermissionGate) so
+ * there is exactly one watchPosition running at a time.
+ * - First GPS fix → map flies to user position automatically.
+ * - "Vị trí của tôi" button → re-centers map when tracking; starts tracking
+ *   when not yet active.
  */
 const TouristMap = memo(function TouristMap() {
   useFixLeafletIcons();
 
-  const { coordinates, status, requestLocation } = useUserLocation();
+  const { coordinates, status, requestLocation } = useLocationContext();
+  const mapRef = useRef<L.Map | null>(null);
 
   const userPosition: [number, number] | null = coordinates
     ? [coordinates.latitude, coordinates.longitude]
     : null;
 
-  // Fly target: set once when coordinates arrive
-  const flyTarget = useRef<[number, number] | null>(null);
-  if (userPosition && flyTarget.current === null) {
-    flyTarget.current = userPosition;
-  }
+  // Fly to user position exactly once when coordinates first arrive
+  const firstFlyRef = useRef(false);
+  useEffect(() => {
+    if (userPosition && !firstFlyRef.current && mapRef.current) {
+      firstFlyRef.current = true;
+      mapRef.current.flyTo(userPosition, 16, { duration: 1.2 });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coordinates]);
 
-  const userIcon = useMemo(
-    () =>
-      new L.Icon({
-        iconUrl: "/marker-icon.png",
-        iconRetinaUrl: "/marker-icon-2x.png",
-        shadowUrl: "/marker-shadow.png",
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
-      }),
-    []
-  );
+  const handleLocationButton = () => {
+    if (status === "success" && userPosition && mapRef.current) {
+      // Re-center map on current position
+      mapRef.current.flyTo(userPosition, 16, { duration: 1.2 });
+    } else {
+      requestLocation();
+    }
+  };
 
+  const isTracking = status === "loading" || status === "searching";
   const statusMessage = STATUS_MESSAGES[status];
 
   return (
@@ -97,20 +110,17 @@ const TouristMap = memo(function TouristMap() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          {/* Fly to user position when coordinates arrive */}
-          <FlyTo target={userPosition} />
+          <MapController mapRef={mapRef} />
 
-          {/* User-position marker */}
-          {userPosition && (
-            <Marker position={userPosition} icon={userIcon} />
-          )}
+          {/* User-position marker with pulse dot, accuracy circle, direction arrow */}
+          {coordinates && <UserLocationMarker coordinates={coordinates} />}
         </MapContainer>
       </div>
 
-      {/* "My Location" button — overlayed on the map */}
+      {/* "My Location" button — overlaid on the map */}
       <button
-        onClick={requestLocation}
-        disabled={status === "loading"}
+        onClick={handleLocationButton}
+        disabled={isTracking}
         aria-label="Vị trí của tôi"
         className="
           absolute bottom-6 right-4 z-1000
@@ -121,7 +131,6 @@ const TouristMap = memo(function TouristMap() {
           transition-colors
         "
       >
-        {/* Simple crosshair / location icon using plain SVG */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-4 w-4 shrink-0"
@@ -136,7 +145,7 @@ const TouristMap = memo(function TouristMap() {
           <circle cx="12" cy="12" r="3" />
           <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
         </svg>
-        {status === "loading" ? "Đang xác định…" : "Vị trí của tôi"}
+        {isTracking ? "Đang xác định…" : "Vị trí của tôi"}
       </button>
 
       {/* Status / error banner */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -8,6 +8,12 @@ import { type LocationStatus } from "@/shared/hooks/useUserLocation";
 import { useLocationContext } from "@/modules/location/context/LocationContext";
 import { BOUNDARY_CENTER } from "@/modules/poi/components/MapPicker";
 import UserLocationMarker from "./UserLocationMarker";
+import { useTouristPois } from "@/modules/poi/hooks/useTouristPois";
+import PoiMarkerLayer from "@/modules/poi/components/tourist/PoiMarkerLayer";
+import PoiDetailPanel from "@/modules/poi/components/tourist/PoiDetailPanel";
+import PoiHoverCard from "@/modules/poi/components/tourist/PoiHoverCard";
+import PoiSearchBar from "@/modules/poi/components/tourist/PoiSearchBar";
+import type { TouristPoi } from "@/modules/poi/types/touristPoi";
 
 // ── Leaflet icon fix (Next.js / webpack) ──────────────────────────────────────
 
@@ -53,6 +59,7 @@ const STATUS_MESSAGES: Partial<Record<LocationStatus, string>> = {
 
 /**
  * UC-10 / FR-LM-005: Tourist-facing map with GPS position display.
+ * FR-LM-003 / FR-LM-004: POI markers, clustering, and popup card.
  *
  * Reads GPS state from LocationContext (owned by LocationPermissionGate) so
  * there is exactly one watchPosition running at a time.
@@ -65,6 +72,42 @@ const TouristMap = memo(function TouristMap() {
 
   const { coordinates, status, requestLocation } = useLocationContext();
   const mapRef = useRef<L.Map | null>(null);
+
+  const { pois, selectedPoiId, visitedPoiIds, selectPoi } = useTouristPois();
+
+  const selectedPoi = pois.find((p) => p.poiId === selectedPoiId) ?? null;
+
+  // Search state — filters visible markers and is shared with the detail panel
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredPois = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return pois;
+    return pois.filter((p) =>
+      (p.linkedShopName ?? p.name).toLowerCase().includes(q)
+    );
+  }, [pois, searchQuery]);
+
+  // Map container ref — used to convert Leaflet containerPoint → viewport coords
+  const mapDivRef = useRef<HTMLDivElement>(null);
+
+  // Hover card state (viewport-absolute pixel position)
+  const [hoveredPoi, setHoveredPoi]   = useState<TouristPoi | null>(null);
+  const [hoverPoint, setHoverPoint]   = useState<{ x: number; y: number } | null>(null);
+
+  const handleHover = useCallback((poi: TouristPoi, point: { x: number; y: number }) => {
+    const rect = mapDivRef.current?.getBoundingClientRect();
+    const vp = rect
+      ? { x: point.x + rect.left, y: point.y + rect.top }
+      : point;
+    setHoveredPoi(poi);
+    setHoverPoint(vp);
+  }, []);
+
+  const handleHoverEnd = useCallback(() => {
+    setHoveredPoi(null);
+    setHoverPoint(null);
+  }, []);
 
   const userPosition: [number, number] | null = coordinates
     ? [coordinates.latitude, coordinates.longitude]
@@ -96,6 +139,7 @@ const TouristMap = memo(function TouristMap() {
     <div className="relative flex flex-col gap-2">
       {/* Map */}
       <div
+        ref={mapDivRef}
         className="rounded-xl overflow-hidden border border-gray-200"
         style={{ height: "calc(100vh - 120px)", minHeight: 400 }}
       >
@@ -114,8 +158,41 @@ const TouristMap = memo(function TouristMap() {
 
           {/* User-position marker with pulse dot, accuracy circle, direction arrow */}
           {coordinates && <UserLocationMarker coordinates={coordinates} />}
+
+          {/* FR-LM-003: POI markers with clustering */}
+          <PoiMarkerLayer
+            pois={filteredPois}
+            selectedPoiId={selectedPoiId}
+            visitedPoiIds={visitedPoiIds}
+            onSelect={selectPoi}
+            onHover={handleHover}
+            onHoverEnd={handleHoverEnd}
+          />
         </MapContainer>
       </div>
+
+      {/* Hover preview card — uses fixed position (viewport coords) */}
+      {hoveredPoi && hoverPoint && !selectedPoi && (
+        <PoiHoverCard poi={hoveredPoi} position={hoverPoint} />
+      )}
+
+      {/* Floating search bar — always visible when no detail panel is open */}
+      {!selectedPoi && (
+        <div className="absolute top-4 left-4 z-1000 w-64 sm:w-80">
+          <PoiSearchBar value={searchQuery} onChange={setSearchQuery} />
+        </div>
+      )}
+
+      {/* FR-LM-004: Detail panel — left overlay on click */}
+      {selectedPoi && (
+        <PoiDetailPanel
+          poi={selectedPoi}
+          userCoordinates={coordinates}
+          onClose={() => selectPoi(null)}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
+      )}
 
       {/* "My Location" button — overlaid on the map */}
       <button

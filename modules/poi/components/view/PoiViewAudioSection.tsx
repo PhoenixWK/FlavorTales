@@ -4,19 +4,13 @@ import { useState, useRef, useEffect } from "react";
 import { proxyAudioUrl } from "@/shared/utils/mediaProxy";
 import { getAudioByShop } from "@/modules/audio/services/audioApi";
 import { toAudioByLanguage } from "@/modules/audio/types/audio";
-
-type Lang = "vi" | "en" | "zh";
+import type { AudioLanguage } from "@/modules/audio/types/audio";
+import { LOCALE_OPTIONS, useLocale } from "@/shared/hooks/useLocale";
 
 interface Props {
   /** shopId is used to fetch audio from GET /api/audio/shop/{shopId} */
   shopId: number;
 }
-
-const LANG_OPTIONS: { code: Lang; label: string; flag: string }[] = [
-  { code: "en", label: "English (International)", flag: "🇬🇧" },
-  { code: "vi", label: "Tiếng Việt", flag: "🇻🇳" },
-  { code: "zh", label: "中文", flag: "🇨🇳" },
-];
 
 function formatTime(s: number) {
   const m = Math.floor(s / 60);
@@ -51,7 +45,7 @@ function IconMusicNote() {
 }
 
 /** Inline audio player card used by PoiViewAudioSection. */
-function AudioPlayerCard({ src, lang }: { src: string; lang: Lang }) {
+function AudioPlayerCard({ src, lang }: { src: string; lang: AudioLanguage }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -77,7 +71,7 @@ function AudioPlayerCard({ src, lang }: { src: string; lang: Lang }) {
     setProgress(pct);
   };
 
-  const opt = LANG_OPTIONS.find((o) => o.code === lang);
+  const opt = LOCALE_OPTIONS.find((o) => o.code === lang);
 
   return (
     <div className="rounded-xl border border-orange-100 bg-linear-to-br from-orange-50 to-amber-50 p-4">
@@ -130,10 +124,11 @@ function AudioPlayerCard({ src, lang }: { src: string; lang: Lang }) {
 
 /** Read-only audio section with language tab buttons. */
 export default function PoiViewAudioSection({ shopId }: Props) {
+  const { locale } = useLocale();
   const [viAudioUrl, setViAudioUrl] = useState<string | null>(null);
   const [enAudioUrl, setEnAudioUrl] = useState<string | null>(null);
   const [zhAudioUrl, setZhAudioUrl] = useState<string | null>(null);
-  const [selectedLang, setSelectedLang] = useState<Lang | "">("");
+  const [selectedLang, setSelectedLang] = useState<AudioLanguage | "">("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -147,14 +142,12 @@ export default function PoiViewAudioSection({ shopId }: Props) {
         setViAudioUrl(vi);
         setEnAudioUrl(en);
         setZhAudioUrl(zh);
-        // Auto-select the first language that has audio
-        const first = LANG_OPTIONS.find(
-          (o) =>
-            (o.code === "en" && !!en) ||
-            (o.code === "vi" && !!vi) ||
-            (o.code === "zh" && !!zh)
+        // Auto-select the preferred locale if available, then fall back to first available
+        const audioMap: Record<AudioLanguage, string | null> = { vi, en, zh };
+        const preferred = ([locale, "vi", "en", "zh"] as AudioLanguage[]).find(
+          (l) => !!audioMap[l]
         );
-        if (first) setSelectedLang(first.code);
+        if (preferred) setSelectedLang(preferred);
       })
       .catch(() => {
         // No audio available or network error — stay empty
@@ -166,7 +159,7 @@ export default function PoiViewAudioSection({ shopId }: Props) {
     return (
       <div className="space-y-3 animate-pulse">
         <div className="flex gap-2">
-          {LANG_OPTIONS.map((o) => (
+          {LOCALE_OPTIONS.map((o) => (
             <div key={o.code} className="h-9 w-32 rounded-xl bg-gray-100" />
           ))}
         </div>
@@ -175,7 +168,7 @@ export default function PoiViewAudioSection({ shopId }: Props) {
     );
   }
 
-  const available = LANG_OPTIONS.filter(
+  const available = LOCALE_OPTIONS.filter(
     (o) =>
       (o.code === "en" && !!enAudioUrl) ||
       (o.code === "vi" && !!viAudioUrl) ||
@@ -226,7 +219,7 @@ export default function PoiViewAudioSection({ shopId }: Props) {
 
       {/* Player */}
       {selectedLang && activeUrl && (
-        <AudioPlayerCard key={activeUrl} src={activeUrl} lang={selectedLang as Lang} />
+        <AudioPlayerCard key={activeUrl} src={activeUrl} lang={selectedLang as AudioLanguage} />
       )}
     </div>
   );

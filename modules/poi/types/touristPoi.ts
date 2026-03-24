@@ -13,6 +13,8 @@ export interface TouristPoi {
   linkedShopAvatarUrl: string | null;
   /** Whether this POI has at least one active (approved) audio. Resolved lazily. */
   hasApprovedAudio?: boolean;
+  /** Cumulative tourist like count (FR-LM-007 overlap scoring). */
+  likesCount?: number;
   /** Shop tags (e.g. ["Hải sản","Bình dân"]), null when POI has no linked shop. */
   shopTags?: string[] | null;
   shopDescription?: string | null;

@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useUserLocation } from "@/shared/hooks/useUserLocation";
+import { useGpsProvider } from "@/modules/location/hooks/useGpsProvider";
 import { useToast } from "@/shared/hooks/useToast";
 import { LocationProvider } from "@/modules/location/context/LocationContext";
 import LocationPermissionScreen from "./LocationPermissionScreen";
+import MockGpsPanel from "@/modules/location/components/MockGpsPanel";
 
 const BYPASS_KEY = "ft_location_bypassed";
+const IS_MOCK_GPS = process.env.NEXT_PUBLIC_MOCK_GPS === "true";
 
 /**
  * UC-10 / FR-LM-005: Guards the map behind a location-permission prompt.
@@ -23,7 +25,7 @@ export default function LocationPermissionGate({
 }: {
   children: React.ReactNode;
 }) {
-  const locationState = useUserLocation();
+  const locationState = useGpsProvider();
   const { status, requestLocation } = locationState;
   const { addToast } = useToast();
   const [bypassed, setBypassed] = useState(false);
@@ -58,7 +60,10 @@ export default function LocationPermissionGate({
 
   if (showMap) {
     return (
-      <LocationProvider value={locationState}>{children}</LocationProvider>
+      <LocationProvider value={locationState}>
+        {IS_MOCK_GPS && <MockGpsPanel />}
+        {children}
+      </LocationProvider>
     );
   }
 

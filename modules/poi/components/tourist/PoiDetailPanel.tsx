@@ -9,17 +9,12 @@ import { IconAudio, IconDirections, IconClose, IconPin, IconGlobe } from "@/modu
 import { ShopCategoryBadge } from "@/modules/poi/components/tourist/shopCategoryIcon";
 import PoiImageCarousel from "@/modules/poi/components/tourist/PoiImageCarousel";
 import PoiImageLightbox from "@/modules/poi/components/tourist/PoiImageLightbox";
-
-// ── Distance helper ───────────────────────────────────────────────────────────
-
-function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import { haversineMetres } from "@/modules/location/utils/geoMath";
+import { useGeofenceContext } from "@/modules/location/context/GeofenceContext";
+import { useAudioContext } from "@/modules/audio/context/AudioContext";
+import { useAnonymousSession } from "@/modules/location/hooks/useAnonymousSession";
+import { likePoiApi, unlikePoiApi } from "@/modules/poi/services/touristPoiApi";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -47,13 +42,66 @@ export default function PoiDetailPanel({
 }: Props) {
   const name   = poi.linkedShopName ?? poi.name;
   const status = getOpenStatus(poi.shopOpeningHours);
+  const t = useTranslation();
+
+  // ── Geofence + audio context ──────────────────────────────────────
+  const { resolvedPoiId, isResolving, insidePois } = useGeofenceContext();
+  const { playState, currentPoiId, play, pause } = useAudioContext();
+  const { sessionId } = useAnonymousSession();
 
   const distanceMetres = userCoordinates
-    ? haversineDistance(userCoordinates.latitude, userCoordinates.longitude, poi.latitude, poi.longitude)
+    ? haversineMetres(userCoordinates.latitude, userCoordinates.longitude, poi.latitude, poi.longitude)
     : null;
 
-  const userInsideRadius = distanceMetres !== null && distanceMetres <= poi.radius;
-  const canHearStory     = userInsideRadius && poi.hasApprovedAudio === true;
+  const isThisPoiResolved = resolvedPoiId === poi.poiId;
+  const isInsideThisPoi   = insidePois.includes(poi.poiId);
+  const isPlayingThis     = currentPoiId === poi.poiId;
+
+  // Derive audio button state
+  type AudioBtnState = "hidden" | "resolving" | "playing" | "inactive";
+  const audioBtnState: AudioBtnState = !poi.hasApprovedAudio
+    ? "hidden"
+    : isResolving && insidePois.length > 1 && isInsideThisPoi
+    ? "resolving"
+    : isThisPoiResolved
+    ? "playing"
+    : "inactive";
+
+  // ── Like state (optimistic) ──────────────────────────────────────
+  const LIKED_KEY = "ft_liked_pois";
+  function readLiked(): Set<number> {
+    try { return new Set(JSON.parse(localStorage.getItem(LIKED_KEY) ?? "[]")); }
+    catch { return new Set(); }
+  }
+  function writeLiked(s: Set<number>) {
+    try { localStorage.setItem(LIKED_KEY, JSON.stringify([...s])); } catch { /* ignore */ }
+  }
+
+  const [liked, setLiked] = useState(() => readLiked().has(poi.poiId));
+  const [likesCount, setLikesCount] = useState(poi.likesCount ?? 0);
+
+  const handleLike = async () => {
+    if (!sessionId) return;
+    const nextLiked = !liked;
+    setLiked(nextLiked);
+    setLikesCount((c) => nextLiked ? c + 1 : Math.max(c - 1, 0));
+    const s = readLiked();
+    if (nextLiked) { s.add(poi.poiId); } else { s.delete(poi.poiId); }
+    writeLiked(s);
+    try {
+      const updated = await (nextLiked
+        ? likePoiApi(poi.poiId, sessionId)
+        : unlikePoiApi(poi.poiId, sessionId));
+      setLikesCount(updated);
+    } catch {
+      // Revert on failure
+      setLiked(!nextLiked);
+      setLikesCount((c) => !nextLiked ? c + 1 : Math.max(c - 1, 0));
+      const s2 = readLiked();
+      if (!nextLiked) { s2.add(poi.poiId); } else { s2.delete(poi.poiId); }
+      writeLiked(s2);
+    }
+  };
 
   const directionsUrl = `https://www.openstreetmap.org/directions?from=&to=${poi.latitude},${poi.longitude}`;
 
@@ -95,12 +143,11 @@ export default function PoiDetailPanel({
         <div className="shrink-0 px-3 pt-3 pb-2 border-b border-gray-100 flex items-center gap-2">
           <PoiSearchBar
             value={searchQuery}
-            onChange={onSearchChange}
-            className="flex-1"
+            onChange={onSearchChange}              placeholder={t("poi.search_placeholder")}            className="flex-1"
           />
           <button
             onClick={onClose}
-            aria-label="Đóng"
+            aria-label={t("poi.close")}
             className="shrink-0 p-2 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
           >
             <IconClose className="h-5 w-5" />
@@ -126,8 +173,24 @@ export default function PoiDetailPanel({
           )}
 
           <div className="px-4 py-4 flex flex-col gap-3">
-            {/* Name */}
-            <h2 className="font-bold text-xl text-gray-900 leading-snug">{name}</h2>
+            {/* Name + inline like */}
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="font-bold text-xl text-gray-900 leading-snug flex-1">{name}</h2>
+              <button
+                onClick={handleLike}
+                disabled={!sessionId}
+                aria-label={liked ? "Bỏ yêu thích" : "Yêu thích"}
+                className={`shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border transition-colors
+                  ${liked ? "border-red-300 bg-red-50 text-red-600" : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50"}
+                  disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"}
+                  stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+                {likesCount > 0 && <span>{likesCount}</span>}
+              </button>
+            </div>
 
             {/* Category badge + type + status */}
             <div className="flex items-start gap-3">
@@ -139,7 +202,7 @@ export default function PoiDetailPanel({
                 {status && (
                   <div className="flex items-center gap-1.5 text-sm flex-wrap">
                     <span className={status.open ? "font-semibold text-green-600" : "font-semibold text-red-500"}>
-                      {status.open ? "Đang mở" : "Đã đóng"}
+                      {status.open ? t("poi.open") : t("poi.closed")}
                     </span>
                     <span className="text-gray-300">·</span>
                     <span className="text-gray-500">{status.label.split("•")[1]?.trim()}</span>
@@ -150,16 +213,35 @@ export default function PoiDetailPanel({
 
             {/* Action buttons */}
             <div className="flex flex-col gap-2">
-              {/* Audio — shown always, disabled when not available */}
-              <button
-                disabled={!canHearStory}
-                className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-colors
-                  bg-blue-600 hover:bg-blue-700 text-white
-                  disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
-                <IconAudio className="h-4 w-4 shrink-0" />
-                Nghe thuyết minh
-              </button>
+              {/* Audio button — triggers floating AudioPlayerBar */}
+              {audioBtnState !== "hidden" && (
+                <button
+                  onClick={isPlayingThis && playState === "playing" ? pause : play}
+                  disabled={audioBtnState === "inactive" || audioBtnState === "resolving"}
+                  title={audioBtnState === "inactive" ? "Di chuyển gần hơn để nghe thuyết minh" : undefined}
+                  className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-colors
+                    ${
+                      audioBtnState === "playing"
+                        ? "bg-orange-500 hover:bg-orange-600 text-white"
+                        : audioBtnState === "resolving"
+                        ? "bg-blue-100 text-blue-400 cursor-wait"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    }`}
+                >
+                  {audioBtnState === "resolving" ? (
+                    <span className="h-4 w-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />
+                  ) : (
+                    <IconAudio className="h-4 w-4 shrink-0" />
+                  )}
+                  {audioBtnState === "resolving"
+                    ? "Đang phân tích…"
+                    : isPlayingThis && playState === "playing"
+                    ? "Đang phát"
+                    : playState === "loading" && isPlayingThis
+                    ? "Đang tải…"
+                    : t("poi.hear_story")}
+                </button>
+              )}
 
               {/* Directions */}
               <a
@@ -169,7 +251,7 @@ export default function PoiDetailPanel({
                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium text-sm py-3 transition-colors text-center"
               >
                 <IconDirections className="h-4 w-4 shrink-0" />
-                Chỉ đường nhanh nhất
+                {t("poi.directions")}
               </a>
             </div>
 

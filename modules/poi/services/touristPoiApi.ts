@@ -32,3 +32,33 @@ export async function fetchPoiAudio(poiId: number): Promise<TouristPoiAudio[]> {
   const res = await fetch(`${AUDIO_PROXY}/poi/${poiId}`);
   return handleJson<TouristPoiAudio[]>(res);
 }
+
+/**
+ * POST /api/poi/{poiId}/like — idempotent like by anonymous session.
+ * Returns the updated likes_count.
+ */
+export async function likePoiApi(
+  poiId: number,
+  sessionId: string
+): Promise<number> {
+  const res = await fetch(`${POI_PROXY}/${poiId}/like`, {
+    method: "POST",
+    headers: { "X-Session-Id": sessionId },
+  });
+  return handleJson<number>(res);
+}
+
+/**
+ * DELETE /api/poi/{poiId}/like — idempotent unlike by anonymous session.
+ * Returns the updated likes_count.
+ */
+export async function unlikePoiApi(
+  poiId: number,
+  sessionId: string
+): Promise<number> {
+  const res = await fetch(`${POI_PROXY}/${poiId}/like`, {
+    method: "DELETE",
+    headers: { "X-Session-Id": sessionId },
+  });
+  return handleJson<number>(res);
+}

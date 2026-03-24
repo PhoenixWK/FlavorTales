@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { useTranslation } from "@/shared/i18n/useTranslation";
 import LocationIllustration from "./LocationIllustration";
 
 interface Props {
@@ -19,6 +20,7 @@ export default function LocationPermissionScreen({
   onSkip,
   isLoading,
 }: Props) {
+  const t = useTranslation();
   return (
     <div
       className="flex rounded-xl overflow-hidden border border-gray-200"
@@ -46,10 +48,9 @@ export default function LocationPermissionScreen({
 
         {/* Heading */}
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Bật định vị</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t("location.permission.heading")}</h2>
           <p className="mt-2 text-sm text-gray-500 max-w-xs">
-            Để tự động phát câu chuyện và hiển thị các quán ăn gần bạn, chúng
-            tôi cần quyền truy cập vị trí của thiết bị bạn.
+            {t("location.permission.body")}
           </p>
         </div>
 
@@ -71,8 +72,8 @@ export default function LocationPermissionScreen({
               <polygon points="22 2 15 22 11 13 2 9 22 2" />
             </svg>
             <div>
-              <p className="text-sm font-semibold text-gray-800">Câu chuyện lân cận</p>
-              <p className="text-xs text-gray-500">Tự động phát khi bạn đi ngang các quán ăn nổi tiếng.</p>
+              <p className="text-sm font-semibold text-gray-800">{t("location.permission.feature1.title")}</p>
+              <p className="text-xs text-gray-500">{t("location.permission.feature1.body")}</p>
             </div>
           </li>
           <li className="flex items-start gap-3">
@@ -91,8 +92,8 @@ export default function LocationPermissionScreen({
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <div>
-              <p className="text-sm font-semibold text-gray-800">Khám phá ẩm thực gần bạn</p>
-              <p className="text-xs text-gray-500">Xem các điểm ăn uống được đánh giá cao ngay quanh góc phố của bạn.</p>
+              <p className="text-sm font-semibold text-gray-800">{t("location.permission.feature2.title")}</p>
+              <p className="text-xs text-gray-500">{t("location.permission.feature2.body")}</p>
             </div>
           </li>
         </ul>
@@ -104,13 +105,13 @@ export default function LocationPermissionScreen({
             disabled={isLoading}
             className="w-full rounded-full bg-orange-500 py-3 text-sm font-semibold text-white hover:bg-orange-600 active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
           >
-            {isLoading ? "Đang xử lý" : "Cho phép truy cập vị trí"}
+            {isLoading ? t("location.permission.allow_loading") : t("location.permission.allow")}
           </button>
           <button
             onClick={onSkip}
             className="py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
           >
-            Nhập vị trí thủ công
+            {t("location.permission.skip")}
           </button>
         </div>
       </div>

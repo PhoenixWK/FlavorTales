@@ -8,7 +8,11 @@ spring:
       - classpath:poi.yml
       - classpath:r2.yml
       - classpath:audio.yml
-      - classpath:mongodb.yml
+      - optional:classpath:mongodb.yml
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/flavortales}
+      auto-index-creation: true
   servlet:
     multipart:
       max-file-size: 20MB

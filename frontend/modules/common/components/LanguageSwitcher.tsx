@@ -62,8 +62,8 @@ export default function LanguageSwitcher() {
         <ul
           role="listbox"
           aria-label="Ngôn ngữ"
-          className="absolute right-0 mt-2 w-44 rounded-xl border border-gray-200 bg-white shadow-lg z-50
-            overflow-hidden"
+          className="absolute right-0 mt-2 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden"
+          style={{ zIndex: 10000 }}
         >
           {LOCALE_OPTIONS.map((option) => (
             <li key={option.code}>

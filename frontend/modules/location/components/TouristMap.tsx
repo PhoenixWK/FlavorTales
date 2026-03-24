@@ -14,6 +14,12 @@ import PoiDetailPanel from "@/modules/poi/components/tourist/PoiDetailPanel";
 import PoiHoverCard from "@/modules/poi/components/tourist/PoiHoverCard";
 import PoiSearchBar from "@/modules/poi/components/tourist/PoiSearchBar";
 import type { TouristPoi } from "@/modules/poi/types/touristPoi";
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import { GeofenceProvider } from "@/modules/location/context/GeofenceContext";
+import { AudioProvider } from "@/modules/audio/context/AudioContext";
+import GeofenceBanner from "@/modules/location/components/GeofenceBanner";
+import GeofenceCircleLayer from "@/modules/poi/components/tourist/GeofenceCircleLayer";
+import AudioPlayerBar from "@/modules/audio/components/AudioPlayerBar";
 
 // ── Leaflet icon fix (Next.js / webpack) ──────────────────────────────────────
 
@@ -45,16 +51,6 @@ function MapController({
   return null;
 }
 
-// ── Status banner messages ────────────────────────────────────────────────────
-
-const STATUS_MESSAGES: Partial<Record<LocationStatus, string>> = {
-  loading:     "Đang xác định vị trí…",
-  searching:   "Đang tìm kiếm tín hiệu GPS…",
-  denied:      "Quyền truy cập vị trí bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt.",
-  unavailable: "Không xác định được vị trí.",
-  error:       "Không thể lấy vị trí. Hãy thử lại.",
-};
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
@@ -70,6 +66,7 @@ const STATUS_MESSAGES: Partial<Record<LocationStatus, string>> = {
 const TouristMap = memo(function TouristMap() {
   useFixLeafletIcons();
 
+  const t = useTranslation();
   const { coordinates, status, requestLocation } = useLocationContext();
   const mapRef = useRef<L.Map | null>(null);
 
@@ -133,9 +130,17 @@ const TouristMap = memo(function TouristMap() {
   };
 
   const isTracking = status === "loading" || status === "searching";
-  const statusMessage = STATUS_MESSAGES[status];
+  const statusMessage =
+    status === "loading"     ? t("location.loading") :
+    status === "searching"   ? t("location.searching") :
+    status === "denied"      ? t("location.denied") :
+    status === "unavailable" ? t("location.unavailable") :
+    status === "error"       ? t("location.error") :
+    undefined;
 
   return (
+    <GeofenceProvider pois={pois}>
+      <AudioProvider>
     <div className="relative flex flex-col gap-2">
       {/* Map */}
       <div
@@ -168,8 +173,17 @@ const TouristMap = memo(function TouristMap() {
             onHover={handleHover}
             onHoverEnd={handleHoverEnd}
           />
+
+          {/* FR-LM-007: Geofence radius circles for POIs the user is inside */}
+          <GeofenceCircleLayer pois={filteredPois} />
         </MapContainer>
       </div>
+
+      {/* FR-LM-007/008: Geofence state banner (fixed position) */}
+      <GeofenceBanner />
+
+      {/* FR-LM-008: Floating audio player — bottom-centre desktop, top-centre mobile */}
+      <AudioPlayerBar pois={filteredPois} />
 
       {/* Hover preview card — uses fixed position (viewport coords) */}
       {hoveredPoi && hoverPoint && !selectedPoi && (
@@ -179,7 +193,7 @@ const TouristMap = memo(function TouristMap() {
       {/* Floating search bar — always visible when no detail panel is open */}
       {!selectedPoi && (
         <div className="absolute top-4 left-4 z-1000 w-64 sm:w-80">
-          <PoiSearchBar value={searchQuery} onChange={setSearchQuery} />
+          <PoiSearchBar value={searchQuery} onChange={setSearchQuery} placeholder={t("poi.search_placeholder")} />
         </div>
       )}
 
@@ -198,7 +212,7 @@ const TouristMap = memo(function TouristMap() {
       <button
         onClick={handleLocationButton}
         disabled={isTracking}
-        aria-label="Vị trí của tôi"
+        aria-label={t("location.my_location")}
         className="
           absolute bottom-6 right-4 z-1000
           flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-md
@@ -222,7 +236,7 @@ const TouristMap = memo(function TouristMap() {
           <circle cx="12" cy="12" r="3" />
           <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
         </svg>
-        {isTracking ? "Đang xác định…" : "Vị trí của tôi"}
+        {isTracking ? t("location.locating") : t("location.my_location")}
       </button>
 
       {/* Status / error banner */}
@@ -235,6 +249,8 @@ const TouristMap = memo(function TouristMap() {
         </p>
       )}
     </div>
+      </AudioProvider>
+    </GeofenceProvider>
   );
 });
 

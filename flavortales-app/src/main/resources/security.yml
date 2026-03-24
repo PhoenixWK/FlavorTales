@@ -12,7 +12,7 @@ app:
   #   openssl rand -base64 32
   # Replace the placeholder below before going to production.
   jwt:
-    secret: "${APP_JWT_SECRET}"
+    secret: "${APP_JWT_SECRET:dev-local-secret-key-for-development-only-use}"
     expiration-hours: 24
     remember-me-expiration-hours: 168    # 7 days
     refresh-expiration-days: 30

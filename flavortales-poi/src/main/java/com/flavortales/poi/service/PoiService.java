@@ -222,12 +222,54 @@ public class PoiService {
     public List<PoiResponse> getActivePois() {
         List<PoiResponse> cached = poiCacheService.getActivePoisFromCache();
         if (cached != null) return cached;
-        List<PoiResponse> pois = poiRepository.findByStatus(PoiStatus.active)
-                .stream()
-                .map(poiMapper::toResponse)
-                .toList();
+        List<PoiResponse> pois = jdbcTemplate.query(
+                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.created_at, p.updated_at, " +
+                "s.shop_id AS linked_shop_id, s.name AS linked_shop_name, fa.file_url AS shop_avatar_url, " +
+                "s.description AS shop_description, s.tags AS shop_tags, s.opening_hours AS shop_opening_hours, " +
+                "(SELECT GROUP_CONCAT(gfa.file_url ORDER BY si.sort_order SEPARATOR ',') " +
+                " FROM shop_image si JOIN file_asset gfa ON gfa.file_id = si.file_id " +
+                " WHERE si.shop_id = s.shop_id) AS gallery_urls " +
+                "FROM poi p " +
+                "LEFT JOIN shop s ON s.poi_id = p.poi_id AND s.status = 'active' " +
+                "LEFT JOIN file_asset fa ON fa.file_id = s.avatar_file_id " +
+                "WHERE p.status = 'active'",
+                (rs, rowNum) -> {
+                    List<String> tags = parseJsonList(rs.getString("shop_tags"), String.class);
+                    List<PoiResponse.OpeningHoursDto> hours = parseJsonList(rs.getString("shop_opening_hours"), PoiResponse.OpeningHoursDto.class);
+                    String galleryRaw = rs.getString("gallery_urls");
+                    List<String> galleryUrls = (galleryRaw != null && !galleryRaw.isBlank())
+                            ? java.util.Arrays.asList(galleryRaw.split(",")) : null;
+                    return PoiResponse.builder()
+                            .poiId(rs.getInt("poi_id"))
+                            .name(rs.getString("name"))
+                            .latitude(rs.getBigDecimal("latitude"))
+                            .longitude(rs.getBigDecimal("longitude"))
+                            .radius(rs.getBigDecimal("radius"))
+                            .status(rs.getString("status"))
+                            .linkedShopId(rs.getObject("linked_shop_id") != null ? rs.getInt("linked_shop_id") : null)
+                            .linkedShopName(rs.getString("linked_shop_name"))
+                            .linkedShopAvatarUrl(rs.getString("shop_avatar_url"))
+                            .shopDescription(rs.getString("shop_description"))
+                            .shopTags(tags)
+                            .shopOpeningHours(hours)
+                            .shopGalleryUrls(galleryUrls)
+                            .createdAt(rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null)
+                            .updatedAt(rs.getTimestamp("updated_at") != null ? rs.getTimestamp("updated_at").toLocalDateTime() : null)
+                            .build();
+                });
         poiCacheService.putActivePois(pois);
         return pois;
+    }
+
+    private <T> List<T> parseJsonList(String json, Class<T> elementType) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, elementType));
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to parse JSON list: {}", json);
+            return null;
+        }
     }
 
     //  My POIs 

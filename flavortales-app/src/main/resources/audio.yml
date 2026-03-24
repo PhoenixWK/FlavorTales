@@ -1,12 +1,12 @@
 app:
   audio:
     fpt-ai:
-      api-key: ${FPT_AI_API_KEY}
+      api-key: ${FPT_AI_API_KEY:dev-fpt-key}
       endpoint: https://api.fpt.ai/hmi/tts/v5
       voice: banmai
       speed: 0
     google-tts:
-      api-key: ${GOOGLE_TTS_API_KEY}
+      api-key: ${GOOGLE_TTS_API_KEY:dev-google-key}
       endpoint: https://texttospeech.googleapis.com/v1/text:synthesize
       voice-name: en-US-Wavenet-D
       language-code: en-US

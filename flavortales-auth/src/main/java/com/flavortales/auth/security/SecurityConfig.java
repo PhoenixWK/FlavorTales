@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -64,6 +65,9 @@ public class SecurityConfig {
                     .requestMatchers("/api/auth/**").permitAll()
                     // Public tourist endpoints (anonymous session – no JWT required)
                     .requestMatchers("/api/tourist/**").permitAll()
+                    // Public read-only map data (tourists browse without account)
+                    .requestMatchers(HttpMethod.GET, "/api/poi").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/audio/poi/**").permitAll()
                     // All other routes require a valid JWT
                     .anyRequest().authenticated()
             )

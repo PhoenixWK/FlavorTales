@@ -68,6 +68,9 @@ public class SecurityConfig {
                     // Public read-only map data (tourists browse without account)
                     .requestMatchers(HttpMethod.GET, "/api/poi").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/audio/poi/**").permitAll()
+                    // Tourist POI like/unlike (anonymous session, no JWT)
+                    .requestMatchers(HttpMethod.POST, "/api/poi/*/like").permitAll()
+                    .requestMatchers(HttpMethod.DELETE, "/api/poi/*/like").permitAll()
                     // All other routes require a valid JWT
                     .anyRequest().authenticated()
             )

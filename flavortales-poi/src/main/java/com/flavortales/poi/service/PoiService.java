@@ -185,13 +185,63 @@ public class PoiService {
         return response;
     }
 
+    //  Like / Unlike (FR-LM-007 §popularity) 
+
+    @Transactional
+    public int likePoi(Integer poiId, String sessionId) {
+        boolean exists = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) > 0 FROM poi WHERE poi_id = ? AND status = 'active'",
+                Boolean.class, poiId));
+        if (!exists) throw new PoiNotFoundException("POI not found: " + poiId);
+
+        boolean alreadyLiked = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) > 0 FROM poi_likes WHERE poi_id = ? AND session_id = ?",
+                Boolean.class, poiId, sessionId));
+        if (alreadyLiked) {
+            return jdbcTemplate.queryForObject(
+                    "SELECT likes_count FROM poi WHERE poi_id = ?", Integer.class, poiId);
+        }
+
+        jdbcTemplate.update(
+                "INSERT INTO poi_likes (poi_id, session_id, created_at) VALUES (?, ?, NOW())",
+                poiId, sessionId);
+        jdbcTemplate.update(
+                "UPDATE poi SET likes_count = likes_count + 1 WHERE poi_id = ?", poiId);
+        poiCacheService.evict(poiId);
+        poiCacheService.evictActivePoisList();
+        log.info("POI {} liked by session {}", poiId, sessionId);
+        return jdbcTemplate.queryForObject(
+                "SELECT likes_count FROM poi WHERE poi_id = ?", Integer.class, poiId);
+    }
+
+    @Transactional
+    public int unlikePoi(Integer poiId, String sessionId) {
+        boolean liked = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) > 0 FROM poi_likes WHERE poi_id = ? AND session_id = ?",
+                Boolean.class, poiId, sessionId));
+        if (!liked) {
+            return jdbcTemplate.queryForObject(
+                    "SELECT likes_count FROM poi WHERE poi_id = ?", Integer.class, poiId);
+        }
+
+        jdbcTemplate.update(
+                "DELETE FROM poi_likes WHERE poi_id = ? AND session_id = ?", poiId, sessionId);
+        jdbcTemplate.update(
+                "UPDATE poi SET likes_count = GREATEST(likes_count - 1, 0) WHERE poi_id = ?", poiId);
+        poiCacheService.evict(poiId);
+        poiCacheService.evictActivePoisList();
+        log.info("POI {} unliked by session {}", poiId, sessionId);
+        return jdbcTemplate.queryForObject(
+                "SELECT likes_count FROM poi WHERE poi_id = ?", Integer.class, poiId);
+    }
+
     //  Get single POI 
 
     @ReadOnly
     public PoiResponse getPoiById(Integer poiId, String vendorEmail) {
         Integer vendorId = resolveVendorId(vendorEmail);
         List<PoiResponse> results = jdbcTemplate.query(
-                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.created_at, p.updated_at, " +
+                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.likes_count, p.created_at, p.updated_at, " +
                 "s.shop_id AS linked_shop_id, s.name AS linked_shop_name, fa.file_url AS shop_avatar_url " +
                 "FROM poi p LEFT JOIN shop s ON s.poi_id = p.poi_id " +
                 "LEFT JOIN file_asset fa ON fa.file_id = s.avatar_file_id " +
@@ -203,6 +253,7 @@ public class PoiService {
                         .longitude(rs.getBigDecimal("longitude"))
                         .radius(rs.getBigDecimal("radius"))
                         .status(rs.getString("status"))
+                        .likesCount(rs.getInt("likes_count"))
                         .linkedShopId(rs.getObject("linked_shop_id") != null ? rs.getInt("linked_shop_id") : null)
                         .linkedShopName(rs.getString("linked_shop_name"))
                         .linkedShopAvatarUrl(rs.getString("shop_avatar_url"))
@@ -223,7 +274,7 @@ public class PoiService {
         List<PoiResponse> cached = poiCacheService.getActivePoisFromCache();
         if (cached != null) return cached;
         List<PoiResponse> pois = jdbcTemplate.query(
-                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.created_at, p.updated_at, " +
+                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.likes_count, p.created_at, p.updated_at, " +
                 "s.shop_id AS linked_shop_id, s.name AS linked_shop_name, fa.file_url AS shop_avatar_url, " +
                 "s.description AS shop_description, s.tags AS shop_tags, s.opening_hours AS shop_opening_hours, " +
                 "(SELECT GROUP_CONCAT(gfa.file_url ORDER BY si.sort_order SEPARATOR ',') " +
@@ -246,6 +297,7 @@ public class PoiService {
                             .longitude(rs.getBigDecimal("longitude"))
                             .radius(rs.getBigDecimal("radius"))
                             .status(rs.getString("status"))
+                            .likesCount(rs.getInt("likes_count"))
                             .linkedShopId(rs.getObject("linked_shop_id") != null ? rs.getInt("linked_shop_id") : null)
                             .linkedShopName(rs.getString("linked_shop_name"))
                             .linkedShopAvatarUrl(rs.getString("shop_avatar_url"))
@@ -278,7 +330,7 @@ public class PoiService {
     public List<PoiResponse> getMyPois(String vendorEmail) {
         Integer vendorId = resolveVendorId(vendorEmail);
         return jdbcTemplate.query(
-                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.created_at, p.updated_at, " +
+                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.likes_count, p.created_at, p.updated_at, " +
                 "s.shop_id AS linked_shop_id, s.name AS linked_shop_name, fa.file_url AS shop_avatar_url " +
                 "FROM poi p LEFT JOIN shop s ON s.poi_id = p.poi_id " +
                 "LEFT JOIN file_asset fa ON fa.file_id = s.avatar_file_id " +
@@ -290,6 +342,7 @@ public class PoiService {
                         .longitude(rs.getBigDecimal("longitude"))
                         .radius(rs.getBigDecimal("radius"))
                         .status(rs.getString("status"))
+                        .likesCount(rs.getInt("likes_count"))
                         .linkedShopId(rs.getObject("linked_shop_id") != null ? rs.getInt("linked_shop_id") : null)
                         .linkedShopName(rs.getString("linked_shop_name"))
                         .linkedShopAvatarUrl(rs.getString("shop_avatar_url"))

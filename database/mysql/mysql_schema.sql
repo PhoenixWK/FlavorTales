@@ -84,6 +84,7 @@ CREATE TABLE poi (
     longitude DECIMAL(11, 8) NOT NULL,
     radius DECIMAL(8, 2) NOT NULL COMMENT 'Unit: meters',
     status ENUM('pending', 'active', 'inactive', 'rejected', 'deleted') DEFAULT 'pending',
+    likes_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Tourist like count (FR-LM-007)',
     deleted_at TIMESTAMP NULL COMMENT 'Soft-delete timestamp; NULL means not deleted; set on soft delete for 30-day recovery window',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -91,6 +92,16 @@ CREATE TABLE poi (
     INDEX idx_status (status),
     INDEX idx_vendor (vendor_id),
     INDEX idx_location (latitude, longitude)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tourist likes for POI (FR-LM-007 §popularity scoring)
+CREATE TABLE poi_likes (
+    poi_id     INT NOT NULL,
+    session_id VARCHAR(36) NOT NULL COMMENT 'Anonymous tourist session UUID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (poi_id, session_id),
+    FOREIGN KEY (poi_id) REFERENCES poi(poi_id) ON DELETE CASCADE,
+    INDEX idx_poi_id (poi_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================

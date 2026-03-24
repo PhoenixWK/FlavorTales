@@ -4,6 +4,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -23,4 +24,20 @@ public class PoiResponse {
     private String message;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Shop detail fields (only populated on the public active-POI endpoint)
+    private String shopDescription;
+    private List<String> shopTags;
+    private List<OpeningHoursDto> shopOpeningHours;
+    private List<String> shopGalleryUrls;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class OpeningHoursDto {
+        private int day;
+        private String open;
+        private String close;
+        private boolean closed;
+    }
 }

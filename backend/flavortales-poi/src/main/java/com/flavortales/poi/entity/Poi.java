@@ -36,6 +36,10 @@ public class Poi {
     @Column(name = "radius", nullable = false, precision = 8, scale = 2)
     private BigDecimal radius;
 
+    @Column(name = "likes_count", nullable = false)
+    @Builder.Default
+    private int likesCount = 0;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     @Builder.Default

@@ -144,6 +144,40 @@ public class PoiController {
         return ResponseEntity.ok(ApiResponse.success(message, null));
     }
 
+    /**
+     * POST /api/poi/{poiId}/like
+     * Increments likes_count for the POI (idempotent per session).
+     * Public endpoint — no JWT required; session identified via X-Session-Id header.
+     */
+    @PostMapping("/{poiId}/like")
+    public ResponseEntity<ApiResponse<Integer>> likePoi(
+            @PathVariable Integer poiId,
+            @RequestHeader(value = "X-Session-Id", required = false) String sessionId) {
+
+        if (sessionId == null || sessionId.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Session ID required"));
+        }
+        int likesCount = poiService.likePoi(poiId, sessionId);
+        return ResponseEntity.ok(ApiResponse.success("Liked", likesCount));
+    }
+
+    /**
+     * DELETE /api/poi/{poiId}/like
+     * Decrements likes_count for the POI (idempotent).
+     * Public endpoint — no JWT required; session identified via X-Session-Id header.
+     */
+    @DeleteMapping("/{poiId}/like")
+    public ResponseEntity<ApiResponse<Integer>> unlikePoi(
+            @PathVariable Integer poiId,
+            @RequestHeader(value = "X-Session-Id", required = false) String sessionId) {
+
+        if (sessionId == null || sessionId.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Session ID required"));
+        }
+        int likesCount = poiService.unlikePoi(poiId, sessionId);
+        return ResponseEntity.ok(ApiResponse.success("Unliked", likesCount));
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private boolean hasRole(Authentication auth, String role) {

@@ -18,6 +18,7 @@ public class PoiResponse {
     private BigDecimal longitude;
     private BigDecimal radius;
     private String status;
+    private int likesCount;
     private Integer linkedShopId;
     private String linkedShopName;
     private String linkedShopAvatarUrl;

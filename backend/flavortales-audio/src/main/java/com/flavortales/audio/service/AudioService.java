@@ -153,7 +153,7 @@ public class AudioService {
 
     /**
      * Trả về danh sách audio của shop (cache-first).
-     * Chỉ trả về audio có processing_status = 'completed'.
+     * Chỉ trả về audio có processing_status = 'completed' và status = 'active'.
      */
     public List<AudioResponse> getAudioByShop(Integer shopId) {
         List<AudioResponse> cached = audioCacheService.getByShop(shopId);
@@ -166,7 +166,7 @@ public class AudioService {
                        a.processing_status, a.status, a.created_at, a.updated_at
                 FROM audio a
                 JOIN file_asset fa ON fa.file_id = a.file_id
-                WHERE a.shop_id = ? AND a.processing_status = 'completed'
+                WHERE a.shop_id = ? AND a.processing_status = 'completed' AND a.status = 'active'
                 ORDER BY a.language_code
                 """,
                 (rs, rowNum) -> mapAudioResponse(rs),
@@ -190,7 +190,7 @@ public class AudioService {
                        a.processing_status, a.status, a.created_at, a.updated_at
                 FROM audio a
                 JOIN file_asset fa ON fa.file_id = a.file_id
-                WHERE a.poi_id = ? AND a.processing_status = 'completed'
+                WHERE a.poi_id = ? AND a.processing_status = 'completed' AND a.status = 'active'
                 ORDER BY a.language_code
                 """,
                 (rs, rowNum) -> mapAudioResponse(rs),
@@ -257,13 +257,14 @@ public class AudioService {
                     INSERT INTO audio
                         (shop_id, poi_id, file_id, language_code, duration_seconds,
                          tts_provider, processing_status, status, uploaded_by)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)
                     ON DUPLICATE KEY UPDATE
                         file_id           = VALUES(file_id),
                         poi_id            = VALUES(poi_id),
                         duration_seconds  = VALUES(duration_seconds),
                         tts_provider      = VALUES(tts_provider),
                         processing_status = VALUES(processing_status),
+                        status            = 'active',
                         updated_at        = NOW()
                     """,
                     Statement.RETURN_GENERATED_KEYS);

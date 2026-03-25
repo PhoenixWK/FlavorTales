@@ -4,7 +4,8 @@ import type {
   UpdateSessionRequest,
 } from "../types/session";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+// Use same-origin Next.js proxy routes to avoid CORS in production.
+const SESSION_PROXY = "/api/tourist/sessions";
 
 async function handleResponse<T>(res: Response): Promise<T> {
   const json = await res.json();
@@ -16,13 +17,13 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 /** POST /api/tourist/sessions — creates a new anonymous session */
 export async function createTouristSession(): Promise<CreateSessionResponse> {
-  const res = await fetch(`${API_BASE}/api/tourist/sessions`, { method: "POST" });
+  const res = await fetch(SESSION_PROXY, { method: "POST" });
   return handleResponse<CreateSessionResponse>(res);
 }
 
 /** GET /api/tourist/sessions/{sessionId} — validates an existing session */
 export async function getTouristSession(sessionId: string): Promise<TouristSessionData> {
-  const res = await fetch(`${API_BASE}/api/tourist/sessions/${encodeURIComponent(sessionId)}`);
+  const res = await fetch(`${SESSION_PROXY}/${encodeURIComponent(sessionId)}`);
   return handleResponse<TouristSessionData>(res);
 }
 
@@ -32,7 +33,7 @@ export async function updateTouristSession(
   data: UpdateSessionRequest
 ): Promise<TouristSessionData> {
   const res = await fetch(
-    `${API_BASE}/api/tourist/sessions/${encodeURIComponent(sessionId)}`,
+    `${SESSION_PROXY}/${encodeURIComponent(sessionId)}`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

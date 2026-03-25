@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import type { GeofenceContextValue } from "@/modules/location/types/geofence";
 import type { TouristPoi } from "@/modules/poi/types/touristPoi";
@@ -39,13 +39,25 @@ export function GeofenceProvider({ pois, children }: Props) {
   const { resolvedPoiId: overlapResolved, isResolving } =
     useOverlapResolver(overlappingPois, pois, coordinates, buffer);
 
-  // Single POI → resolved directly; overlap → use resolver result
+  // Track last stable resolved POI so GPS-jitter fake overlaps don't trigger
+  // a false A→B transition. During the 5-s overlap-resolver cooldown
+  // (overlapResolved = null), we keep the previous POI if it's still physically
+  // inside rather than jumping to insidePois[0] (which may be a ghost registration).
+  const prevResolvedRef = useRef<number | null>(null);
+
   const resolvedPoiId =
     overlappingPois.length > 1
-      ? overlapResolved
+      ? overlapResolved !== null
+        ? overlapResolved
+        : prevResolvedRef.current !== null && insidePois.includes(prevResolvedRef.current)
+        ? prevResolvedRef.current
+        : insidePois[0] ?? null
       : insidePois.length === 1
       ? insidePois[0]
       : null;
+
+  // Keep ref in sync every render (writes ref, no re-render triggered).
+  prevResolvedRef.current = resolvedPoiId;
 
   const overlapActive = insidePois.length > 1;
 

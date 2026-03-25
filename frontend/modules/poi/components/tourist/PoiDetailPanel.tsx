@@ -46,7 +46,7 @@ export default function PoiDetailPanel({
 
   // ── Geofence + audio context ──────────────────────────────────────
   const { resolvedPoiId, isResolving, insidePois } = useGeofenceContext();
-  const { playState, currentPoiId, play, pause } = useAudioContext();
+  const { playState, currentPoiId, play, pause, playForPoi } = useAudioContext();
   const { sessionId } = useAnonymousSession();
 
   const distanceMetres = userCoordinates
@@ -58,14 +58,16 @@ export default function PoiDetailPanel({
   const isPlayingThis     = currentPoiId === poi.poiId;
 
   // Derive audio button state
-  type AudioBtnState = "hidden" | "resolving" | "playing" | "inactive";
-  const audioBtnState: AudioBtnState = !poi.hasApprovedAudio
-    ? "hidden"
-    : isResolving && insidePois.length > 1 && isInsideThisPoi
+  type AudioBtnState = "resolving" | "playing" | "inactive";
+  const audioBtnState: AudioBtnState =
+    isResolving && insidePois.length > 1 && isInsideThisPoi
     ? "resolving"
-    : isThisPoiResolved
+    : isThisPoiResolved || isPlayingThis
     ? "playing"
     : "inactive";
+
+  // True while audio is actively loading/playing/finishing — used to prevent spam
+  const isAudioBusy = playState === "playing" || playState === "loading" || playState === "finishing";
 
   // ── Like state (optimistic) ──────────────────────────────────────
   const LIKED_KEY = "ft_liked_pois";
@@ -214,18 +216,21 @@ export default function PoiDetailPanel({
             {/* Action buttons */}
             <div className="flex flex-col gap-2">
               {/* Audio button — triggers floating AudioPlayerBar */}
-              {audioBtnState !== "hidden" && (
-                <button
-                  onClick={isPlayingThis && playState === "playing" ? pause : play}
-                  disabled={audioBtnState === "inactive" || audioBtnState === "resolving"}
-                  title={audioBtnState === "inactive" ? "Di chuyển gần hơn để nghe thuyết minh" : undefined}
-                  className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-colors
+              <button
+                  onClick={() => {
+                    if (isPlayingThis && playState === "playing") pause();
+                    else if (isThisPoiResolved) play();
+                    else playForPoi(poi.poiId);
+                  }}
+                  disabled={audioBtnState === "resolving" || isAudioBusy}
+                  title={audioBtnState === "inactive" ? "Nhấn để phát thuyết minh" : undefined}
+                  className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed
                     ${
                       audioBtnState === "playing"
                         ? "bg-orange-500 hover:bg-orange-600 text-white"
                         : audioBtnState === "resolving"
                         ? "bg-blue-100 text-blue-400 cursor-wait"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200"
                     }`}
                 >
                   {audioBtnState === "resolving" ? (
@@ -239,9 +244,10 @@ export default function PoiDetailPanel({
                     ? "Đang phát"
                     : playState === "loading" && isPlayingThis
                     ? "Đang tải…"
+                    : isAudioBusy
+                    ? "Đang phát..."
                     : t("poi.hear_story")}
                 </button>
-              )}
 
               {/* Directions */}
               <a

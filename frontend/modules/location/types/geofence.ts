@@ -43,9 +43,13 @@ export interface AudioContextValue {
   playState: AudioPlayState;
   /** POI currently loaded/playing. */
   currentPoiId: number | null;
-  /** Language code of the active session (e.g. "VI", "EN"). */
-  currentLanguage: string;
+  /** Playback progress 0–1, updated via timeupdate events. */
+  progress: number;
   play: () => void;
   pause: () => void;
   stop: () => void;
+  /** Seek to a fractional position (0–1) of the audio track. */
+  seek: (fraction: number) => void;
+  /** Manually trigger audio for any POI regardless of geofence state. */
+  playForPoi: (poiId: number) => void;
 }

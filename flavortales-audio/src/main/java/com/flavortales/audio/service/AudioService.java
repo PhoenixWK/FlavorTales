@@ -1,5 +1,6 @@
 package com.flavortales.audio.service;
 
+import com.flavortales.audio.config.AudioProperties;
 import com.flavortales.audio.dto.AudioResponse;
 import com.flavortales.audio.dto.TtsRequest;
 import com.flavortales.audio.dto.TtsResponse;
@@ -23,25 +24,21 @@ import java.util.UUID;
 
 /**
  * Orchestrates single-language TTS generation:
- *  1. Generate audio for the requested language (vi -> FPT AI, en -> Google Cloud TTS)
+ *  1. Generate audio for the requested language (all via Google Cloud TTS)
  *  2. Upload the MP3 to Cloudflare R2
  *  3. Insert a file_asset record
  *  4. Return the file ID + URL for frontend preview
- *
- * Each language is generated in a separate request so vendors are not blocked
- * waiting for both TTS providers to respond simultaneously.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AudioService {
 
-    private final FptAiTtsService fptAiTtsService;
     private final GoogleCloudTtsService googleCloudTtsService;
     private final R2FileStorageService r2FileStorageService;
     private final JdbcTemplate jdbcTemplate;
     private final AudioCacheService audioCacheService;
-    private final com.flavortales.audio.config.AudioProperties audioProperties;
+    private final AudioProperties audioProperties;
 
     /**
      * Tạo TTS cho shop: sinh audio → upload R2 → lưu file_asset + audio record.
@@ -204,18 +201,24 @@ public class AudioService {
 
     private byte[] synthesize(String language, String text) {
         return switch (language) {
-            case "vi" -> fptAiTtsService.synthesize(text);
+            case "vi" -> {
+                AudioProperties.ViTts vi = audioProperties.getViTts();
+                yield googleCloudTtsService.synthesize(text, vi.getLanguageCode(), vi.getVoiceName());
+            }
             case "en" -> googleCloudTtsService.synthesize(text);
             case "zh" -> {
-                com.flavortales.audio.config.AudioProperties.ZhTts zh = audioProperties.getZhTts();
+                AudioProperties.ZhTts zh = audioProperties.getZhTts();
                 yield googleCloudTtsService.synthesize(text, zh.getLanguageCode(), zh.getVoiceName());
             }
+            case "ko" -> googleCloudTtsService.synthesizeKorean(text);
+            case "ru" -> googleCloudTtsService.synthesizeRussian(text);
+            case "ja" -> googleCloudTtsService.synthesizeJapanese(text);
             default -> throw new IllegalArgumentException("Unsupported language: " + language);
         };
     }
 
     private String resolveProvider(String language) {
-        return "vi".equals(language) ? "fpt_ai" : "google_tts";
+        return "google_tts";
     }
 
     private int insertFileAsset(Integer ownerId, String objectKey, String fileUrl,

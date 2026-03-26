@@ -1,9 +1,13 @@
 package com.flavortales.audio.controller;
 
+import com.flavortales.audio.dto.AllLanguagesTtsRequest;
+import com.flavortales.audio.dto.AllLanguagesTtsResponse;
 import com.flavortales.audio.dto.AudioResponse;
+import com.flavortales.audio.dto.LanguageTtsResult;
 import com.flavortales.audio.dto.TtsRequest;
 import com.flavortales.audio.dto.TtsResponse;
 import com.flavortales.audio.service.AudioService;
+import com.flavortales.audio.service.TtsOrchestrationService;
 import com.flavortales.common.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -16,7 +20,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/audio")
@@ -25,11 +33,12 @@ import java.util.List;
 public class AudioController {
 
     private final AudioService audioService;
+    private final TtsOrchestrationService ttsOrchestrationService;
 
     /**
      * POST /api/audio/tts
-     * Generates Vietnamese (FPT AI) and English (Google Cloud TTS) audio from text,
-     * uploads both files to Cloudflare R2, and returns file IDs + URLs for preview.
+     * Generates audio from text for the requested language via Google Cloud TTS,
+     * uploads the file to Cloudflare R2, and returns the file ID + URL.
      */
     @PostMapping("/tts")
     public ResponseEntity<ApiResponse<TtsResponse>> generateTts(
@@ -47,18 +56,59 @@ public class AudioController {
     }
 
     /**
-     * POST /api/audio/tts/preview
-     * Generates TTS audio and streams the raw MP3 bytes directly to the client.
-     * Does NOT upload to R2 – the client creates a local Blob URL for in-browser
-     * preview and uploads to R2 only when the vendor submits the shop form.
+     * POST /api/audio/tts/preview-all
+     * Accepts Vietnamese text, auto-translates to all supported languages (en, zh),
+     * generates TTS for all languages in parallel via Google Cloud TTS, and returns
+     * base64-encoded MP3 bytes per language.
      *
-     * We write directly to {@link HttpServletResponse} rather than returning
-     * {@code ResponseEntity<byte[]>} so that we can catch and suppress the
-     * {@link IOException} that Tomcat NIO throws when the client disconnects
-     * before the full audio body has been written (broken-pipe / connection-reset).
-     * With {@code ResponseEntity<byte[]>}, that IOException propagates through the
-     * entire Tomcat filter chain and appears as a noisy ERROR in the logs even
-     * though it is expected and harmless.
+     * Languages that fail are reported in the {@code errors} list without aborting
+     * the remaining synthesises.
+     */
+    @PostMapping("/tts/preview-all")
+    public ResponseEntity<ApiResponse<AllLanguagesTtsResponse>> previewAllTts(
+            @Valid @RequestBody AllLanguagesTtsRequest request,
+            Authentication authentication) {
+
+        if (!hasRole(authentication, "ROLE_vendor")) {
+            return ResponseEntity.status(403)
+                    .body(ApiResponse.error("Only vendors can generate audio"));
+        }
+
+        String vendorEmail = authentication.getName();
+        log.info("TTS preview-all – vendor={}, chars={}", vendorEmail, request.getText().length());
+
+        List<LanguageTtsResult> results =
+                ttsOrchestrationService.generateAllLanguages(request.getText());
+
+        Map<String, String> audioBase64 = new LinkedHashMap<>();
+        List<AllLanguagesTtsResponse.TtsError> errors = new ArrayList<>();
+
+        for (LanguageTtsResult result : results) {
+            if (result.isSuccess()) {
+                audioBase64.put(result.getLanguage(),
+                        Base64.getEncoder().encodeToString(result.getAudioBytes()));
+            } else {
+                errors.add(AllLanguagesTtsResponse.TtsError.builder()
+                        .language(result.getLanguage())
+                        .message(result.getErrorMessage())
+                        .build());
+            }
+        }
+
+        AllLanguagesTtsResponse response = AllLanguagesTtsResponse.builder()
+                .audioBase64(audioBase64)
+                .errors(errors)
+                .build();
+
+        log.info("TTS preview-all done – vendor={}, success={}, errors={}",
+                vendorEmail, audioBase64.size(), errors.size());
+        return ResponseEntity.ok(ApiResponse.success("TTS generation completed", response));
+    }
+
+    /**
+     * POST /api/audio/tts/preview
+     * Generates TTS audio for a single language and streams the raw MP3 bytes.
+     * Does NOT upload to R2.
      */
     @PostMapping("/tts/preview")
     public void previewTts(

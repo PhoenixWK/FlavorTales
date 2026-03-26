@@ -1,15 +1,25 @@
 app:
   audio:
-    fpt-ai:
-      api-key: ${FPT_AI_API_KEY:dev-fpt-key}
-      endpoint: https://api.fpt.ai/hmi/tts/v5
-      voice: banmai
-      speed: 0
     google-tts:
       api-key: ${GOOGLE_TTS_API_KEY:dev-google-key}
       endpoint: https://texttospeech.googleapis.com/v1/text:synthesize
       voice-name: en-US-Wavenet-D
       language-code: en-US
+    vi-tts:
+      language-code: vi-VN
+      voice-name: vi-VN-Standard-A
     zh-tts:
       language-code: zh-CN
       voice-name: cmn-CN-Wavenet-A
+    ko-tts:
+      language-code: ko-KR
+      voice-name: ko-KR-Wavenet-A
+    ru-tts:
+      language-code: ru-RU
+      voice-name: ru-RU-Wavenet-A
+    ja-tts:
+      language-code: ja-JP
+      voice-name: ja-JP-Wavenet-B
+    google-translate:
+      api-key: ${GOOGLE_TRANSLATE_API_KEY:${GOOGLE_TTS_API_KEY:dev-google-key}}
+      endpoint: https://translation.googleapis.com/language/translate/v2

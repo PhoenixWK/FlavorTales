@@ -12,7 +12,7 @@ public class TtsRequest {
     @Size(max = 5000, message = "Text must be at most 5000 characters")
     private String text;
 
-    /** Language to synthesize: "vi" (FPT AI), "en" or "zh" (Google Cloud TTS) */
+    /** Language to synthesize: "vi", "en", or "zh" (all via Google Cloud TTS) */
     @NotBlank(message = "Language is required")
     @Pattern(regexp = "vi|en|zh", message = "Language must be 'vi', 'en', or 'zh'")
     private String language;

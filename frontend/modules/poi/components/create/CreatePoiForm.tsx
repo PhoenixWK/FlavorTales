@@ -7,6 +7,7 @@ import type { OpeningHoursDto } from "@/modules/shop/types/shop";
 import { createPoi } from "@/modules/poi/services/poiApi";
 import { uploadImages, stripHtml } from "@/modules/shop/services/uploadShopAssets";
 import { uploadAudiosForShop } from "@/modules/audio/services/audioApi";
+import type { SupportedLanguage } from "@/modules/audio/services/audioApi";
 import { useToast } from "@/shared/hooks/useToast";
 import type { ImageSlot } from "@/modules/shop/components/create/ShopImageUpload";
 import ShopImageUpload from "@/modules/shop/components/create/ShopImageUpload";
@@ -37,7 +38,7 @@ export default function CreatePoiForm() {
   const [submitting, setSubmitting] = useState(false);
 
   // Blobs + Files held outside draft (not JSON-serializable)
-  const [audioBlobs, setAudioBlobs] = useState<{ vi?: Blob; en?: Blob; zh?: Blob }>({});
+  const [audioBlobs, setAudioBlobs] = useState<Partial<Record<SupportedLanguage, Blob>>>({});
   const [imageFiles, setImageFiles] = useState<{ avatar: File | null; additional: File[] }>({
     avatar: null,
     additional: [],
@@ -104,11 +105,10 @@ export default function CreatePoiForm() {
   );
 
   const handleAudioGenerated = useCallback(
-    (language: "vi" | "en" | "zh", blob: Blob, blobUrl: string) => {
+    (language: SupportedLanguage, blob: Blob, blobUrl: string) => {
       setAudioBlobs((prev) => ({ ...prev, [language]: blob }));
-      if (language === "vi") update("viAudioUrl", blobUrl);
-      else if (language === "en") update("enAudioUrl", blobUrl);
-      else update("zhAudioUrl", blobUrl);
+      const key = `${language}AudioUrl` as keyof PoiCreateDraft;
+      update(key, blobUrl);
     },
     [update]
   );
@@ -243,9 +243,14 @@ export default function CreatePoiForm() {
       {/* ── Audio Narration ───────────────────────────────────────────────── */}
       <FormSection title="Audio Narration">
         <ShopAudioSection
-          viAudioUrl={draft.viAudioUrl}
-          enAudioUrl={draft.enAudioUrl}
-          zhAudioUrl={draft.zhAudioUrl}
+          audioUrls={{
+            vi: draft.viAudioUrl,
+            en: draft.enAudioUrl,
+            zh: draft.zhAudioUrl,
+            ko: draft.koAudioUrl,
+            ru: draft.ruAudioUrl,
+            ja: draft.jaAudioUrl,
+          }}
           maxTtsChars={2000}
           onAudioGenerated={handleAudioGenerated}
         />

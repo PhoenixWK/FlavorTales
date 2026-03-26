@@ -6,21 +6,28 @@ interface ApiResponse<T> {
   data: T;
 }
 
+export type SupportedLanguage = "vi" | "en" | "zh" | "ko" | "ru" | "ja";
+
+export interface AllAudioPreviewResponse {
+  /** language code → Base64-encoded MP3 bytes (only for succeeded languages) */
+  audioBase64: Partial<Record<SupportedLanguage, string>>;
+  /** Languages that failed synthesis */
+  errors: Array<{ language: SupportedLanguage; message: string }>;
+}
+
 /**
- * Generates TTS audio for the given language and returns the raw bytes as a Blob.
- * Does NOT upload to R2 — call `uploadAudio` at form-submit time.
- *
- * Pass an AbortSignal to cancel the request (e.g. when the component unmounts).
+ * Sends Vietnamese text to the backend, which auto-translates to all supported
+ * languages and synthesises TTS in parallel. Returns base64-encoded MP3 per
+ * language and a list of per-language errors for any that failed.
  */
-export async function previewAudio(
-  text: string,
-  language: "vi" | "en" | "zh",
+export async function previewAllAudio(
+  viText: string,
   signal?: AbortSignal
-): Promise<Blob> {
-  const res = await fetch("/api/audio/preview", {
+): Promise<AllAudioPreviewResponse> {
+  const res = await fetch("/api/audio/tts/preview-all", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, language }),
+    body: JSON.stringify({ text: viText }),
     signal,
   });
 
@@ -35,13 +42,24 @@ export async function previewAudio(
       const json = await res.json();
       if (json?.message) message = json.message;
     } catch {
-      // ignore JSON parse error — body may be binary or empty
+      // ignore JSON parse error
     }
     throw new Error(message);
   }
 
-  return res.blob();
+  const json: ApiResponse<AllAudioPreviewResponse> = await res.json();
+  return json.data;
 }
+
+/** Decodes a base64 string to an audio/mpeg Blob. */
+export function base64ToAudioBlob(base64: string): Blob {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: "audio/mpeg" });
+}
+
+
 
 /**
  * Uploads a pre-generated audio Blob to Cloudflare R2.
@@ -49,7 +67,7 @@ export async function previewAudio(
  */
 export async function uploadAudio(
   blob: Blob,
-  language: "vi" | "en" | "zh"
+  language: SupportedLanguage
 ): Promise<ApiResponse<TtsResult>> {
   const formData = new FormData();
   const filename =

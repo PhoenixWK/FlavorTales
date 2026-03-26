@@ -6,6 +6,7 @@ import {
   IconDashboard,
   IconAllStalls,
   IconPendingReviews,
+  IconQrCode,
   IconLogout,
   IconClose,
 } from "./AdminIcons";
@@ -25,6 +26,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/admin/dashboard",        label: "Dashboard",       icon: <IconDashboard /> },
   { href: "/admin/food-stalls",      label: "All Food Stalls", icon: <IconAllStalls />,      matchPrefix: true },
   { href: "/admin/pending-reviews",  label: "Pending Reviews", icon: <IconPendingReviews />, matchPrefix: true },
+  { href: "/admin/qr-code",          label: "QR Code",         icon: <IconQrCode /> },
 ];
 
 // ── SideNavItem ───────────────────────────────────────────────────────────────

@@ -21,7 +21,6 @@ services:
       - flavortales-primary-data:/var/lib/mysql
       - ../database/mysql/mysql_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ../database/mysql/primary-init.sql:/docker-entrypoint-initdb.d/02-replication.sql:ro
-      - ../database/mysql/seed.sql:/docker-entrypoint-initdb.d/03-seed.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-root}"]
       interval: 10s

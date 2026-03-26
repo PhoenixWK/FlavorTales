@@ -21,6 +21,7 @@ import type { ImageSlot } from "./ShopImageUpload";
 import ShopSpecialtySection from "./ShopSpecialtySection";
 import ShopAudioSection from "./ShopAudioSection";
 import ShopPreviewPanel from "./ShopPreviewPanel";
+import type { SupportedLanguage } from "@/modules/audio/services/audioApi";
 
 // ── Form errors ───────────────────────────────────────────────────────────────
 interface FormErrors {
@@ -62,8 +63,9 @@ function validate(draft: ShopDraftState): FormErrors {
     errors.tags = "Tối đa 5 tags.";
   }
 
-  if (!draft.viAudioUrl && !draft.enAudioUrl && !draft.zhAudioUrl) {
-    errors.audio = "Vui lòng tạo ít nhất một audio thuyết minh (Tiếng Việt, Tiếng Anh hoặc Tiếng Trung) trước khi gửi.";
+  if (!draft.viAudioUrl && !draft.enAudioUrl && !draft.zhAudioUrl &&
+      !draft.koAudioUrl && !draft.ruAudioUrl && !draft.jaAudioUrl) {
+    errors.audio = "Vui lòng tạo ít nhất một audio thuyết minh trước khi gửi.";
   }
 
   return errors;
@@ -90,7 +92,7 @@ export default function CreateShopForm() {
   const [draftRestored, setDraftRestored] = useState(false);
 
   // Audio blobs — held in state (not draft; Blobs aren't JSON-serializable)
-  const [audioBlobs, setAudioBlobs] = useState<{ vi?: Blob; en?: Blob; zh?: Blob }>({});
+  const [audioBlobs, setAudioBlobs] = useState<Partial<Record<SupportedLanguage, Blob>>>({});
 
   // Image files — held in state (not draft; Files aren't JSON-serializable)
   // Upload to R2 only at form-submit time.
@@ -168,11 +170,10 @@ export default function CreateShopForm() {
   );
 
   const handleAudioGenerated = useCallback(
-    (language: "vi" | "en" | "zh", blob: Blob, blobUrl: string) => {
+    (language: SupportedLanguage, blob: Blob, blobUrl: string) => {
       setAudioBlobs((prev) => ({ ...prev, [language]: blob }));
-      if (language === "vi") update("viAudioUrl", blobUrl);
-      else if (language === "en") update("enAudioUrl", blobUrl);
-      else update("zhAudioUrl", blobUrl);
+      const key = `${language}AudioUrl` as keyof ShopDraftState;
+      update(key, blobUrl);
       setErrors((prev) => ({ ...prev, audio: undefined }));
     },
     [update]
@@ -193,7 +194,8 @@ export default function CreateShopForm() {
       const { avatarFileId, additionalImageIds } = await uploadImages(imageFiles);
 
       // 2. Upload audio blobs after shop creation (non-blocking per language)
-      if (!audioBlobs.vi && !audioBlobs.en && !audioBlobs.zh) {
+      if (!audioBlobs.vi && !audioBlobs.en && !audioBlobs.zh &&
+          !audioBlobs.ko && !audioBlobs.ru && !audioBlobs.ja) {
         throw new Error("Vui lòng tạo ít nhất một audio thuyết minh trước khi gửi.");
       }
 
@@ -362,9 +364,14 @@ export default function CreateShopForm() {
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
           <ShopAudioSection
-            viAudioUrl={draft.viAudioUrl}
-            enAudioUrl={draft.enAudioUrl}
-            zhAudioUrl={draft.zhAudioUrl}
+            audioUrls={{
+              vi: draft.viAudioUrl,
+              en: draft.enAudioUrl,
+              zh: draft.zhAudioUrl,
+              ko: draft.koAudioUrl,
+              ru: draft.ruAudioUrl,
+              ja: draft.jaAudioUrl,
+            }}
             error={errors.audio}
             onAudioGenerated={handleAudioGenerated}
           />

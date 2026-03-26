@@ -8,6 +8,7 @@ import ShopImageUpload from "@/modules/shop/components/create/ShopImageUpload";
 import ShopSpecialtySection from "@/modules/shop/components/create/ShopSpecialtySection";
 import ShopAudioSection from "@/modules/shop/components/create/ShopAudioSection";
 import FormSection from "@/modules/poi/components/create/FormSection";
+import type { SupportedLanguage } from "@/modules/audio/services/audioApi";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,9 @@ export interface ShopEditDraft {
   viAudioUrl: string | null;
   enAudioUrl: string | null;
   zhAudioUrl: string | null;
+  koAudioUrl: string | null;
+  ruAudioUrl: string | null;
+  jaAudioUrl: string | null;
 }
 
 export interface ShopEditErrors {
@@ -50,6 +54,9 @@ export function initShopEditDraft(shop: ShopDetail): ShopEditDraft {
     viAudioUrl: null,
     enAudioUrl: null,
     zhAudioUrl: null,
+    koAudioUrl: null,
+    ruAudioUrl: null,
+    jaAudioUrl: null,
   };
 }
 
@@ -83,7 +90,7 @@ interface Props {
   onChange: (patch: Partial<ShopEditDraft>) => void;
   onAvatarFileChange: (file: File | null, previewUrl: string | null) => void;
   onAdditionalSlotsChange: (slots: ImageSlot[], files: File[]) => void;
-  onAudioGenerated: (language: "vi" | "en" | "zh", blob: Blob, blobUrl: string) => void;
+  onAudioGenerated: (language: SupportedLanguage, blob: Blob, blobUrl: string) => void;
   onClearError: (field: keyof ShopEditErrors) => void;
 }
 
@@ -157,9 +164,14 @@ export default function EditShopSection({
       {/* ── Âm thanh thuyết minh ─────────────────────────────────────────── */}
       <FormSection title="Âm thanh thuyết minh">
         <ShopAudioSection
-          viAudioUrl={draft.viAudioUrl}
-          enAudioUrl={draft.enAudioUrl}
-          zhAudioUrl={draft.zhAudioUrl}
+          audioUrls={{
+            vi: draft.viAudioUrl,
+            en: draft.enAudioUrl,
+            zh: draft.zhAudioUrl,
+            ko: draft.koAudioUrl,
+            ru: draft.ruAudioUrl,
+            ja: draft.jaAudioUrl,
+          }}
           onAudioGenerated={onAudioGenerated}
           maxTtsChars={2000}
         />

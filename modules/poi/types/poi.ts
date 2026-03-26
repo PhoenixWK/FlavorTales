@@ -40,6 +40,9 @@ export interface PoiCreateDraft {
   viAudioUrl: string | null;
   enAudioUrl: string | null;
   zhAudioUrl: string | null;
+  koAudioUrl: string | null;
+  ruAudioUrl: string | null;
+  jaAudioUrl: string | null;
 }
 
 export const DRAFT_STORAGE_KEY = "ft_poi_create_draft";
@@ -66,6 +69,9 @@ export const DEFAULT_DRAFT: PoiCreateDraft = {
   viAudioUrl: null,
   enAudioUrl: null,
   zhAudioUrl: null,
+  koAudioUrl: null,
+  ruAudioUrl: null,
+  jaAudioUrl: null,
 };
 
 export function saveDraft(state: PoiCreateDraft): void {
@@ -88,6 +94,9 @@ export function loadDraft(): PoiCreateDraft | null {
     if (draft.viAudioUrl?.startsWith("blob:")) draft.viAudioUrl = null;
     if (draft.enAudioUrl?.startsWith("blob:")) draft.enAudioUrl = null;
     if (draft.zhAudioUrl?.startsWith("blob:")) draft.zhAudioUrl = null;
+    if (draft.koAudioUrl?.startsWith("blob:")) draft.koAudioUrl = null;
+    if (draft.ruAudioUrl?.startsWith("blob:")) draft.ruAudioUrl = null;
+    if (draft.jaAudioUrl?.startsWith("blob:")) draft.jaAudioUrl = null;
     draft.additionalPreviewUrls = (draft.additionalPreviewUrls ?? []).filter(
       (u) => !u.startsWith("blob:")
     );

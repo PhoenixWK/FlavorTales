@@ -75,6 +75,9 @@ export interface ShopDraftState {
   viAudioUrl: string | null;
   enAudioUrl: string | null;
   zhAudioUrl: string | null;
+  koAudioUrl: string | null;
+  ruAudioUrl: string | null;
+  jaAudioUrl: string | null;
 }
 
 export const DRAFT_STORAGE_KEY = "ft_shop_create_draft";
@@ -123,4 +126,7 @@ export const DEFAULT_DRAFT: ShopDraftState = {
   viAudioUrl: null,
   enAudioUrl: null,
   zhAudioUrl: null,
+  koAudioUrl: null,
+  ruAudioUrl: null,
+  jaAudioUrl: null,
 };

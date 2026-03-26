@@ -1,5 +1,7 @@
 import type { AudioResponse } from "@/modules/audio/types/audio";
 
+export type SupportedLanguage = "vi" | "en" | "zh" | "ko" | "ru" | "ja";
+
 interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -24,7 +26,7 @@ const AUDIO_PROXY_BASE = "/api/audio";
 export async function generateTtsForShop(
   shopId: number,
   text: string,
-  language: "vi" | "en" | "zh"
+  language: SupportedLanguage
 ): Promise<ApiResponse<AudioUploadResult>> {
   const res = await fetch(`${AUDIO_PROXY_BASE}/shop/${shopId}/tts`, {
     method: "POST",
@@ -49,7 +51,7 @@ export async function generateTtsForShop(
 export async function uploadAudioForShop(
   shopId: number,
   blob: Blob,
-  language: "vi" | "en" | "zh"
+  language: SupportedLanguage
 ): Promise<ApiResponse<AudioUploadResult>> {
   const formData = new FormData();
   const filename =
@@ -96,10 +98,11 @@ export async function getAudioByPoi(poiId: number): Promise<AudioResponse[]> {
  */
 export async function uploadAudiosForShop(
   shopId: number,
-  audioBlobs: { vi?: Blob; en?: Blob; zh?: Blob },
-  onError?: (lang: "vi" | "en" | "zh", message: string) => void
+  audioBlobs: Partial<Record<SupportedLanguage, Blob>>,
+  onError?: (lang: SupportedLanguage, message: string) => void
 ): Promise<void> {
-  const langs = (["vi", "en", "zh"] as const).filter((l) => audioBlobs[l]);
+  const all: SupportedLanguage[] = ["vi", "en", "zh", "ko", "ru", "ja"];
+  const langs = all.filter((l) => audioBlobs[l]) as SupportedLanguage[];
 
   const results = await Promise.allSettled(
     langs.map((lang) => uploadAudioForShop(shopId, audioBlobs[lang]!, lang))

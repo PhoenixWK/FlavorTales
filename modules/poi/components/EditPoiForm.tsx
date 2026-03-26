@@ -9,6 +9,7 @@ import {
 import { updateShop, type ShopDetail } from "@/modules/shop/services/shopApi";
 import { uploadImage } from "@/modules/shop/services/fileApi";
 import { uploadAudiosForShop } from "@/modules/audio/services/audioApi";
+import type { SupportedLanguage } from "@/modules/audio/services/audioApi";
 import type { ImageSlot } from "@/modules/shop/components/create/ShopImageUpload";
 import Toast, { type ToastData } from "@/shared/components/Toast";
 import ChangesSummary, { type FieldChange } from "./ChangesSummary";
@@ -109,7 +110,7 @@ export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps
   const [additionalSlots, setAdditionalSlots] = useState<ImageSlot[]>(() =>
     (shopDetail.galleryUrls ?? []).map((url) => ({ previewUrl: url }))
   );
-  const [audioBlobs, setAudioBlobs] = useState<{ vi?: Blob; en?: Blob; zh?: Blob }>({});
+  const [audioBlobs, setAudioBlobs] = useState<Partial<Record<SupportedLanguage, Blob>>>({});
 
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
@@ -139,11 +140,10 @@ export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps
     setShopErrors((prev) => ({ ...prev, [field]: undefined }));
   }, []);
 
-  const handleAudioGenerated = useCallback((language: "vi" | "en" | "zh", blob: Blob, blobUrl: string) => {
+  const handleAudioGenerated = useCallback((language: SupportedLanguage, blob: Blob, blobUrl: string) => {
     setAudioBlobs((prev) => ({ ...prev, [language]: blob }));
-    if (language === "vi") setShopDraft((prev) => ({ ...prev, viAudioUrl: blobUrl }));
-    else if (language === "en") setShopDraft((prev) => ({ ...prev, enAudioUrl: blobUrl }));
-    else setShopDraft((prev) => ({ ...prev, zhAudioUrl: blobUrl }));
+    const key = `${language}AudioUrl` as keyof ShopEditDraft;
+    setShopDraft((prev) => ({ ...prev, [key]: blobUrl }));
   }, []);
 
   // ── Submit ────────────────────────────────────────────────────────────────────

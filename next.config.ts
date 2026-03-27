@@ -26,14 +26,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async rewrites() {
-    return [
-      {
-        source: "/api/audio/:path*",
-        destination: "http://localhost:8080/api/audio/:path*",
-      },
-    ];
-  },
 };
 
 export default nextConfig;

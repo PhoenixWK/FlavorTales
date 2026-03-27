@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { proxyFileUrl } from "@/shared/utils/mediaProxy";
+import { resolveImgSrc } from "@/shared/utils/mediaProxy";
 
 interface Props {
   avatarUrl: string | null;
@@ -30,7 +30,7 @@ function ImagePlaceholder() {
 
 export default function PoiViewCoverSection({ avatarUrl, name }: Props) {
   const [imgFailed, setImgFailed] = useState(false);
-  const proxiedUrl = proxyFileUrl(avatarUrl);
+  const proxiedUrl = resolveImgSrc(avatarUrl);
   const showImage = !!proxiedUrl && !imgFailed;
 
   return (

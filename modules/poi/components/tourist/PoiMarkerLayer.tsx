@@ -7,7 +7,7 @@ import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import type { TouristPoi } from "@/modules/poi/types/touristPoi";
-import { getPoiIcon } from "@/modules/poi/utils/poiIconFactory";
+import { buildPoiMarkerIcon } from "./PoiMarkerIconRenderer";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,7 @@ function makeTooltip(name: string): L.Tooltip {
   return L.tooltip({
     permanent: true,
     direction: "top",
-    offset: [0, -42],
+    offset: [0, -54],
     className: "poi-label-tooltip",
   }).setContent(
     `<span style="font-size:11px;font-weight:600;white-space:nowrap;color:#1f2937;background:#fff;padding:1px 5px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.2)">${name}</span>`
@@ -118,7 +118,7 @@ export default function PoiMarkerLayer({
       const isSelected = poi.poiId === selectedPoiId;
       const isVisited  = visitedPoiIds.has(poi.poiId);
       const state      = isSelected ? "selected" : isVisited ? "visited" : "default";
-      const icon       = getPoiIcon(poi, state);
+      const icon       = buildPoiMarkerIcon(poi, state);
 
       if (existing.has(poi.poiId)) {
         existing.get(poi.poiId)!.setIcon(icon);

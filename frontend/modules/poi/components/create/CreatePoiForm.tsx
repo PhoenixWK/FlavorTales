@@ -1,301 +1,159 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { clearDraft, DEFAULT_DRAFT, loadDraft, saveDraft, type PoiCreateDraft } from "@/modules/poi/types/poi";
-import type { OpeningHoursDto } from "@/modules/shop/types/shop";
-import { createPoi } from "@/modules/poi/services/poiApi";
-import { uploadImages, stripHtml } from "@/modules/shop/services/uploadShopAssets";
-import { uploadAudiosForShop } from "@/modules/audio/services/audioApi";
-import type { SupportedLanguage } from "@/modules/audio/services/audioApi";
-import { useToast } from "@/shared/hooks/useToast";
-import type { ImageSlot } from "@/modules/shop/components/create/ShopImageUpload";
-import ShopImageUpload from "@/modules/shop/components/create/ShopImageUpload";
-import ShopBasicInfoSection from "@/modules/shop/components/create/ShopBasicInfoSection";
-import ShopAudioSection from "@/modules/shop/components/create/ShopAudioSection";
-import ShopSpecialtySection from "@/modules/shop/components/create/ShopSpecialtySection";
-
+import { usePoiCreateDraft } from "@/modules/poi/hooks/usePoiCreateDraft";
 import FormSection from "./FormSection";
-import StallCoverSection, { type StallType } from "./StallCoverSection";
-import PoiLocationStep, { validateStep1, type Step1Errors } from "./PoiLocationStep";
-import { validateStep2, type Step2Errors } from "./ShopInfoStep";
+import StepIndicator from "./StepIndicator";
+import PoiLocationStep from "./PoiLocationStep";
+import ShopInfoStep from "./ShopInfoStep";
+import PoiReviewStep from "./PoiReviewStep";
 
-// ── Combined form errors ───────────────────────────────────────────────────────
-
-interface AllErrors extends Step1Errors, Step2Errors {}
-
-function validateAll(draft: PoiCreateDraft): AllErrors {
-  return { ...validateStep1(draft), ...validateStep2(draft) };
-}
-
-// ── Main form ──────────────────────────────────────────────────────────────────
+const STEPS = ["Vị trí POI", "Thông tin gian hàng", "Xem lại"];
 
 export default function CreatePoiForm() {
   const router = useRouter();
-  const { addToast } = useToast();
-  const [draft, setDraft] = useState<PoiCreateDraft>(DEFAULT_DRAFT);
-  const [errors, setErrors] = useState<AllErrors>({});
-  const [submitting, setSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
-  // Blobs + Files held outside draft (not JSON-serializable)
-  const [audioBlobs, setAudioBlobs] = useState<Partial<Record<SupportedLanguage, Blob>>>({});
-  const [imageFiles, setImageFiles] = useState<{ avatar: File | null; additional: File[] }>({
-    avatar: null,
-    additional: [],
-  });
-  const [additionalSlots, setAdditionalSlots] = useState<ImageSlot[]>([]);
+  const {
+    draft,
+    errors,
+    submitting,
+    audioBlobs,
+    additionalSlots,
+    update,
+    handleStep1Change,
+    handleAvatarChange,
+    handleAdditionalChange,
+    handleSpecialtyChange,
+    handleAudioGenerated,
+    clearError,
+    setErrors,
+    validateCurrentStep,
+    handleSubmit,
+  } = usePoiCreateDraft();
 
-  // ── Restore draft ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const saved = loadDraft();
-    if (saved) setDraft(saved);
-  }, []);
-
-  // ── Auto-save draft (debounced) ──────────────────────────────────────────────
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
-  useEffect(() => {
-    const t = setTimeout(() => saveDraft(draftRef.current), 1000);
-    return () => clearTimeout(t);
-  }, [draft]);
-
-  // ── Draft updater ────────────────────────────────────────────────────────────
-  const update = useCallback(<K extends keyof PoiCreateDraft>(key: K, value: PoiCreateDraft[K]) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  // ── Field handlers ───────────────────────────────────────────────────────────
-
-  const handleStep1Change = useCallback(
-    (field: keyof Pick<PoiCreateDraft, "poiName" | "lat" | "lng" | "radius">, value: string | number | null) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      update(field as any, value as any);
-    },
-    [update]
-  );
-
-  const handleAvatarChange = useCallback(
-    (file: File | null, previewUrl: string | null) => {
-      setImageFiles((prev) => ({ ...prev, avatar: file }));
-      update("avatarPreviewUrl", previewUrl);
-      update("avatarFileId", null);
-    },
-    [update]
-  );
-
-  const handleAdditionalChange = useCallback(
-    (slots: ImageSlot[]) => {
-      setAdditionalSlots(slots);
-      setImageFiles((prev) => ({ ...prev, additional: slots.flatMap((s) => s.file ? [s.file] : []) }));
-      update("additionalPreviewUrls", slots.map((s) => s.previewUrl));
-      update("additionalImageIds", []);
-    },
-    [update]
-  );
-
-  const handleSpecialtyChange = useCallback(
-    (
-      field: "specialtyDescription" | "openingHours" | "tags",
-      value: string | OpeningHoursDto[] | string[]
-    ) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      update(field as any, value as any);
-    },
-    [update]
-  );
-
-  const handleAudioGenerated = useCallback(
-    (language: SupportedLanguage, blob: Blob, blobUrl: string) => {
-      setAudioBlobs((prev) => ({ ...prev, [language]: blob }));
-      const key = `${language}AudioUrl` as keyof PoiCreateDraft;
-      update(key, blobUrl);
-    },
-    [update]
-  );
-
-  const clearError = useCallback(
-    (field: keyof AllErrors) => setErrors((prev) => ({ ...prev, [field]: undefined })),
-    []
-  );
-
-  // ── Submit ───────────────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    const validationErrors = validateAll(draft);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+  const handleNext = () => {
+    const stepErrors = validateCurrentStep(currentStep);
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors(stepErrors);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-
-    setSubmitting(true);
-    try {
-      const { avatarFileId, additionalImageIds } = await uploadImages(imageFiles);
-      const plainDescription = stripHtml(draft.shopDescription);
-
-      // 1. Tạo POI + Shop (không có audio)
-      const res = await createPoi({
-        name: draft.poiName.trim(),
-        latitude: parseFloat(draft.lat!.toFixed(6)),
-        longitude: parseFloat(draft.lng!.toFixed(6)),
-        radius: draft.radius,
-        shopName: draft.shopName.trim(),
-        shopDescription: plainDescription,
-        avatarFileId,
-        additionalImageIds,
-        specialtyDescription: draft.specialtyDescription || undefined,
-        openingHours: draft.openingHours,
-        tags: draft.tags,
-      });
-
-      if (!res.success) throw new Error(res.message);
-
-      // 2. Upload audio gắn vào shopId vừa tạo
-      const shopId = res.data?.linkedShopId;
-      if (shopId && Object.keys(audioBlobs).length > 0) {
-        await uploadAudiosForShop(shopId, audioBlobs, (lang, msg) =>
-          addToast(
-            "error",
-            `Tải audio ${lang === "vi" ? "tiếng Việt" : lang === "zh" ? "tiếng Trung" : "tiếng Anh"} thất bại: ${msg}`,
-            4000
-          )
-        );
-      }
-
-      clearDraft();
-      addToast("success", res.data?.message ?? "Tạo gian hàng thành công – đang chờ duyệt.", 6000);
-      setTimeout(() => router.push("/vendor/poi"), 2000);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Đã xảy ra lỗi. Vui lòng thử lại.";
-      addToast("error", msg, 6000);
-    } finally {
-      setSubmitting(false);
-    }
+    setErrors({});
+    setCurrentStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s));
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  const handleBack = () => {
+    setErrors({});
+    setCurrentStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s));
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
+    <div className="max-w-4xl mx-auto">
+      <StepIndicator steps={STEPS} currentStep={currentStep} />
 
-      {/* ── Basic Information ─────────────────────────────────────────────── */}
-      <FormSection title="Basic Information">
-        <StallCoverSection
-          coverImageUrl={draft.avatarPreviewUrl}
-          stallName={draft.shopName}
-          stallType={(draft.tags[0] ?? "") as StallType}
-          errors={{ coverImage: errors.avatar, stallName: errors.shopName }}
-          onCoverImageChange={(file, url) => {
-            handleAvatarChange(file, url);
-            clearError("avatar");
-          }}
-          onStallNameChange={(v) => {
-            update("shopName", v);
-            clearError("shopName");
-          }}
-          onStallTypeChange={(v) => update("tags", v ? [v] : [])}
-        />
-      </FormSection>
-
-      {/* ── Description & Media ───────────────────────────────────────────── */}
-      <FormSection title="Description & Media">
-        <div className="space-y-5">
-          <ShopBasicInfoSection
-            name={draft.shopName}
-            description={draft.shopDescription}
-            showName={false}
-            errors={{ description: errors.description }}
-            maxDescChars={500}
-            showRemaining
-            onChange={(f, v) => {
-              if (f === "description") {
-                update("shopDescription", v);
-                clearError("description");
+      <div className="space-y-5">
+        {/* ── Step 1: Vị trí POI ──────────────────────────────────────────── */}
+        {currentStep === 1 && (
+          <FormSection title="Vị trí POI">
+            <PoiLocationStep
+              draft={draft}
+              errors={{
+                poiName: errors.poiName,
+                location: errors.location,
+                radius: errors.radius,
+              }}
+              onChange={(field, value) => {
+                handleStep1Change(field, value);
+                if (field === "lat" || field === "lng") clearError("location");
+                else clearError(field as "poiName" | "radius");
+              }}
+              onClearError={clearError}
+              onBlurField={(field, error) =>
+                setErrors((prev) => ({ ...prev, [field]: error }))
               }
-            }}
-          />
+            />
+          </FormSection>
+        )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Gallery Images{" "}
-              <span className="text-gray-400 font-normal">(optional, up to 4)</span>
-            </label>
-            <ShopImageUpload
-              avatarPreviewUrl={draft.avatarPreviewUrl}
+        {/* ── Step 2: Thông tin gian hàng ─────────────────────────────────── */}
+        {currentStep === 2 && (
+          <FormSection title="Thông tin gian hàng">
+            <ShopInfoStep
+              draft={draft}
+              errors={{
+                shopName: errors.shopName,
+                description: errors.description,
+                avatar: errors.avatar,
+                additionalImages: errors.additionalImages,
+                specialtyDescription: errors.specialtyDescription,
+                tags: errors.tags,
+              }}
               additionalSlots={additionalSlots}
-              showAvatar={false}
-              errors={{ additionalImages: errors.additionalImages }}
+              onBasicChange={(field, value) => {
+                if (field === "shopName") {
+                  update("shopName", value);
+                  clearError("shopName");
+                } else {
+                  update("shopDescription", value);
+                  clearError("description");
+                }
+              }}
               onAvatarChange={handleAvatarChange}
               onAdditionalChange={handleAdditionalChange}
-              maxAdditional={4}
+              onSpecialtyChange={handleSpecialtyChange}
+              onAudioGenerated={handleAudioGenerated}
+              onClearError={clearError}
+              onBlurField={(field, error) =>
+                setErrors((prev) => ({ ...prev, [field]: error }))
+              }
             />
-          </div>
+          </FormSection>
+        )}
 
-          <ShopSpecialtySection
-            specialtyDescription={draft.specialtyDescription}
-            openingHours={draft.openingHours}
-            tags={draft.tags}
-            showTags={false}
-            errors={{ specialtyDescription: errors.specialtyDescription }}
-            onChange={handleSpecialtyChange}
+        {/* ── Step 3: Xem lại ─────────────────────────────────────────────── */}
+        {currentStep === 3 && (
+          <PoiReviewStep
+            draft={draft}
+            additionalSlots={additionalSlots}
+            audioBlobs={audioBlobs}
           />
-        </div>
-      </FormSection>
+        )}
+      </div>
 
-      {/* ── Audio Narration ───────────────────────────────────────────────── */}
-      <FormSection title="Audio Narration">
-        <ShopAudioSection
-          audioUrls={{
-            vi: draft.viAudioUrl,
-            en: draft.enAudioUrl,
-            zh: draft.zhAudioUrl,
-            ko: draft.koAudioUrl,
-            ru: draft.ruAudioUrl,
-            ja: draft.jaAudioUrl,
-          }}
-          maxTtsChars={2000}
-          onAudioGenerated={handleAudioGenerated}
-        />
-      </FormSection>
-
-      {/* ── Location & Contact ────────────────────────────────────────────── */}
-      <FormSection title="Location & Contact">
-        <PoiLocationStep
-          draft={draft}
-          errors={{
-            poiName: errors.poiName,
-            location: errors.location,
-            radius: errors.radius,
-          }}
-          onChange={(field, value) => {
-            handleStep1Change(field, value);
-            clearError(field as keyof AllErrors);
-          }}
-          onClearError={(field) => clearError(field as keyof AllErrors)}
-          onBlurField={(field, error) =>
-            setErrors((prev) => ({ ...prev, [field]: error }))
-          }
-        />
-      </FormSection>
-
-      {/* ── Footer actions ────────────────────────────────────────────────── */}
-      <div className="flex justify-end gap-3 pb-6">
+      {/* ── Navigation buttons ──────────────────────────────────────────────── */}
+      <div className="flex justify-between gap-3 pt-6 pb-8">
         <button
           type="button"
-          onClick={() => router.push("/vendor/poi")}
+          onClick={currentStep === 1 ? () => router.push("/vendor/poi") : handleBack}
           disabled={submitting}
           className="px-5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium
             text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition"
         >
-          Cancel
+          {currentStep === 1 ? "Huỷ" : "Quay lại"}
         </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitting}
-          className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white
-            text-sm font-semibold disabled:opacity-60 transition"
-        >
-          {submitting ? "Submitting…" : "Add Stall"}
-        </button>
+
+        {currentStep < 3 ? (
+          <button
+            type="button"
+            onClick={handleNext}
+            className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white
+              text-sm font-semibold transition"
+          >
+            Tiếp theo
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white
+              text-sm font-semibold disabled:opacity-60 transition"
+          >
+            {submitting ? "Đang gửi…" : "Gửi đăng ký"}
+          </button>
+        )}
       </div>
     </div>
   );

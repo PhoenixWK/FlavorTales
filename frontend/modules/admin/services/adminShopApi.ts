@@ -26,8 +26,6 @@ export interface AdminShopDetail extends AdminShopListItem {
   description: string | null;
   featuredDish: string | null;
   galleryUrls: string[];
-  viAudioUrl: string | null;
-  enAudioUrl: string | null;
   latitude: number | null;
   longitude: number | null;
   radius: number | null;

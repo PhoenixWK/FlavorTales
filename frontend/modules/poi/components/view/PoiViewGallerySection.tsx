@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { proxyFileUrl } from "@/shared/utils/mediaProxy";
+import { resolveImgSrc } from "@/shared/utils/mediaProxy";
 
 interface GalleryImageProps {
   src: string;
@@ -10,7 +10,7 @@ interface GalleryImageProps {
 
 function GalleryImage({ src, alt }: GalleryImageProps) {
   const [failed, setFailed] = useState(false);
-  const proxiedSrc = proxyFileUrl(src);
+  const proxiedSrc = resolveImgSrc(src);
 
   if (failed || !proxiedSrc) {
     return (

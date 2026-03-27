@@ -5,6 +5,9 @@ import type { PoiCreateDraft } from "@/modules/poi/types/poi";
 import ShopBasicInfoSection from "@/modules/shop/components/create/ShopBasicInfoSection";
 import ShopImageUpload, { type ImageSlot } from "@/modules/shop/components/create/ShopImageUpload";
 import ShopSpecialtySection from "@/modules/shop/components/create/ShopSpecialtySection";
+import ShopAudioSection from "@/modules/shop/components/create/ShopAudioSection";
+import type { SupportedLanguage } from "@/modules/audio/services/audioApi";
+import StallCoverSection, { type StallType } from "./StallCoverSection";
 
 export interface Step2Errors {
   shopName?: string;
@@ -25,6 +28,12 @@ interface Props {
     | "specialtyDescription"
     | "openingHours"
     | "tags"
+    | "viAudioUrl"
+    | "enAudioUrl"
+    | "zhAudioUrl"
+    | "koAudioUrl"
+    | "ruAudioUrl"
+    | "jaAudioUrl"
   >;
   errors: Step2Errors;
   additionalSlots: ImageSlot[];
@@ -35,6 +44,7 @@ interface Props {
     field: "specialtyDescription" | "openingHours" | "tags",
     value: string | OpeningHoursDto[] | string[]
   ) => void;
+  onAudioGenerated: (language: SupportedLanguage, blob: Blob, blobUrl: string) => void;
   onClearError: (field: keyof Step2Errors) => void;
   onBlurField?: (field: keyof Step2Errors, error: string | undefined) => void;
 }
@@ -79,28 +89,45 @@ export default function ShopInfoStep({
   onAvatarChange,
   onAdditionalChange,
   onSpecialtyChange,
+  onAudioGenerated,
   onClearError,
   onBlurField,
 }: Props) {
   return (
     <div className="space-y-6">
-      {/* Shop name + description */}
+      {/* Cover image + stall name + type */}
+      <StallCoverSection
+        coverImageUrl={draft.avatarPreviewUrl}
+        stallName={draft.shopName}
+        stallType={(draft.tags[0] ?? "") as StallType}
+        errors={{ coverImage: errors.avatar, stallName: errors.shopName }}
+        onCoverImageChange={(file, url) => {
+          onAvatarChange(file, url);
+          onClearError("avatar");
+        }}
+        onStallNameChange={(v) => {
+          onBasicChange("shopName", v);
+          onClearError("shopName");
+        }}
+        onStallTypeChange={(v) => {
+          const rest = draft.tags.slice(1);
+          onSpecialtyChange("tags", v ? [v, ...rest] : rest);
+        }}
+      />
+
+      {/* Shop description */}
       <ShopBasicInfoSection
         name={draft.shopName}
         description={draft.shopDescription}
-        errors={{ name: errors.shopName, description: errors.description }}
+        showName={false}
+        errors={{ description: errors.description }}
         maxDescChars={500}
         showRemaining
         onChange={(field, value) => {
-          onBasicChange(field === "name" ? "shopName" : "shopDescription", value);
-          onClearError(field === "name" ? "shopName" : "description");
-        }}
-        onBlurName={() => {
-          const v = draft.shopName.trim();
-          if (!v) onBlurField?.("shopName", "Tên gian hàng là bắt buộc.");
-          else if (v.length < 3) onBlurField?.("shopName", "Tên gian hàng phải có ít nhất 3 ký tự.");
-          else if (v.length > 100) onBlurField?.("shopName", "Tên gian hàng không vượt quá 100 ký tự.");
-          else onBlurField?.("shopName", undefined);
+          if (field === "description") {
+            onBasicChange("shopDescription", value);
+            onClearError("description");
+          }
         }}
         onBlurDescription={() => {
           const plain =
@@ -113,29 +140,48 @@ export default function ShopInfoStep({
         }}
       />
 
-      {/* Images */}
-      <ShopImageUpload
-        avatarPreviewUrl={draft.avatarPreviewUrl}
-        additionalSlots={additionalSlots}
-        maxAdditional={4}
-        errors={{ avatar: errors.avatar, additionalImages: errors.additionalImages }}
-        onAvatarChange={(file, url) => {
-          onAvatarChange(file, url);
-          onClearError("avatar");
-        }}
-        onAdditionalChange={onAdditionalChange}
-      />
+      {/* Gallery images */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Gallery Images{" "}
+          <span className="text-gray-400 font-normal">(optional, up to 4)</span>
+        </label>
+        <ShopImageUpload
+          avatarPreviewUrl={draft.avatarPreviewUrl}
+          additionalSlots={additionalSlots}
+          showAvatar={false}
+          maxAdditional={4}
+          errors={{ additionalImages: errors.additionalImages }}
+          onAvatarChange={onAvatarChange}
+          onAdditionalChange={onAdditionalChange}
+        />
+      </div>
 
       {/* Specialty + opening hours + tags */}
       <ShopSpecialtySection
         specialtyDescription={draft.specialtyDescription}
         openingHours={draft.openingHours}
         tags={draft.tags}
+        showTags={false}
         errors={{
           specialtyDescription: errors.specialtyDescription,
           tags: errors.tags,
         }}
         onChange={onSpecialtyChange}
+      />
+
+      {/* Audio narration */}
+      <ShopAudioSection
+        audioUrls={{
+          vi: draft.viAudioUrl,
+          en: draft.enAudioUrl,
+          zh: draft.zhAudioUrl,
+          ko: draft.koAudioUrl,
+          ru: draft.ruAudioUrl,
+          ja: draft.jaAudioUrl,
+        }}
+        maxTtsChars={2000}
+        onAudioGenerated={onAudioGenerated}
       />
     </div>
   );

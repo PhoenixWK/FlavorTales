@@ -3,12 +3,20 @@
 import { useState, useRef, useEffect } from "react";
 import { proxyAudioUrl } from "@/shared/utils/mediaProxy";
 import { getAudioByShop } from "@/modules/audio/services/audioApi";
-import { toAudioByLanguage } from "@/modules/audio/types/audio";
 import type { AudioLanguage } from "@/modules/audio/types/audio";
-import { LOCALE_OPTIONS, useLocale } from "@/shared/hooks/useLocale";
+import { useLocale } from "@/shared/hooks/useLocale";
+
+// All 6 supported audio languages — separate from app locale (LOCALE_OPTIONS)
+const AUDIO_LANGUAGE_OPTIONS: { code: AudioLanguage; label: string; flag: string }[] = [
+  { code: "vi", label: "Tiếng Việt", flag: "🇻🇳" },
+  { code: "en", label: "English",    flag: "🇬🇧" },
+  { code: "zh", label: "中文",        flag: "🇨🇳" },
+  { code: "ko", label: "한국어",       flag: "🇰🇷" },
+  { code: "ru", label: "Русский",     flag: "🇷🇺" },
+  { code: "ja", label: "日本語",       flag: "🇯🇵" },
+];
 
 interface Props {
-  /** shopId is used to fetch audio from GET /api/audio/shop/{shopId} */
   shopId: number;
 }
 
@@ -71,7 +79,7 @@ function AudioPlayerCard({ src, lang }: { src: string; lang: AudioLanguage }) {
     setProgress(pct);
   };
 
-  const opt = LOCALE_OPTIONS.find((o) => o.code === lang);
+  const opt = AUDIO_LANGUAGE_OPTIONS.find((o) => o.code === lang);
 
   return (
     <div className="rounded-xl border border-orange-100 bg-linear-to-br from-orange-50 to-amber-50 p-4">
@@ -125,9 +133,7 @@ function AudioPlayerCard({ src, lang }: { src: string; lang: AudioLanguage }) {
 /** Read-only audio section with language tab buttons. */
 export default function PoiViewAudioSection({ shopId }: Props) {
   const { locale } = useLocale();
-  const [viAudioUrl, setViAudioUrl] = useState<string | null>(null);
-  const [enAudioUrl, setEnAudioUrl] = useState<string | null>(null);
-  const [zhAudioUrl, setZhAudioUrl] = useState<string | null>(null);
+  const [audioUrls, setAudioUrls] = useState<Partial<Record<AudioLanguage, string>>>({});
   const [selectedLang, setSelectedLang] = useState<AudioLanguage | "">("");
   const [loading, setLoading] = useState(true);
 
@@ -135,17 +141,14 @@ export default function PoiViewAudioSection({ shopId }: Props) {
     setLoading(true);
     getAudioByShop(shopId)
       .then((list) => {
-        const byLang = toAudioByLanguage(list);
-        const vi = byLang.vi?.fileUrl ?? null;
-        const en = byLang.en?.fileUrl ?? null;
-        const zh = byLang.zh?.fileUrl ?? null;
-        setViAudioUrl(vi);
-        setEnAudioUrl(en);
-        setZhAudioUrl(zh);
-        // Auto-select the preferred locale if available, then fall back to first available
-        const audioMap: Record<AudioLanguage, string | null> = { vi, en, zh };
-        const preferred = ([locale, "vi", "en", "zh"] as AudioLanguage[]).find(
-          (l) => !!audioMap[l]
+        const urls: Partial<Record<AudioLanguage, string>> = {};
+        for (const item of list) {
+          if (item.fileUrl) urls[item.languageCode] = item.fileUrl;
+        }
+        setAudioUrls(urls);
+        // Auto-select preferred locale, fall back to first available
+        const preferred = ([locale, "vi", "en", "zh", "ko", "ru", "ja"] as AudioLanguage[]).find(
+          (l) => !!urls[l]
         );
         if (preferred) setSelectedLang(preferred);
       })
@@ -159,8 +162,8 @@ export default function PoiViewAudioSection({ shopId }: Props) {
     return (
       <div className="space-y-3 animate-pulse">
         <div className="flex gap-2">
-          {LOCALE_OPTIONS.map((o) => (
-            <div key={o.code} className="h-9 w-32 rounded-xl bg-gray-100" />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-9 w-32 rounded-xl bg-gray-100" />
           ))}
         </div>
         <div className="h-20 rounded-xl bg-gray-100" />
@@ -168,12 +171,7 @@ export default function PoiViewAudioSection({ shopId }: Props) {
     );
   }
 
-  const available = LOCALE_OPTIONS.filter(
-    (o) =>
-      (o.code === "en" && !!enAudioUrl) ||
-      (o.code === "vi" && !!viAudioUrl) ||
-      (o.code === "zh" && !!zhAudioUrl)
-  );
+  const available = AUDIO_LANGUAGE_OPTIONS.filter((o) => !!audioUrls[o.code]);
 
   if (available.length === 0) {
     return (
@@ -184,15 +182,11 @@ export default function PoiViewAudioSection({ shopId }: Props) {
     );
   }
 
-  const activeUrl =
-    selectedLang === "en" ? enAudioUrl
-    : selectedLang === "vi" ? viAudioUrl
-    : selectedLang === "zh" ? zhAudioUrl
-    : null;
+  const activeUrl = selectedLang ? (audioUrls[selectedLang] ?? null) : null;
 
   return (
     <div className="space-y-4">
-      {/* Language tab buttons — custom HTML so emoji flags render correctly on all OS */}
+      {/* Language tab buttons */}
       <div>
         <p className="text-xs text-gray-500 mb-1.5">Language / Nation</p>
         <div className="flex gap-2 flex-wrap">
@@ -224,3 +218,4 @@ export default function PoiViewAudioSection({ shopId }: Props) {
     </div>
   );
 }
+

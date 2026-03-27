@@ -5,22 +5,11 @@ import PoiViewInfoSection from "./PoiViewInfoSection";
 import PoiViewGallerySection from "./PoiViewGallerySection";
 import PoiViewAudioSection from "./PoiViewAudioSection";
 import PoiViewLocationSection from "./PoiViewLocationSection";
+import ViewSection from "./ViewSection";
 
 interface Props {
   poi: PoiResponse;
   shop: ShopDetail;
-}
-
-/** A section header + content block inside a card. */
-function ViewSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="px-4 py-2.5 sm:px-6 sm:py-3 bg-linear-to-r from-orange-50 to-amber-50 border-b border-orange-100">
-        <h3 className="text-sm font-semibold text-orange-700">{title}</h3>
-      </div>
-      <div className="p-4 sm:p-6">{children}</div>
-    </div>
-  );
 }
 
 /** Read-only detail view for a vendor's POI — single unified card, full width. */
@@ -88,6 +77,16 @@ export default function PoiDetailView({ poi, shop }: Props) {
         </div>
       )}
 
+      {/* Location & Contact */}
+      <ViewSection title="Location & Contact">
+        <PoiViewLocationSection
+          lat={poi.latitude}
+          lng={poi.longitude}
+          name={poi.name}
+          radius={poi.radius}
+        />
+      </ViewSection>
+
       {/* Basic Information */}
       <ViewSection title="Basic Information">
         <PoiViewCoverSection
@@ -112,16 +111,6 @@ export default function PoiDetailView({ poi, shop }: Props) {
       {/* Audio Narration */}
       <ViewSection title="Audio Narration">
         <PoiViewAudioSection shopId={shop.shopId} />
-      </ViewSection>
-
-      {/* Location & Contact */}
-      <ViewSection title="Location & Contact">
-        <PoiViewLocationSection
-          lat={poi.latitude}
-          lng={poi.longitude}
-          name={poi.name}
-          radius={poi.radius}
-        />
       </ViewSection>
     </div>
   );

@@ -11,7 +11,7 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type Locale = "vi" | "zh" | "en";
+export type Locale = "vi" | "zh" | "en" | "ru" | "ja" | "ko";
 
 export interface LocaleOption {
   code: Locale;
@@ -23,6 +23,9 @@ export const LOCALE_OPTIONS: LocaleOption[] = [
   { code: "vi", label: "Tiếng Việt", flag: "🇻🇳" },
   { code: "zh", label: "中文", flag: "🇨🇳" },
   { code: "en", label: "English", flag: "🇬🇧" },
+  { code: "ru", label: "Русский", flag: "🇷🇺" },
+  { code: "ja", label: "日本語", flag: "🇯🇵" },
+  { code: "ko", label: "한국어", flag: "🇰🇷" },
 ];
 
 const STORAGE_KEY = "ft_locale";

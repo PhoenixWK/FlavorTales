@@ -165,6 +165,7 @@ services:
       args:
         - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
         - NEXT_PUBLIC_R2_PUBLIC_URL=${NEXT_PUBLIC_R2_PUBLIC_URL:-https://cdn.flavortales.site}
+        - INTERNAL_API_BASE_URL=http://backend:8080
     ports:
       - "3000:3000"
     environment:

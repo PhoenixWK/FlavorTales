@@ -180,7 +180,7 @@ const TouristMap = memo(function TouristMap() {
       </div>
 
       {/* FR-LM-007/008: Geofence state banner (fixed position) */}
-      <GeofenceBanner />
+      <GeofenceBanner panelOpen={!!selectedPoi} />
 
       {/* FR-LM-008: Floating audio player — bottom-centre desktop, top-centre mobile */}
       <AudioPlayerBar pois={filteredPois} />

@@ -13,8 +13,15 @@ import { useAudioContext } from "@/modules/audio/context/AudioContext";
  *  2. "Đang ở tại [tên]" — inside a resolved POI
  *  3. "Bạn đã rời vùng thuyết minh" — audio still finishing after exit
  *  4. GPS lost / GPS weak warnings
+ *
+ * When panelOpen is true (detail panel is visible), all banners are hidden
+ * because the user is already viewing that POI's information.
  */
-export default function GeofenceBanner() {
+interface Props {
+  panelOpen?: boolean;
+}
+
+export default function GeofenceBanner({ panelOpen }: Props) {
   const { resolvedPoi, isResolving, insidePois, overlapActive, gpsLost, weakGps } =
     useGeofenceContext();
   const { playState, currentPoiId } = useAudioContext();
@@ -36,12 +43,14 @@ export default function GeofenceBanner() {
   const showGpsLost          = gpsLost;
   const showGpsWeak          = weakGps && !gpsLost;
 
+  if (panelOpen) return null;
+
   if (!showOverlapResolving && !showInsideBanner && !showExitBanner && !showGpsLost && !showGpsWeak) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[1500] flex flex-col items-center gap-2 pointer-events-none">
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-1500 flex flex-col items-center gap-2 pointer-events-none">
 
       {showOverlapResolving && (
         <div className="flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg">

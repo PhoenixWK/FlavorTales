@@ -30,39 +30,27 @@ const ICONS = [
   { name: "apple-touch-icon.png", size: 180, maskable: false },
 ];
 
-// For maskable icons, add ~12% safe-zone padding with white background
+// For maskable icons, source already has full-bleed background — resize directly
+// Using fit:'cover' so the background extends to all edges (satisfies maskable safe zone)
 async function generateMaskable(size, outputPath) {
-  const padding = Math.round(size * 0.12);
-  const innerSize = size - padding * 2;
-
-  const resized = await sharp(SOURCE)
-    .resize(innerSize, innerSize, {
-      fit: "contain",
-      background: { r: 255, g: 255, b: 255, alpha: 0 },
+  await sharp(SOURCE)
+    .resize(size, size, {
+      fit: "cover",
+      kernel: "lanczos3",
+      position: "centre",
     })
-    .png()
-    .toBuffer();
-
-  await sharp({
-    create: {
-      width: size,
-      height: size,
-      channels: 4,
-      background: { r: 255, g: 255, b: 255, alpha: 255 },
-    },
-  })
-    .composite([{ input: resized, gravity: "center" }])
-    .png()
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toFile(outputPath);
 }
 
 async function generateIcon(size, outputPath) {
   await sharp(SOURCE)
     .resize(size, size, {
-      fit: "contain",
-      background: { r: 255, g: 255, b: 255, alpha: 0 },
+      fit: "cover",
+      kernel: "lanczos3",
+      position: "centre",
     })
-    .png()
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toFile(outputPath);
 }
 

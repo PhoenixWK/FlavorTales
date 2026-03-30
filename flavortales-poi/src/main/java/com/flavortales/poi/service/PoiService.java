@@ -86,6 +86,7 @@ public class PoiService {
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
                 .radius(java.math.BigDecimal.valueOf(request.getRadius()))
+                .address(request.getAddress())
                 .status(PoiStatus.pending)
                 .build();
         poi = poiRepository.save(poi);
@@ -169,6 +170,7 @@ public class PoiService {
         if (request.getLatitude()  != null) poi.setLatitude(request.getLatitude());
         if (request.getLongitude() != null) poi.setLongitude(request.getLongitude());
         if (request.getRadius()    != null) poi.setRadius(request.getRadius());
+        if (request.getAddress()   != null) poi.setAddress(request.getAddress());
         poi = poiRepository.save(poi);
 
         PoiResponse response = poiMapper.toResponse(poi);
@@ -241,7 +243,7 @@ public class PoiService {
     public PoiResponse getPoiById(Integer poiId, String vendorEmail) {
         Integer vendorId = resolveVendorId(vendorEmail);
         List<PoiResponse> results = jdbcTemplate.query(
-                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.likes_count, p.created_at, p.updated_at, " +
+                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.address, p.status, p.likes_count, p.created_at, p.updated_at, " +
                 "s.shop_id AS linked_shop_id, s.name AS linked_shop_name, fa.file_url AS shop_avatar_url " +
                 "FROM poi p LEFT JOIN shop s ON s.poi_id = p.poi_id " +
                 "LEFT JOIN file_asset fa ON fa.file_id = s.avatar_file_id " +
@@ -252,6 +254,7 @@ public class PoiService {
                         .latitude(rs.getBigDecimal("latitude"))
                         .longitude(rs.getBigDecimal("longitude"))
                         .radius(rs.getBigDecimal("radius"))
+                        .address(rs.getString("address"))
                         .status(rs.getString("status"))
                         .likesCount(rs.getInt("likes_count"))
                         .linkedShopId(rs.getObject("linked_shop_id") != null ? rs.getInt("linked_shop_id") : null)
@@ -274,7 +277,7 @@ public class PoiService {
         List<PoiResponse> cached = poiCacheService.getActivePoisFromCache();
         if (cached != null) return cached;
         List<PoiResponse> pois = jdbcTemplate.query(
-                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.likes_count, p.created_at, p.updated_at, " +
+                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.address, p.status, p.likes_count, p.created_at, p.updated_at, " +
                 "s.shop_id AS linked_shop_id, s.name AS linked_shop_name, fa.file_url AS shop_avatar_url, " +
                 "s.description AS shop_description, s.tags AS shop_tags, s.opening_hours AS shop_opening_hours, " +
                 "(SELECT GROUP_CONCAT(gfa.file_url ORDER BY si.sort_order SEPARATOR ',') " +
@@ -296,6 +299,7 @@ public class PoiService {
                             .latitude(rs.getBigDecimal("latitude"))
                             .longitude(rs.getBigDecimal("longitude"))
                             .radius(rs.getBigDecimal("radius"))
+                            .address(rs.getString("address"))
                             .status(rs.getString("status"))
                             .likesCount(rs.getInt("likes_count"))
                             .linkedShopId(rs.getObject("linked_shop_id") != null ? rs.getInt("linked_shop_id") : null)
@@ -330,7 +334,7 @@ public class PoiService {
     public List<PoiResponse> getMyPois(String vendorEmail) {
         Integer vendorId = resolveVendorId(vendorEmail);
         return jdbcTemplate.query(
-                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.status, p.likes_count, p.created_at, p.updated_at, " +
+                "SELECT p.poi_id, p.name, p.latitude, p.longitude, p.radius, p.address, p.status, p.likes_count, p.created_at, p.updated_at, " +
                 "s.shop_id AS linked_shop_id, s.name AS linked_shop_name, fa.file_url AS shop_avatar_url " +
                 "FROM poi p LEFT JOIN shop s ON s.poi_id = p.poi_id " +
                 "LEFT JOIN file_asset fa ON fa.file_id = s.avatar_file_id " +
@@ -341,6 +345,7 @@ public class PoiService {
                         .latitude(rs.getBigDecimal("latitude"))
                         .longitude(rs.getBigDecimal("longitude"))
                         .radius(rs.getBigDecimal("radius"))
+                        .address(rs.getString("address"))
                         .status(rs.getString("status"))
                         .likesCount(rs.getInt("likes_count"))
                         .linkedShopId(rs.getObject("linked_shop_id") != null ? rs.getInt("linked_shop_id") : null)

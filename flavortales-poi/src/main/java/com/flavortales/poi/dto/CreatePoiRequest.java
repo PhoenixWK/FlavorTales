@@ -40,6 +40,9 @@ public class CreatePoiRequest {
     @Max(value = 100, message = "Bán kính tối đa 100 mét")
     private Integer radius;
 
+    @Size(max = 500, message = "Địa chỉ không vượt quá 500 ký tự")
+    private String address;
+
     // ── Step 2: Shop information ─────────────────────────────────────────────
 
     @NotBlank(message = "Tên gian hàng là bắt buộc")

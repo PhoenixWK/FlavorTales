@@ -67,6 +67,7 @@ export default function CreatePoiForm() {
               onChange={(field, value) => {
                 handleStep1Change(field, value);
                 if (field === "lat" || field === "lng") clearError("location");
+                else if (field === "address") { /* no Step1Error for address */ }
                 else clearError(field as "poiName" | "radius");
               }}
               onClearError={clearError}

@@ -30,12 +30,14 @@ interface PoiFormData {
   lat: number | null;
   lng: number | null;
   radius: string;
+  address: string;
 }
 
 interface PoiFormErrors {
   name?: string;
   location?: string;
   radius?: string;
+  address?: string;
 }
 
 function validatePoi(data: PoiFormData): PoiFormErrors {
@@ -47,6 +49,9 @@ function validatePoi(data: PoiFormData): PoiFormErrors {
   }
   if (data.lat === null || data.lng === null) {
     errors.location = "Vui lòng chọn vị trí trên bản đồ.";
+  }
+  if (data.address.length > 500) {
+    errors.address = "Địa chỉ không vượt quá 500 ký tự.";
   }
   const radius = parseFloat(data.radius);
   if (!data.radius.trim()) {
@@ -75,6 +80,9 @@ function computePoiChanges(initial: PoiResponse, current: PoiFormData): FieldCha
   if (!isNaN(r) && Math.abs(r - Number(initial.radius)) > 0.01) {
     changes.push({ label: "Bán kính", oldValue: `${initial.radius} m`, newValue: `${r} m` });
   }
+  if (current.address.trim() !== (initial.address ?? "")) {
+    changes.push({ label: "Địa chỉ", oldValue: initial.address ?? "(chưa có)", newValue: current.address.trim() || "(xóa)" });
+  }
   return changes;
 }
 
@@ -96,6 +104,7 @@ export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps
     lat: Number(initialPoi.latitude),
     lng: Number(initialPoi.longitude),
     radius: String(initialPoi.radius),
+    address: initialPoi.address ?? "",
   });
   const [poiErrors, setPoiErrors] = useState<PoiFormErrors>({});
 
@@ -201,6 +210,7 @@ export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps
           latitude: parseFloat((poiData.lat!).toFixed(6)),
           longitude: parseFloat((poiData.lng!).toFixed(6)),
           radius: parseFloat(poiData.radius),
+          address: poiData.address.trim() || undefined,
         });
       }
 
@@ -264,9 +274,11 @@ export default function EditPoiForm({ initialPoi, shopDetail }: EditPoiFormProps
             lat={poiData.lat}
             lng={poiData.lng}
             radius={poiData.radius}
-            errors={{ location: poiErrors.location, radius: poiErrors.radius }}
+            address={poiData.address}
+            errors={{ location: poiErrors.location, radius: poiErrors.radius, address: poiErrors.address }}
             onLocationChange={handleLocationChange}
             onRadiusChange={(value) => updatePoiField("radius", value)}
+            onAddressChange={(value) => updatePoiField("address", value)}
           />
         </div>
       </FormSection>

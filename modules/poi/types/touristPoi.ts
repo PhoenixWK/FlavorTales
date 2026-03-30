@@ -8,6 +8,7 @@ export interface TouristPoi {
   latitude: number;
   longitude: number;
   radius: number;
+  address?: string | null;
   linkedShopId: number | null;
   linkedShopName: string | null;
   linkedShopAvatarUrl: string | null;

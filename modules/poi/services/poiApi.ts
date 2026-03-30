@@ -21,6 +21,7 @@ export interface CreatePoiPayload {
   latitude: number;
   longitude: number;
   radius: number;
+  address?: string;
   // Step 2: Shop info (optional — form may submit POI-only)
   shopName?: string;
   shopDescription?: string;
@@ -36,6 +37,7 @@ export interface UpdatePoiPayload {
   latitude?: number;
   longitude?: number;
   radius?: number;
+  address?: string;
 }
 
 export interface PoiResponse {
@@ -48,6 +50,7 @@ export interface PoiResponse {
   linkedShopId: number | null;
   linkedShopName: string | null;
   linkedShopAvatarUrl: string | null;
+  address?: string | null;
   message?: string;
   createdAt: string;
   updatedAt: string;

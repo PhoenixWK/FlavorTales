@@ -15,18 +15,22 @@ interface Props {
   lat: number | null;
   lng: number | null;
   radius: string;
-  errors: { location?: string; radius?: string };
+  address: string;
+  errors: { location?: string; radius?: string; address?: string };
   onLocationChange: (lat: number, lng: number) => void;
   onRadiusChange: (value: string) => void;
+  onAddressChange: (value: string) => void;
 }
 
 export default function EditPoiLocationSection({
   lat,
   lng,
   radius,
+  address,
   errors,
   onLocationChange,
   onRadiusChange,
+  onAddressChange,
 }: Props) {
   const previewRadius = parseFloat(radius) || 50;
   const numericRadius = parseFloat(radius);
@@ -98,6 +102,27 @@ export default function EditPoiLocationSection({
         </div>
         {errors.radius && (
           <p className="mt-1 text-xs text-red-500">{errors.radius}</p>
+        )}
+      </div>
+
+      {/* Address */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Địa chỉ
+          <span className="ml-2 text-xs text-gray-400 font-normal">Không bắt buộc · tối đa 500 ký tự</span>
+        </label>
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => onAddressChange(e.target.value)}
+          placeholder="VD: 24 Lê Văn Hưu, Hai Bà Trưng, Hà Nội"
+          maxLength={500}
+          className={`w-full px-4 py-2.5 rounded-lg border text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 transition ${
+            errors.address ? "border-red-400 bg-red-50" : "border-gray-300"
+          }`}
+        />
+        {errors.address && (
+          <p className="mt-1 text-xs text-red-500">{errors.address}</p>
         )}
       </div>
     </div>

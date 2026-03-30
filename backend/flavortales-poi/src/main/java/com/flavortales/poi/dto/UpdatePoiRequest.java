@@ -42,5 +42,8 @@ public class UpdatePoiRequest {
     @DecimalMax(value = "200.0", inclusive = true, message = "Radius must not exceed 200 metres")
     private BigDecimal radius;
 
+    @Size(max = 500, message = "Address must not exceed 500 characters")
+    private String address;
+
     private Integer shopId;
 }

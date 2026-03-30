@@ -36,6 +36,9 @@ public class Poi {
     @Column(name = "radius", nullable = false, precision = 8, scale = 2)
     private BigDecimal radius;
 
+    @Column(name = "address", length = 500)
+    private String address;
+
     @Column(name = "likes_count", nullable = false)
     @Builder.Default
     private int likesCount = 0;

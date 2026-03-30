@@ -3,6 +3,7 @@ interface Props {
   lng: number;
   name: string;
   radius: number;
+  address?: string | null;
   websiteUrl?: string | null;
 }
 
@@ -24,7 +25,7 @@ function IconMapPin() {
   );
 }
 
-export default function PoiViewLocationSection({ lat, lng, name, radius, websiteUrl }: Props) {
+export default function PoiViewLocationSection({ lat, lng, name, radius, address, websiteUrl }: Props) {
   const delta = 0.003;
   const embedSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta},${lat - delta},${lng + delta},${lat + delta}&layer=mapnik&marker=${lat},${lng}`;
   const mapLink = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}&zoom=18`;
@@ -40,6 +41,17 @@ export default function PoiViewLocationSection({ lat, lng, name, radius, website
           <span className="ml-auto text-xs text-gray-400">{radius} m radius</span>
         </div>
       </div>
+
+      {/* Address */}
+      {address && (
+        <div>
+          <p className="text-xs text-gray-500 mb-1">Địa chỉ</p>
+          <div className="flex items-start gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            <IconMapPin />
+            <span className="text-sm text-gray-800">{address}</span>
+          </div>
+        </div>
+      )}
 
       {/* Embedded map */}
       <div>

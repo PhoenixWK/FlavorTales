@@ -24,6 +24,7 @@ export interface PoiCreateDraft {
   lat: number | null;
   lng: number | null;
   radius: number;
+  address: string;
 
   // Step 2: Shop info
   shopName: string;
@@ -52,6 +53,7 @@ export const DEFAULT_DRAFT: PoiCreateDraft = {
   lat: null,
   lng: null,
   radius: 50,
+  address: "",
   shopName: "",
   shopDescription: "",
   avatarFileId: null,

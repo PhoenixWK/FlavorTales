@@ -31,7 +31,7 @@ export interface PoiCreateDraftHook {
 
   update: <K extends keyof PoiCreateDraft>(key: K, value: PoiCreateDraft[K]) => void;
   handleStep1Change: (
-    field: keyof Pick<PoiCreateDraft, "poiName" | "lat" | "lng" | "radius">,
+    field: keyof Pick<PoiCreateDraft, "poiName" | "lat" | "lng" | "radius" | "address">,
     value: string | number | null
   ) => void;
   handleAvatarChange: (file: File | null, previewUrl: string | null) => void;
@@ -81,7 +81,7 @@ export function usePoiCreateDraft(): PoiCreateDraftHook {
 
   const handleStep1Change = useCallback(
     (
-      field: keyof Pick<PoiCreateDraft, "poiName" | "lat" | "lng" | "radius">,
+      field: keyof Pick<PoiCreateDraft, "poiName" | "lat" | "lng" | "radius" | "address">,
       value: string | number | null
     ) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -157,6 +157,7 @@ export function usePoiCreateDraft(): PoiCreateDraftHook {
         latitude: parseFloat(draft.lat!.toFixed(6)),
         longitude: parseFloat(draft.lng!.toFixed(6)),
         radius: draft.radius,
+        address: draft.address.trim() || undefined,
         shopName: draft.shopName.trim(),
         shopDescription: plainDescription,
         avatarFileId,

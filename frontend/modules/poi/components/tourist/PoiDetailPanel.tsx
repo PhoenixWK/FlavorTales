@@ -264,10 +264,12 @@ export default function PoiDetailPanel({
             {/* ── Info rows ─────────────────────────────────────────────── */}
             <div className="border-t border-gray-100 pt-3 flex flex-col gap-3">
               {/* Address */}
-              <div className="flex items-start gap-3 text-sm text-gray-600">
-                <IconPin className="h-4 w-4 shrink-0 text-gray-400 mt-0.5" />
-                <span>{poi.name}</span>
-              </div>
+              {poi.address && (
+                <div className="flex items-start gap-3 text-sm text-gray-600">
+                  <IconPin className="h-4 w-4 shrink-0 text-gray-400 mt-0.5" />
+                  <span>{poi.address}</span>
+                </div>
+              )}
 
               {/* Website — only render when field is present */}
               {(poi as { shopWebsite?: string | null }).shopWebsite && (

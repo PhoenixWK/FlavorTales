@@ -84,6 +84,7 @@ export default function PoiDetailView({ poi, shop }: Props) {
           lng={poi.longitude}
           name={poi.name}
           radius={poi.radius}
+          address={poi.address}
         />
       </ViewSection>
 

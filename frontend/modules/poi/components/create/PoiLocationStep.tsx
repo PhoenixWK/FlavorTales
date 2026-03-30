@@ -20,9 +20,9 @@ export interface Step1Errors {
 }
 
 interface Props {
-  draft: Pick<PoiCreateDraft, "poiName" | "lat" | "lng" | "radius">;
+  draft: Pick<PoiCreateDraft, "poiName" | "lat" | "lng" | "radius" | "address">;
   errors: Step1Errors;
-  onChange: (field: keyof Pick<PoiCreateDraft, "poiName" | "lat" | "lng" | "radius">, value: string | number | null) => void;
+  onChange: (field: keyof Pick<PoiCreateDraft, "poiName" | "lat" | "lng" | "radius" | "address">, value: string | number | null) => void;
   onClearError: (field: keyof Step1Errors) => void;
   onBlurField?: (field: keyof Step1Errors, error: string | undefined) => void;
 }
@@ -142,6 +142,22 @@ export default function PoiLocationStep({ draft, errors, onChange, onClearError,
           }`}
         />
         {errors.radius && <p className="mt-1 text-xs text-red-500">{errors.radius}</p>}
+      </div>
+
+      {/* Address */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Địa chỉ
+          <span className="ml-2 text-xs text-gray-400 font-normal">Không bắt buộc · tối đa 500 ký tự</span>
+        </label>
+        <input
+          type="text"
+          value={draft.address}
+          onChange={(e) => onChange("address", e.target.value)}
+          placeholder="VD: 24 Lê Văn Hưu, Hai Bà Trưng, Hà Nội"
+          maxLength={500}
+          className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400"
+        />
       </div>
     </div>
   );

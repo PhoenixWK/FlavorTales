@@ -83,6 +83,7 @@ CREATE TABLE poi (
     latitude DECIMAL(10, 8) NOT NULL,
     longitude DECIMAL(11, 8) NOT NULL,
     radius DECIMAL(8, 2) NOT NULL COMMENT 'Unit: meters',
+    address VARCHAR(500) NULL COMMENT 'Human-readable address / location description',
     status ENUM('pending', 'active', 'inactive', 'rejected', 'deleted') DEFAULT 'pending',
     likes_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Tourist like count (FR-LM-007)',
     deleted_at TIMESTAMP NULL COMMENT 'Soft-delete timestamp; NULL means not deleted; set on soft delete for 30-day recovery window',

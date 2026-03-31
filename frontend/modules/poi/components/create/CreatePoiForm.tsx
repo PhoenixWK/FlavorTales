@@ -8,12 +8,13 @@ import StepIndicator from "./StepIndicator";
 import PoiLocationStep from "./PoiLocationStep";
 import ShopInfoStep from "./ShopInfoStep";
 import PoiReviewStep from "./PoiReviewStep";
+import PoiTranslationStep from "./PoiTranslationStep";
 
-const STEPS = ["Vị trí POI", "Thông tin gian hàng", "Xem lại"];
+const STEPS = ["Vị trí POI", "Thông tin gian hàng", "Dịch thông tin", "Xem lại"];
 
 export default function CreatePoiForm() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
   const {
     draft,
@@ -33,20 +34,20 @@ export default function CreatePoiForm() {
     handleSubmit,
   } = usePoiCreateDraft();
 
-  const handleNext = () => {
-    const stepErrors = validateCurrentStep(currentStep);
+  const handleNext = async () => {
+    const stepErrors = validateCurrentStep(currentStep as 1 | 2);
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     setErrors({});
-    setCurrentStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s));
+    setCurrentStep((s) => (s < 4 ? ((s + 1) as 1 | 2 | 3 | 4) : s));
   };
 
   const handleBack = () => {
     setErrors({});
-    setCurrentStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s));
+    setCurrentStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4) : s));
   };
 
   return (
@@ -113,8 +114,13 @@ export default function CreatePoiForm() {
           </FormSection>
         )}
 
-        {/* ── Step 3: Xem lại ─────────────────────────────────────────────── */}
+        {/* ── Step 3: Dịch thông tin ──────────────────────────────────────── */}
         {currentStep === 3 && (
+          <PoiTranslationStep />
+        )}
+
+        {/* ── Step 4: Xem lại ─────────────────────────────────────────────── */}
+        {currentStep === 4 && (
           <PoiReviewStep
             draft={draft}
             additionalSlots={additionalSlots}
@@ -125,34 +131,37 @@ export default function CreatePoiForm() {
 
       {/* ── Navigation buttons ──────────────────────────────────────────────── */}
       <div className="flex justify-between gap-3 pt-6 pb-8">
-        <button
-          type="button"
-          onClick={currentStep === 1 ? () => router.push("/vendor/poi") : handleBack}
-          disabled={submitting}
-          className="px-5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium
-            text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition"
-        >
-          {currentStep === 1 ? "Huỷ" : "Quay lại"}
-        </button>
+        {currentStep < 4 && (
+          <button
+            type="button"
+            onClick={currentStep === 1 ? () => router.push("/vendor/poi") : handleBack}
+            disabled={submitting}
+            className="px-5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium
+              text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition"
+          >
+            {currentStep === 1 ? "Huỷ" : "Quay lại"}
+          </button>
+        )}
 
-        {currentStep < 3 ? (
+        {currentStep < 4 ? (
           <button
             type="button"
             onClick={handleNext}
-            className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white
-              text-sm font-semibold transition"
+            disabled={submitting}
+            className="ml-auto px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white
+              text-sm font-semibold disabled:opacity-60 transition"
           >
-            Tiếp theo
+            {submitting ? "Đang xử lý…" : "Tiếp theo"}
           </button>
         ) : (
           <button
             type="button"
             onClick={handleSubmit}
             disabled={submitting}
-            className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white
+            className="w-full px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white
               text-sm font-semibold disabled:opacity-60 transition"
           >
-            {submitting ? "Đang gửi…" : "Gửi đăng ký"}
+            {submitting ? "Đang xử lý…" : "Hoàn tất"}
           </button>
         )}
       </div>

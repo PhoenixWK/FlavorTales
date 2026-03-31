@@ -95,6 +95,102 @@ CREATE TABLE poi (
     INDEX idx_location (latitude, longitude)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ============================================================================
+-- POI TRANSLATIONS (1:1 per language; poi_id is PK and FK to poi)
+-- Translatable fields: name, address
+-- Non-translatable fields copied from poi for denormalisation convenience
+-- ============================================================================
+
+CREATE TABLE poi_english (
+    poi_id      INT PRIMARY KEY,
+    vendor_id   INT NOT NULL,
+    name        VARCHAR(255) NOT NULL,
+    latitude    DECIMAL(10, 8) NOT NULL,
+    longitude   DECIMAL(11, 8) NOT NULL,
+    radius      DECIMAL(8, 2) NOT NULL,
+    address     VARCHAR(500) NULL,
+    status      ENUM('pending', 'active', 'inactive', 'rejected', 'deleted') DEFAULT 'pending',
+    likes_count INT UNSIGNED NOT NULL DEFAULT 0,
+    deleted_at  TIMESTAMP NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (poi_id) REFERENCES poi(poi_id) ON DELETE CASCADE,
+    INDEX idx_vendor (vendor_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE poi_korean (
+    poi_id      INT PRIMARY KEY,
+    vendor_id   INT NOT NULL,
+    name        VARCHAR(255) NOT NULL,
+    latitude    DECIMAL(10, 8) NOT NULL,
+    longitude   DECIMAL(11, 8) NOT NULL,
+    radius      DECIMAL(8, 2) NOT NULL,
+    address     VARCHAR(500) NULL,
+    status      ENUM('pending', 'active', 'inactive', 'rejected', 'deleted') DEFAULT 'pending',
+    likes_count INT UNSIGNED NOT NULL DEFAULT 0,
+    deleted_at  TIMESTAMP NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (poi_id) REFERENCES poi(poi_id) ON DELETE CASCADE,
+    INDEX idx_vendor (vendor_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE poi_chinese (
+    poi_id      INT PRIMARY KEY,
+    vendor_id   INT NOT NULL,
+    name        VARCHAR(255) NOT NULL,
+    latitude    DECIMAL(10, 8) NOT NULL,
+    longitude   DECIMAL(11, 8) NOT NULL,
+    radius      DECIMAL(8, 2) NOT NULL,
+    address     VARCHAR(500) NULL,
+    status      ENUM('pending', 'active', 'inactive', 'rejected', 'deleted') DEFAULT 'pending',
+    likes_count INT UNSIGNED NOT NULL DEFAULT 0,
+    deleted_at  TIMESTAMP NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (poi_id) REFERENCES poi(poi_id) ON DELETE CASCADE,
+    INDEX idx_vendor (vendor_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE poi_russian (
+    poi_id      INT PRIMARY KEY,
+    vendor_id   INT NOT NULL,
+    name        VARCHAR(255) NOT NULL,
+    latitude    DECIMAL(10, 8) NOT NULL,
+    longitude   DECIMAL(11, 8) NOT NULL,
+    radius      DECIMAL(8, 2) NOT NULL,
+    address     VARCHAR(500) NULL,
+    status      ENUM('pending', 'active', 'inactive', 'rejected', 'deleted') DEFAULT 'pending',
+    likes_count INT UNSIGNED NOT NULL DEFAULT 0,
+    deleted_at  TIMESTAMP NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (poi_id) REFERENCES poi(poi_id) ON DELETE CASCADE,
+    INDEX idx_vendor (vendor_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE poi_japanese (
+    poi_id      INT PRIMARY KEY,
+    vendor_id   INT NOT NULL,
+    name        VARCHAR(255) NOT NULL,
+    latitude    DECIMAL(10, 8) NOT NULL,
+    longitude   DECIMAL(11, 8) NOT NULL,
+    radius      DECIMAL(8, 2) NOT NULL,
+    address     VARCHAR(500) NULL,
+    status      ENUM('pending', 'active', 'inactive', 'rejected', 'deleted') DEFAULT 'pending',
+    likes_count INT UNSIGNED NOT NULL DEFAULT 0,
+    deleted_at  TIMESTAMP NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (poi_id) REFERENCES poi(poi_id) ON DELETE CASCADE,
+    INDEX idx_vendor (vendor_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Tourist likes for POI (FR-LM-007 §popularity scoring)
 CREATE TABLE poi_likes (
     poi_id     INT NOT NULL,
@@ -150,6 +246,111 @@ CREATE TABLE shop (
     FOREIGN KEY (vendor_id)      REFERENCES user(user_id)       ON DELETE RESTRICT,
     FOREIGN KEY (poi_id)         REFERENCES poi(poi_id)          ON DELETE SET NULL,
     FOREIGN KEY (avatar_file_id) REFERENCES file_asset(file_id)  ON DELETE SET NULL,
+    INDEX idx_vendor_id (vendor_id),
+    INDEX idx_poi_id (poi_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- SHOP TRANSLATIONS (1:1 per language; shop_id is PK and FK to shop)
+-- Translatable fields: name, description, cuisine_style, featured_dish
+-- ============================================================================
+
+CREATE TABLE shop_english (
+    shop_id        INT PRIMARY KEY,
+    vendor_id      INT NOT NULL,
+    poi_id         INT NULL,
+    avatar_file_id INT NULL,
+    name           VARCHAR(255) NOT NULL,
+    description    TEXT,
+    cuisine_style  VARCHAR(100),
+    featured_dish  VARCHAR(255),
+    status         ENUM('pending', 'active', 'rejected', 'disabled') DEFAULT 'pending',
+    tags           JSON DEFAULT NULL,
+    opening_hours  JSON DEFAULT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (shop_id) REFERENCES shop(shop_id) ON DELETE CASCADE,
+    INDEX idx_vendor_id (vendor_id),
+    INDEX idx_poi_id (poi_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE shop_korean (
+    shop_id        INT PRIMARY KEY,
+    vendor_id      INT NOT NULL,
+    poi_id         INT NULL,
+    avatar_file_id INT NULL,
+    name           VARCHAR(255) NOT NULL,
+    description    TEXT,
+    cuisine_style  VARCHAR(100),
+    featured_dish  VARCHAR(255),
+    status         ENUM('pending', 'active', 'rejected', 'disabled') DEFAULT 'pending',
+    tags           JSON DEFAULT NULL,
+    opening_hours  JSON DEFAULT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (shop_id) REFERENCES shop(shop_id) ON DELETE CASCADE,
+    INDEX idx_vendor_id (vendor_id),
+    INDEX idx_poi_id (poi_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE shop_chinese (
+    shop_id        INT PRIMARY KEY,
+    vendor_id      INT NOT NULL,
+    poi_id         INT NULL,
+    avatar_file_id INT NULL,
+    name           VARCHAR(255) NOT NULL,
+    description    TEXT,
+    cuisine_style  VARCHAR(100),
+    featured_dish  VARCHAR(255),
+    status         ENUM('pending', 'active', 'rejected', 'disabled') DEFAULT 'pending',
+    tags           JSON DEFAULT NULL,
+    opening_hours  JSON DEFAULT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (shop_id) REFERENCES shop(shop_id) ON DELETE CASCADE,
+    INDEX idx_vendor_id (vendor_id),
+    INDEX idx_poi_id (poi_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE shop_russian (
+    shop_id        INT PRIMARY KEY,
+    vendor_id      INT NOT NULL,
+    poi_id         INT NULL,
+    avatar_file_id INT NULL,
+    name           VARCHAR(255) NOT NULL,
+    description    TEXT,
+    cuisine_style  VARCHAR(100),
+    featured_dish  VARCHAR(255),
+    status         ENUM('pending', 'active', 'rejected', 'disabled') DEFAULT 'pending',
+    tags           JSON DEFAULT NULL,
+    opening_hours  JSON DEFAULT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (shop_id) REFERENCES shop(shop_id) ON DELETE CASCADE,
+    INDEX idx_vendor_id (vendor_id),
+    INDEX idx_poi_id (poi_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE shop_japanese (
+    shop_id        INT PRIMARY KEY,
+    vendor_id      INT NOT NULL,
+    poi_id         INT NULL,
+    avatar_file_id INT NULL,
+    name           VARCHAR(255) NOT NULL,
+    description    TEXT,
+    cuisine_style  VARCHAR(100),
+    featured_dish  VARCHAR(255),
+    status         ENUM('pending', 'active', 'rejected', 'disabled') DEFAULT 'pending',
+    tags           JSON DEFAULT NULL,
+    opening_hours  JSON DEFAULT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (shop_id) REFERENCES shop(shop_id) ON DELETE CASCADE,
     INDEX idx_vendor_id (vendor_id),
     INDEX idx_poi_id (poi_id),
     INDEX idx_status (status)

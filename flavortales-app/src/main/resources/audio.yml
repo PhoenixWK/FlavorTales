@@ -23,3 +23,6 @@ app:
     google-translate:
       api-key: ${GOOGLE_TRANSLATE_API_KEY:${GOOGLE_TTS_API_KEY:dev-google-key}}
       endpoint: https://translation.googleapis.com/language/translate/v2
+  translation:
+    api-key: ${GOOGLE_TRANSLATE_API_KEY:${GOOGLE_TTS_API_KEY:dev-google-key}}
+    endpoint: https://translation.googleapis.com/language/translate/v2

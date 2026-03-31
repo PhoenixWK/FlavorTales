@@ -15,6 +15,7 @@ import { uploadImages, stripHtml } from "@/modules/shop/services/uploadShopAsset
 import { uploadAudiosForShop } from "@/modules/audio/services/audioApi";
 import type { SupportedLanguage } from "@/modules/audio/services/audioApi";
 import { useToast } from "@/shared/hooks/useToast";
+import { usePoiTranslation } from "@/modules/poi/hooks/usePoiTranslation";
 import type { ImageSlot } from "@/modules/shop/components/create/ShopImageUpload";
 import { validateStep1, type Step1Errors } from "@/modules/poi/components/create/PoiLocationStep";
 import { validateStep2, type Step2Errors } from "@/modules/poi/components/create/ShopInfoStep";
@@ -50,6 +51,7 @@ export interface PoiCreateDraftHook {
 export function usePoiCreateDraft(): PoiCreateDraftHook {
   const router = useRouter();
   const { addToast } = useToast();
+  const { runTranslation } = usePoiTranslation();
 
   const [draft, setDraft] = useState<PoiCreateDraft>(DEFAULT_DRAFT);
   const [errors, setErrors] = useState<AllErrors>({});
@@ -180,8 +182,14 @@ export function usePoiCreateDraft(): PoiCreateDraftHook {
         );
       }
 
+      const poiId = res.data?.poiId;
+      if (!poiId || !shopId) throw new Error("Created POI/shop ID missing in response");
+
+      // Fire-and-forget translation after POI is created
+      runTranslation(poiId, shopId);
+
       clearDraft();
-      addToast("success", res.data?.message ?? "Tạo gian hàng thành công – đang chờ duyệt.", 6000);
+      addToast("success", "POI đã được tạo thành công – đang chờ duyệt.", 6000);
       setTimeout(() => router.push("/vendor/poi"), 2000);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Đã xảy ra lỗi. Vui lòng thử lại.";
@@ -189,7 +197,7 @@ export function usePoiCreateDraft(): PoiCreateDraftHook {
     } finally {
       setSubmitting(false);
     }
-  }, [draft, imageFiles, audioBlobs, addToast, router]);
+  }, [draft, imageFiles, audioBlobs, addToast, router, runTranslation]);
 
   return {
     draft,

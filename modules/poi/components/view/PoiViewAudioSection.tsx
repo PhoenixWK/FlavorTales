@@ -18,6 +18,7 @@ const AUDIO_LANGUAGE_OPTIONS: { code: AudioLanguage; label: string; flag: string
 
 interface Props {
   shopId: number;
+  initialLanguage?: AudioLanguage;
 }
 
 function formatTime(s: number) {
@@ -131,11 +132,16 @@ function AudioPlayerCard({ src, lang }: { src: string; lang: AudioLanguage }) {
 }
 
 /** Read-only audio section with language tab buttons. */
-export default function PoiViewAudioSection({ shopId }: Props) {
+export default function PoiViewAudioSection({ shopId, initialLanguage }: Props) {
   const { locale } = useLocale();
   const [audioUrls, setAudioUrls] = useState<Partial<Record<AudioLanguage, string>>>({});
-  const [selectedLang, setSelectedLang] = useState<AudioLanguage | "">("");
+  const [selectedLang, setSelectedLang] = useState<AudioLanguage | "">(initialLanguage ?? "");
   const [loading, setLoading] = useState(true);
+
+  // Sync when parent language switcher changes
+  useEffect(() => {
+    if (initialLanguage) setSelectedLang(initialLanguage);
+  }, [initialLanguage]);
 
   useEffect(() => {
     setLoading(true);
@@ -146,17 +152,19 @@ export default function PoiViewAudioSection({ shopId }: Props) {
           if (item.fileUrl) urls[item.languageCode] = item.fileUrl;
         }
         setAudioUrls(urls);
-        // Auto-select preferred locale, fall back to first available
-        const preferred = ([locale, "vi", "en", "zh", "ko", "ru", "ja"] as AudioLanguage[]).find(
-          (l) => !!urls[l]
-        );
-        if (preferred) setSelectedLang(preferred);
+        // Only auto-select if no initialLanguage prop was given
+        if (!initialLanguage) {
+          const preferred = ([locale, "vi", "en", "zh", "ko", "ru", "ja"] as AudioLanguage[]).find(
+            (l) => !!urls[l]
+          );
+          if (preferred) setSelectedLang(preferred);
+        }
       })
       .catch(() => {
         // No audio available or network error — stay empty
       })
       .finally(() => setLoading(false));
-  }, [shopId]);
+  }, [shopId, initialLanguage, locale]);
 
   if (loading) {
     return (

@@ -10,6 +10,7 @@ import com.flavortales.notification.service.EmailService;
 import com.flavortales.poi.dto.CreatePoiRequest;
 import com.flavortales.poi.dto.PoiResponse;
 import com.flavortales.poi.dto.UpdatePoiRequest;
+import com.flavortales.poi.service.translation.PoiTranslationOrchestrator;
 import com.flavortales.poi.entity.Poi;
 import com.flavortales.poi.entity.PoiStatus;
 import com.flavortales.poi.mapper.PoiMapper;
@@ -41,6 +42,7 @@ public class PoiService {
     private final JdbcTemplate    jdbcTemplate;
     private final EmailService    emailService;
     private final ObjectMapper    objectMapper;
+    private final PoiTranslationOrchestrator poiTranslationOrchestrator;
 
     @Value("${app.poi.boundary.center-lat}")
     private double boundaryCenterLat;
@@ -182,6 +184,9 @@ public class PoiService {
         if (coordsChanged) {
             emailService.sendPoiUpdatedEmail(vendorEmail, response.getName());
         }
+
+        Poi savedPoi = poi;
+        poiTranslationOrchestrator.translateAndSave(savedPoi);
 
         log.info("POI {} updated by vendor {} (coordsChanged={})", poiId, vendorEmail, coordsChanged);
         return response;

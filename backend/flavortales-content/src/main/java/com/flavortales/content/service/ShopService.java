@@ -9,6 +9,7 @@ import com.flavortales.content.dto.ShopCreateRequest;
 import com.flavortales.content.dto.ShopCreateResponse;
 import com.flavortales.content.dto.ShopResponse;
 import com.flavortales.content.dto.ShopUpdateRequest;
+import com.flavortales.content.service.translation.ShopTranslationOrchestrator;
 import com.flavortales.notification.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class ShopService {
     private final JdbcTemplate jdbcTemplate;
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
+    private final ShopTranslationOrchestrator shopTranslationOrchestrator;
 
     // ── Create ───────────────────────────────────────────────────────────────
 
@@ -436,6 +438,8 @@ public class ShopService {
         }
 
         log.info("Shop {} updated by vendor {}, status reset to pending (poiId={})", shopId, vendorEmail, poiId);
+
+        shopTranslationOrchestrator.translateAndSave(shopId);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

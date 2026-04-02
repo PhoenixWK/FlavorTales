@@ -1,11 +1,14 @@
 package com.flavortales.location.service;
 
+import com.flavortales.common.event.SessionCreatedEvent;
 import com.flavortales.location.document.TouristSession;
 import com.flavortales.location.dto.CreateTouristSessionResponse;
 import com.flavortales.location.dto.TouristSessionResponse;
 import com.flavortales.location.dto.UpdateSessionRequest;
 import com.flavortales.location.repository.TouristSessionRepository;
+import com.flavortales.location.websocket.VisitorPresenceRegistry;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -25,9 +28,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TouristSessionService {
 
-    private static final long SESSION_TTL_HOURS = 24;
+    private static final long SESSION_TTL_HOURS = 1;
 
     private final TouristSessionRepository sessionRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final VisitorPresenceRegistry presenceRegistry;
 
     /**
      * Creates a new anonymous session with a unique, random ID.
@@ -41,6 +46,7 @@ public class TouristSessionService {
                 .expiresAt(now.plus(SESSION_TTL_HOURS, ChronoUnit.HOURS))
                 .build();
         session = sessionRepository.save(session);
+        eventPublisher.publishEvent(new SessionCreatedEvent(this, now));
         return new CreateTouristSessionResponse(session.getSessionId(), session.getExpiresAt());
     }
 
@@ -74,6 +80,16 @@ public class TouristSessionService {
                     }
                     return toResponse(sessionRepository.save(session));
                 });
+    }
+
+    /** Live count driven by WebSocket presence — not MongoDB TTL. */
+    public long countActiveSessions() {
+        return presenceRegistry.getCount();
+    }
+
+    /** Removes the MongoDB session document. Live count is managed by {@link com.flavortales.location.websocket.VisitorPresenceEventListener}. */
+    public void deleteSession(String sessionId) {
+        sessionRepository.deleteById(sessionId);
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────

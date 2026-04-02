@@ -63,6 +63,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     // Public auth endpoints (login, register, verify, logout, refresh)
                     .requestMatchers("/api/auth/**").permitAll()
+                    // WebSocket handshake endpoint (SockJS + STOMP, no JWT required)
+                    .requestMatchers("/ws/**").permitAll()
+                    // Admin-only analytics and visitor count endpoints
+                    .requestMatchers("/api/analytics/admin/**").hasRole("admin")
+                    .requestMatchers(HttpMethod.GET, "/api/tourist/sessions/active/count").hasRole("admin")
+                    .requestMatchers(HttpMethod.GET, "/api/poi/admin/stats").hasRole("admin")
+                    .requestMatchers(HttpMethod.GET, "/api/user/admin/stats").hasRole("admin")
                     // Public tourist endpoints (anonymous session – no JWT required)
                     .requestMatchers("/api/tourist/**").permitAll()
                     // Public read-only map data (tourists browse without account)

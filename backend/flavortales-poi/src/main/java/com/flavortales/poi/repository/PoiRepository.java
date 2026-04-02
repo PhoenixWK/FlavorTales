@@ -9,4 +9,6 @@ import java.util.List;
 public interface PoiRepository extends JpaRepository<Poi, Integer> {
 
     List<Poi> findByStatus(PoiStatus status);
+
+    long countByStatus(PoiStatus status);
 }

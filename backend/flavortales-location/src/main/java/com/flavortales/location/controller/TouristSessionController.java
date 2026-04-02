@@ -50,6 +50,17 @@ public class TouristSessionController {
     }
 
     /**
+     * GET /api/tourist/sessions/active/count
+     * Returns the number of currently active (non-expired) tourist sessions.
+     * Admin-only; used by the admin dashboard for real-time visitor count.
+     */
+    @GetMapping("/active/count")
+    public ResponseEntity<ApiResponse<Long>> getActiveSessionCount() {
+        long count = sessionService.countActiveSessions();
+        return ResponseEntity.ok(ApiResponse.success("Active session count", count));
+    }
+
+    /**
      * PATCH /api/tourist/sessions/{sessionId}
      * Persists language preference and offline-cache lists (viewed POIs, played audio).
      * Only non-null fields in the request body are applied.
@@ -62,5 +73,17 @@ public class TouristSessionController {
                 .map(data -> ResponseEntity.ok(ApiResponse.success("Phiên đã cập nhật", data)))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("Phiên không tồn tại hoặc đã hết hạn")));
+    }
+
+    /**
+     * DELETE /api/tourist/sessions/{sessionId}
+     * Explicitly terminates a session so the active-visitor count decrements
+     * immediately. Called by the client via {@code pagehide} / {@code visibilitychange}
+     * when the user leaves the app, instead of relying on MongoDB TTL expiry.
+     */
+    @DeleteMapping("/{sessionId}")
+    public ResponseEntity<Void> deleteSession(@PathVariable String sessionId) {
+        sessionService.deleteSession(sessionId);
+        return ResponseEntity.noContent().build();
     }
 }

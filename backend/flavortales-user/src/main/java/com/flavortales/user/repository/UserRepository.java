@@ -1,6 +1,8 @@
 package com.flavortales.user.repository;
 
+import com.flavortales.user.entity.Role;
 import com.flavortales.user.entity.User;
+import com.flavortales.user.entity.UserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,4 +25,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
      */
     @Query("SELECT u FROM User u WHERE u.email = :identifier OR u.fullName = :identifier")
     Optional<User> findByEmailOrFullName(@Param("identifier") String identifier);
+
+    long countByRoleAndStatus(Role role, UserStatus status);
 }

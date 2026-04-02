@@ -11,6 +11,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@stomp/stompjs": "^7.3.0",
     "@types/leaflet": "^1.9.21",
     "@types/leaflet.markercluster": "^1.5.6",
     "@types/qrcode": "^1.5.5",
@@ -20,7 +21,9 @@
     "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "recharts": "^3.8.1",
+    "sockjs-client": "^1.6.1"
   },
   "devDependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -31,6 +34,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sockjs-client": "^1.5.4",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",

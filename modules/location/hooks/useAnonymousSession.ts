@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import * as locationApi from "../services/locationApi";
+import { useTouristPresence } from "./useTouristPresence";
 import type { TouristSessionData } from "../types/session";
 
 // ── localStorage keys ─────────────────────────────────────────────────────────
@@ -102,6 +103,11 @@ export function useAnonymousSession(): UseAnonymousSessionResult {
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
+
+  // Establish WebSocket presence so the server can track this tab as an active visitor.
+  // When the WebSocket disconnects (tab close, browser close, network loss), the server
+  // detects it via SessionDisconnectEvent within milliseconds and decrements the count.
+  useTouristPresence();
 
   const updateLanguage = useCallback(
     async (language: string) => {

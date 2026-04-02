@@ -10,6 +10,7 @@ import com.flavortales.notification.service.EmailService;
 import com.flavortales.poi.dto.CreatePoiRequest;
 import com.flavortales.poi.dto.PoiResponse;
 import com.flavortales.poi.dto.UpdatePoiRequest;
+import com.flavortales.poi.event.PoiTranslationRequestedEvent;
 import com.flavortales.poi.service.translation.PoiTranslationOrchestrator;
 import com.flavortales.poi.entity.Poi;
 import com.flavortales.poi.entity.PoiStatus;
@@ -18,6 +19,7 @@ import com.flavortales.poi.repository.PoiRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -43,6 +45,7 @@ public class PoiService {
     private final EmailService    emailService;
     private final ObjectMapper    objectMapper;
     private final PoiTranslationOrchestrator poiTranslationOrchestrator;
+    private final ApplicationEventPublisher  eventPublisher;
 
     @Value("${app.poi.boundary.center-lat}")
     private double boundaryCenterLat;
@@ -185,8 +188,7 @@ public class PoiService {
             emailService.sendPoiUpdatedEmail(vendorEmail, response.getName());
         }
 
-        Poi savedPoi = poi;
-        poiTranslationOrchestrator.translateAndSave(savedPoi);
+        eventPublisher.publishEvent(new PoiTranslationRequestedEvent(poi));
 
         log.info("POI {} updated by vendor {} (coordsChanged={})", poiId, vendorEmail, coordsChanged);
         return response;

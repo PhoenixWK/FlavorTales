@@ -453,4 +453,8 @@ public class PoiService {
                   * Math.sin(dLng / 2) * Math.sin(dLng / 2);
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
+
+    public long countByStatus(PoiStatus status) {
+        return poiRepository.countByStatus(status);
+    }
 }

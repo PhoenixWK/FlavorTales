@@ -4,6 +4,7 @@ import com.flavortales.common.dto.ApiResponse;
 import com.flavortales.poi.dto.CreatePoiRequest;
 import com.flavortales.poi.dto.PoiResponse;
 import com.flavortales.poi.dto.UpdatePoiRequest;
+import com.flavortales.poi.entity.PoiStatus;
 import com.flavortales.poi.service.PoiService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * FR-PM-001: POI Management endpoints.
@@ -176,6 +178,17 @@ public class PoiController {
         }
         int likesCount = poiService.unlikePoi(poiId, sessionId);
         return ResponseEntity.ok(ApiResponse.success("Unliked", likesCount));
+    }
+
+    /**
+     * GET /api/poi/admin/stats
+     * Returns aggregate stats for the admin dashboard.
+     * Requires ROLE_admin (enforced by SecurityConfig).
+     */
+    @GetMapping("/admin/stats")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getPoiStats() {
+        long activePois = poiService.countByStatus(PoiStatus.active);
+        return ResponseEntity.ok(ApiResponse.success("POI stats retrieved", Map.of("activePois", activePois)));
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

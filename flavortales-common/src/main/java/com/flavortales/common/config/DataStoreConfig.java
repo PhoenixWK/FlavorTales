@@ -29,7 +29,10 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
         transactionManagerRef  = "transactionManager"
 )
 @EnableMongoRepositories(
-        basePackages = "com.flavortales.location.repository"
+        basePackages = {
+                "com.flavortales.location.repository",
+                "com.flavortales.analytics.repository"
+        }
 )
 public class DataStoreConfig {
 }

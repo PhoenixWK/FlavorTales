@@ -273,12 +273,14 @@ export default function PoiCard({
         <div className="flex flex-col flex-1 px-4 pt-3 pb-4 gap-3">
 
           {/* Address row */}
-          <div className="flex items-start gap-2">
-            <IconMapPin className="w-3.5 h-3.5 shrink-0 text-orange-400 mt-0.5" />
-            <span className="text-xs text-gray-600 leading-snug line-clamp-2">
-              {poi.name}
-            </span>
-          </div>
+          {poi.address && (
+            <div className="flex items-start gap-2">
+              <IconMapPin className="w-3.5 h-3.5 shrink-0 text-orange-400 mt-0.5" />
+              <span className="text-xs text-gray-600 leading-snug line-clamp-2">
+                {poi.address}
+              </span>
+            </div>
+          )}
 
           {/* Divider */}
           <div className="h-px bg-gray-100" />

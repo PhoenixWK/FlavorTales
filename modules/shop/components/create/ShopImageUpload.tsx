@@ -119,6 +119,20 @@ export default function ShopImageUpload({
     return () => { urls.forEach((u) => URL.revokeObjectURL(u)); };
   }, []);
 
+  // On mount, recreate blob URLs for any slots whose File objects are still available.
+  // This restores previews after the component remounts (e.g. navigating back from a later step).
+  useEffect(() => {
+    const staleSlots = additionalSlots.filter((s) => s.file);
+    if (staleSlots.length === 0) return;
+    const refreshed = additionalSlots.map((s) => {
+      if (!s.file) return s;
+      const freshUrl = URL.createObjectURL(s.file);
+      blobUrlsRef.current.add(freshUrl);
+      return { ...s, previewUrl: freshUrl };
+    });
+    onAdditionalChange(refreshed);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const createBlobUrl = (file: File): string => {
     const url = URL.createObjectURL(file);
     blobUrlsRef.current.add(url);

@@ -37,6 +37,7 @@ interface Props {
   >;
   errors: Step2Errors;
   additionalSlots: ImageSlot[];
+  audioBlobs: Partial<Record<SupportedLanguage, Blob>>;
   onBasicChange: (field: "shopName" | "shopDescription", value: string) => void;
   onAvatarChange: (file: File | null, previewUrl: string | null) => void;
   onAdditionalChange: (slots: ImageSlot[]) => void;
@@ -85,6 +86,7 @@ export default function ShopInfoStep({
   draft,
   errors,
   additionalSlots,
+  audioBlobs,
   onBasicChange,
   onAvatarChange,
   onAdditionalChange,
@@ -180,6 +182,7 @@ export default function ShopInfoStep({
           ru: draft.ruAudioUrl,
           ja: draft.jaAudioUrl,
         }}
+        audioBlobs={audioBlobs}
         maxTtsChars={2000}
         onAudioGenerated={onAudioGenerated}
       />

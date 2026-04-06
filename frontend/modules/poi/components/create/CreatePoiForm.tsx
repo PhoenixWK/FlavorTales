@@ -22,6 +22,7 @@ export default function CreatePoiForm() {
     submitting,
     audioBlobs,
     additionalSlots,
+    imageFiles,
     update,
     handleStep1Change,
     handleAvatarChange,
@@ -93,6 +94,7 @@ export default function CreatePoiForm() {
                 tags: errors.tags,
               }}
               additionalSlots={additionalSlots}
+              audioBlobs={audioBlobs}
               onBasicChange={(field, value) => {
                 if (field === "shopName") {
                   update("shopName", value);
@@ -123,7 +125,7 @@ export default function CreatePoiForm() {
         {currentStep === 4 && (
           <PoiReviewStep
             draft={draft}
-            additionalSlots={additionalSlots}
+            imageFiles={imageFiles}
             audioBlobs={audioBlobs}
           />
         )}

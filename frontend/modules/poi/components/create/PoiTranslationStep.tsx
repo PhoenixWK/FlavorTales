@@ -5,6 +5,7 @@ const LANGUAGES = [
   "Korean (한국어)",
   "Chinese (中文)",
   "Russian (Русский)",
+  "Japanese (日本語)",
 ];
 
 export default function PoiTranslationStep() {

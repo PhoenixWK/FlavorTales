@@ -63,10 +63,12 @@ export function usePoiCreateDraft(): PoiCreateDraftHook {
   });
   const [additionalSlots, setAdditionalSlots] = useState<ImageSlot[]>([]);
 
-  // Restore draft on mount
+  // Restore draft on mount — merge with DEFAULT_DRAFT so any field missing
+  // from an older saved schema stays as a valid default, preventing
+  // React "controlled → uncontrolled" input warnings.
   useEffect(() => {
     const saved = loadDraft();
-    if (saved) setDraft(saved);
+    if (saved) setDraft({ ...DEFAULT_DRAFT, ...saved });
   }, []);
 
   // Auto-save draft (debounced 1s)

@@ -25,6 +25,8 @@ const initialErrors = (): Record<Language, string | null> =>
 
 interface Props {
   audioUrls: Partial<Record<Language, string | null>>;
+  /** Blob objects for already-generated audio — used to restore players after remount. */
+  audioBlobs?: Partial<Record<Language, Blob>>;
   error?: string;
   onAudioGenerated: (language: Language, blob: Blob, blobUrl: string) => void;
   /** Max chars for TTS script. Defaults to 5000. */
@@ -87,6 +89,7 @@ function validateAudioFile(file: File): string | null {
 
 export default function ShopAudioSection({
   audioUrls,
+  audioBlobs,
   error,
   onAudioGenerated,
   maxTtsChars,
@@ -99,6 +102,8 @@ export default function ShopAudioSection({
   const [langStatus, setLangStatus] = useState<Record<Language, LangStatus>>(initialStatus);
   const [langErrors, setLangErrors] = useState<Record<Language, string | null>>(initialErrors);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Tracks the currently-valid (non-revoked) URL for each language for rendering.
+  const [liveUrls, setLiveUrls] = useState<Partial<Record<Language, string>>>({});
 
   const blobUrls = useRef<Partial<Record<Language, string>>>({});
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -112,6 +117,25 @@ export default function ShopAudioSection({
       Object.values(urls).forEach((u) => { if (u) URL.revokeObjectURL(u); });
     };
   }, []);
+
+  // On mount, recreate blob URLs from Blob objects so audio players work after back-navigation.
+  useEffect(() => {
+    if (!audioBlobs) return;
+    const freshStatus: Partial<Record<Language, LangStatus>> = {};
+    const freshUrls: Partial<Record<Language, string>> = {};
+    for (const lang of ALL_LANGUAGES) {
+      const blob = audioBlobs[lang];
+      if (!blob) continue;
+      const url = URL.createObjectURL(blob);
+      blobUrls.current[lang] = url;
+      freshUrls[lang] = url;
+      freshStatus[lang] = "done";
+    }
+    if (Object.keys(freshUrls).length > 0) {
+      setLiveUrls(freshUrls);
+      setLangStatus((prev) => ({ ...prev, ...freshStatus } as Record<Language, LangStatus>));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   //  Generate all languages 
 
@@ -142,6 +166,7 @@ export default function ShopAudioSection({
       const newStatus = initialStatus();
       const newErrors = initialErrors();
 
+      const newLiveUrls: Partial<Record<Language, string>> = {};
       for (const lang of ALL_LANGUAGES) {
         const b64 = result.audioBase64[lang];
         if (b64) {
@@ -150,10 +175,12 @@ export default function ShopAudioSection({
           if (old) URL.revokeObjectURL(old);
           const blobUrl = URL.createObjectURL(blob);
           blobUrls.current[lang] = blobUrl;
+          newLiveUrls[lang] = blobUrl;
           onAudioGenerated(lang, blob, blobUrl);
           newStatus[lang] = "done";
         }
       }
+      setLiveUrls((prev) => ({ ...prev, ...newLiveUrls }));
 
       for (const { language, message } of result.errors) {
         newStatus[language] = "error";
@@ -208,6 +235,7 @@ export default function ShopAudioSection({
     const blobUrl = URL.createObjectURL(file);
     blobUrls.current[lang] = blobUrl;
     onAudioGenerated(lang, file, blobUrl);
+    setLiveUrls((prev) => ({ ...prev, [lang]: blobUrl }));
 
     setLangStatus((prev) => ({ ...prev, [lang]: "done" }));
     setLangErrors((prev) => ({ ...prev, [lang]: null }));
@@ -221,7 +249,7 @@ export default function ShopAudioSection({
     fileInputRef.current?.click();
   };
 
-  const hasAllAudio = ALL_LANGUAGES.every((l) => !!audioUrls[l]);
+  const hasAllAudio = ALL_LANGUAGES.every((l) => !!(liveUrls[l] ?? audioUrls[l]));
 
   //  Render 
 
@@ -291,7 +319,7 @@ export default function ShopAudioSection({
         {LANGUAGES.map((lang) => {
           const status = langStatus[lang.code];
           const langError = langErrors[lang.code];
-          const audioUrl = audioUrls[lang.code];
+          const audioUrl = liveUrls[lang.code] ?? audioUrls[lang.code];
 
           return (
             <div key={lang.code}

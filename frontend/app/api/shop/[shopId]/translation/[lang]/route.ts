@@ -1,34 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
 const API_BASE =
   process.env.INTERNAL_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "http://localhost:8080";
 
-async function getAccessToken(): Promise<string | null> {
-  const cookieStore = await cookies();
-  return (
-    cookieStore.get("access_token")?.value ??
-    cookieStore.get("admin_access_token")?.value ??
-    null
-  );
-}
-
+/**
+ * GET /api/shop/[shopId]/translation/[lang]  →  backend GET /api/shop/{shopId}/translation/{lang}
+ * Public endpoint — no auth required (tourists read translated shop content).
+ */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ shopId: string; lang: string }> }
 ) {
-  const accessToken = await getAccessToken();
-  if (!accessToken) {
-    return NextResponse.json({ success: false, message: "Session expired" }, { status: 401 });
-  }
-
   const { shopId, lang } = await params;
-  const res = await fetch(`${API_BASE}/api/shop/${shopId}/translation/${lang}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
+  const res = await fetch(`${API_BASE}/api/shop/${shopId}/translation/${lang}`);
   const json = await res.json();
   return NextResponse.json(json, { status: res.status });
 }

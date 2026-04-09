@@ -10,6 +10,8 @@ import { ShopCategoryBadge } from "@/modules/poi/components/tourist/shopCategory
 import PoiImageCarousel from "@/modules/poi/components/tourist/PoiImageCarousel";
 import PoiImageLightbox from "@/modules/poi/components/tourist/PoiImageLightbox";
 import { useTranslation } from "@/shared/i18n/useTranslation";
+import { useLocale } from "@/shared/hooks/useLocale";
+import { useTouristPoiTranslation } from "@/modules/poi/hooks/useTouristPoiTranslation";
 import { haversineMetres } from "@/modules/location/utils/geoMath";
 import { useGeofenceContext } from "@/modules/location/context/GeofenceContext";
 import { useAudioContext } from "@/modules/audio/context/AudioContext";
@@ -40,9 +42,12 @@ export default function PoiDetailPanel({
   searchQuery,
   onSearchChange,
 }: Props) {
-  const name   = poi.linkedShopName ?? poi.name;
-  const status = getOpenStatus(poi.shopOpeningHours);
   const t = useTranslation();
+  const { locale } = useLocale();
+  const { display, translationLoading } = useTouristPoiTranslation(poi, locale);
+
+  const name   = display.shopName ?? display.name;
+  const status = getOpenStatus(poi.shopOpeningHours);
 
   // ── Geofence + audio context ──────────────────────────────────────
   const { resolvedPoiId, isResolving, insidePois } = useGeofenceContext();
@@ -264,10 +269,10 @@ export default function PoiDetailPanel({
             {/* ── Info rows ─────────────────────────────────────────────── */}
             <div className="border-t border-gray-100 pt-3 flex flex-col gap-3">
               {/* Address */}
-              {poi.address && (
+              {display.address && (
                 <div className="flex items-start gap-3 text-sm text-gray-600">
                   <IconPin className="h-4 w-4 shrink-0 text-gray-400 mt-0.5" />
-                  <span>{poi.address}</span>
+                  <span>{display.address}</span>
                 </div>
               )}
 
@@ -287,9 +292,11 @@ export default function PoiDetailPanel({
               )}
 
               {/* Description */}
-              {poi.shopDescription && (
-                <p className="text-sm text-gray-500 leading-relaxed">{poi.shopDescription}</p>
-              )}
+              {translationLoading ? (
+                <p className="text-sm text-gray-400 italic animate-pulse">{t("poi.loading_translation")}</p>
+              ) : display.shopDescription ? (
+                <p className="text-sm text-gray-500 leading-relaxed">{display.shopDescription}</p>
+              ) : null}
             </div>
 
           </div>

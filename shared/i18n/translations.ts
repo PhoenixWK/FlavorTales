@@ -31,7 +31,8 @@ export type TranslationKey =
   | "poi.hear_story"
   | "poi.directions"
   | "poi.close"
-  | "poi.search_placeholder";
+  | "poi.search_placeholder"
+  | "poi.loading_translation";
 
 // ── Dictionary ─────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ const dict: Record<Locale, Record<TranslationKey, string>> = {
     "poi.directions": "Chỉ đường nhanh nhất",
     "poi.close": "Đóng",
     "poi.search_placeholder": "Tìm kiếm quán ăn, món ăn…",
+    "poi.loading_translation": "Đang dịch…",
   },
 
   en: {
@@ -96,6 +98,7 @@ const dict: Record<Locale, Record<TranslationKey, string>> = {
     "poi.directions": "Get directions",
     "poi.close": "Close",
     "poi.search_placeholder": "Search restaurants, dishes…",
+    "poi.loading_translation": "Translating…",
   },
 
   zh: {
@@ -127,6 +130,7 @@ const dict: Record<Locale, Record<TranslationKey, string>> = {
     "poi.directions": "获取路线",
     "poi.close": "关闭",
     "poi.search_placeholder": "搜索餐厅、菜品…",
+    "poi.loading_translation": "翻译中…",
   },
 
   ru: {
@@ -158,6 +162,7 @@ const dict: Record<Locale, Record<TranslationKey, string>> = {
     "poi.directions": "Проложить маршрут",
     "poi.close": "Закрыть",
     "poi.search_placeholder": "Поиск ресторанов, блюд…",
+    "poi.loading_translation": "Перевод…",
   },
 
   ja: {
@@ -189,6 +194,7 @@ const dict: Record<Locale, Record<TranslationKey, string>> = {
     "poi.directions": "ルートを取得",
     "poi.close": "閉じる",
     "poi.search_placeholder": "レストラン、料理を検索…",
+    "poi.loading_translation": "翻訳中…",
   },
 
   ko: {
@@ -220,6 +226,7 @@ const dict: Record<Locale, Record<TranslationKey, string>> = {
     "poi.directions": "길 안내",
     "poi.close": "닫기",
     "poi.search_placeholder": "식당, 음식 검색…",
+    "poi.loading_translation": "번역 중…",
   },
 };
 

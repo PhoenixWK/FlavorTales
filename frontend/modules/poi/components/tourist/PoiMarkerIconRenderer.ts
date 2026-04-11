@@ -106,9 +106,9 @@ interface StateConfig {
 }
 
 const STATE_CONFIG: Record<MarkerState, StateConfig> = {
-  default:  { color: "#F97316", w: 44, h: 52, opacity: 1    },
-  selected: { color: "#EAB308", w: 52, h: 62, opacity: 1    },
-  visited:  { color: "#9CA3AF", w: 44, h: 52, opacity: 0.55 },
+  default:  { color: "#F97316", w: 52, h: 62, opacity: 1    },
+  selected: { color: "#EAB308", w: 62, h: 74, opacity: 1    },
+  visited:  { color: "#9CA3AF", w: 52, h: 62, opacity: 0.55 },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -122,13 +122,13 @@ function buildMarkerSvg(cfg: StateConfig, iconPaths: string): string {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" ` +
     `width="${w}" height="${h}" viewBox="0 0 44 52" ` +
-    `style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.28));opacity:${opacity}">` +
+    `style="filter:drop-shadow(0 3px 6px rgba(0,0,0,.35));opacity:${opacity}">` +
     // ── Pointed tail ──────────────────────────────────────────────────────
     `<path d="M15,37 L22,51 L29,37 Z" fill="${color}"/>` +
     // ── Coloured outer ring ───────────────────────────────────────────────
-    `<circle cx="22" cy="20" r="18" fill="${color}"/>` +
+    `<circle cx="22" cy="20" r="19" fill="${color}"/>` +
     // ── White face ────────────────────────────────────────────────────────
-    `<circle cx="22" cy="20" r="15" fill="#fff"/>` +
+    `<circle cx="22" cy="20" r="15.5" fill="#fff"/>` +
     // ── Category icon ─────────────────────────────────────────────────────
     iconPaths +
     `</svg>`

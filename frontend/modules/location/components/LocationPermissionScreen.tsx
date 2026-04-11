@@ -24,7 +24,7 @@ export default function LocationPermissionScreen({
   return (
     <div
       className="flex rounded-xl overflow-hidden border border-gray-200"
-      style={{ height: "calc(100vh - 120px)", minHeight: 400 }}
+      style={{ height: "calc(100dvh - 120px)", minHeight: 400 }}
     >
       {/* Left: illustration */}
       <div className="hidden md:flex w-1/2 bg-linear-to-br from-orange-300 to-orange-500 items-center justify-center">

@@ -93,6 +93,25 @@ export function useUserLocation(): UseUserLocationResult {
 
     stopTracking(); // clear any existing watch before starting a new one
 
+    // Fire a one-shot request first so the map can fly to the user's position
+    // immediately — watchPosition alone can take several seconds before the
+    // first callback fires (especially cold-start GPS).
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        lastUpdateRef.current = Date.now();
+        setCoordinates({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy ?? undefined,
+          heading: position.coords.heading,
+          speed: position.coords.speed,
+        });
+        updateStatus("success");
+      },
+      () => { /* ignore — watchPosition will handle the real error */ },
+      { enableHighAccuracy, timeout: 8_000, maximumAge: 10_000 }
+    );
+
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
         // Throttle React state updates to MIN_UPDATE_INTERVAL_MS
@@ -129,13 +148,24 @@ export function useUserLocation(): UseUserLocationResult {
 
   // Stop tracking when page goes to background; resume when it becomes active
   useEffect(() => {
-    const handleVisibility = () => {
+    const handleVisibility = async () => {
       if (document.visibilityState === "hidden") {
         stopTracking();
       } else {
         const s = statusRef.current;
         if (s !== "idle" && s !== "denied" && s !== "unavailable") {
-          startTracking();
+          // Only restart if the browser has already granted geolocation.
+          // If the state is "prompt" or "denied", calling startTracking would
+          // trigger the browser permission dialog unexpectedly on tab switch.
+          try {
+            const result = await navigator.permissions.query({ name: "geolocation" });
+            if (result.state === "granted") {
+              startTracking();
+            }
+          } catch {
+            // Permissions API not supported — fall back to unconditional start
+            startTracking();
+          }
         }
       }
     };

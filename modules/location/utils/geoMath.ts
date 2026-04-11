@@ -10,12 +10,12 @@ export function haversineMetres(
   lat2: number,
   lng2: number
 ): number {
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
+  const dLat = toRad(lat2 - lat1); //Δφ — hiệu vĩ độ → radian
+  const dLng = toRad(lng2 - lng1); // Δλ — hiệu kinh độ → radian
   const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return EARTH_RADIUS_M * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    Math.sin(dLat / 2) ** 2 + //// sin²(Δφ/2)
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2; //// cosφ₁ · cosφ₂ // · sin²(Δλ/2)
+  return EARTH_RADIUS_M * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); //a là haversine — luôn nằm trong [0,1], đo "phần tư góc trung tâm bình phương
 }
 
 /**

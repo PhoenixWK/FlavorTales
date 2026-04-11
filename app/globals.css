@@ -103,6 +103,28 @@ textarea {
   to   { transform: translateX(0); }
 }
 
+/* Indeterminate progress bar for loading screens */
+@keyframes ft-progress-indeterminate {
+  0%   { transform: translateX(-100%) scaleX(0.3); }
+  50%  { transform: translateX(0%)    scaleX(0.6); }
+  100% { transform: translateX(100%)  scaleX(0.3); }
+}
+
+.ft-progress-bar {
+  animation: ft-progress-indeterminate 1.6s ease-in-out infinite;
+  transform-origin: left center;
+}
+
+/* Fade-in for loading screen text */
+@keyframes ft-fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ft-fade-in-up {
+  animation: ft-fade-in-up 0.5s ease-out both;
+}
+
 .animate-slide-in-left {
   animation: slide-in-bottom 250ms ease-out both;
 }

@@ -13,20 +13,32 @@ export interface UseStompSubscriptionOptions<T> {
   onMessage: (data: T) => void;
 }
 
+export interface UseStompSubscriptionResult {
+  /** Stable ref to the underlying STOMP client — safe to use in other effects. */
+  clientRef: React.MutableRefObject<Client | null>;
+}
+
 /**
  * Generic hook that opens a STOMP/SockJS connection, subscribes to a topic,
  * and tears everything down on unmount or when options change.
  *
- * Re-usable for any real-time feature that needs server-push updates.
+ * Reconnection behaviour:
+ * - Auto-reconnects every 5 s on network loss (built-in `reconnectDelay`).
+ * - Also reconnects immediately when the page becomes visible again after
+ *   being hidden (tab switch, mobile app restore), so there is no multi-second
+ *   delay before the connection is live again.
+ *
+ * Returns a stable `clientRef` so callers can publish messages (e.g. heartbeats).
  */
 export function useStompSubscription<T>({
   url,
   topic,
   onMessage,
-}: UseStompSubscriptionOptions<T>): void {
-  // Keep a stable ref to the callback to avoid reconnecting on every render.
+}: UseStompSubscriptionOptions<T>): UseStompSubscriptionResult {
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
+
+  const clientRef = useRef<Client | null>(null);
 
   useEffect(() => {
     const client = new Client({
@@ -44,9 +56,24 @@ export function useStompSubscription<T>({
       },
     });
 
+    clientRef.current = client;
     client.activate();
+
+    // When the page becomes visible after being hidden, force an immediate
+    // reconnect attempt if the client is not already connected.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && !client.connected) {
+        client.deactivate().then(() => client.activate());
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       client.deactivate();
+      clientRef.current = null;
     };
   }, [url, topic]);
+
+  return { clientRef };
 }

@@ -132,7 +132,12 @@ export default function PoiDetailPanel({
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-1100" aria-hidden="true" onClick={onClose} />
+      {/* Backdrop: opaque on mobile bottom-sheet, transparent on desktop (panel is side overlay) */}
+      <div
+        className="fixed inset-0 z-1100 bg-black/30 sm:bg-transparent"
+        aria-hidden="true"
+        onClick={onClose}
+      />
 
       {/* Panel */}
       <div
@@ -146,8 +151,13 @@ export default function PoiDetailPanel({
           animate-slide-in-left
         "
       >
+        {/* ── Drag handle — visible only on mobile ──────────────────────── */}
+        <div className="shrink-0 flex justify-center pt-2 pb-1 sm:hidden">
+          <div className="w-10 h-1.5 rounded-full bg-gray-300" />
+        </div>
+
         {/* ── Sticky header: search + close ─────────────────────────────── */}
-        <div className="shrink-0 px-3 pt-3 pb-2 border-b border-gray-100 flex items-center gap-2">
+        <div className="shrink-0 px-3 pt-2 pb-2 border-b border-gray-100 flex items-center gap-2">
           <PoiSearchBar
             value={searchQuery}
             onChange={onSearchChange}              placeholder={t("poi.search_placeholder")}            className="flex-1"

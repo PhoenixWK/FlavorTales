@@ -4,10 +4,10 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { type LocationStatus } from "@/shared/hooks/useUserLocation";
 import { useLocationContext } from "@/modules/location/context/LocationContext";
 import { BOUNDARY_CENTER } from "@/modules/poi/components/MapPicker";
 import UserLocationMarker from "./UserLocationMarker";
+import MapControlButtons from "./MapControlButtons";
 import { useTouristPois } from "@/modules/poi/hooks/useTouristPois";
 import PoiMarkerLayer from "@/modules/poi/components/tourist/PoiMarkerLayer";
 import PoiDetailPanel from "@/modules/poi/components/tourist/PoiDetailPanel";
@@ -20,6 +20,11 @@ import { AudioProvider } from "@/modules/audio/context/AudioContext";
 import GeofenceBanner from "@/modules/location/components/GeofenceBanner";
 import GeofenceCircleLayer from "@/modules/poi/components/tourist/GeofenceCircleLayer";
 import AudioPlayerBar from "@/modules/audio/components/AudioPlayerBar";
+
+// ── Map initial view (street-level HCM City, independent of vendor MapPicker) ─
+
+const MAP_INITIAL_CENTER: [number, number] = [10.748, 106.628];
+const MAP_INITIAL_ZOOM = 14;
 
 // ── Leaflet icon fix (Next.js / webpack) ──────────────────────────────────────
 
@@ -48,6 +53,24 @@ function MapController({
 }) {
   const map = useMap();
   mapRef.current = map;
+  return null;
+}
+
+/**
+ * Force Leaflet to recalculate container dimensions after mount.
+ * This fixes a production build issue where Leaflet initialises before CSS
+ * has fully applied, resulting in a 0-height container and the wrong initial
+ * tile / zoom calculation.
+ */
+function MapSizeInvalidator() {
+  const map = useMap();
+  useEffect(() => {
+    // Two-step invalidation: immediate + after one frame
+    map.invalidateSize();
+    const raf = requestAnimationFrame(() => map.invalidateSize());
+    return () => cancelAnimationFrame(raf);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return null;
 }
 
@@ -122,21 +145,11 @@ const TouristMap = memo(function TouristMap() {
 
   const handleLocationButton = () => {
     if (status === "success" && userPosition && mapRef.current) {
-      // Re-center map on current position
       mapRef.current.flyTo(userPosition, 16, { duration: 1.2 });
     } else {
       requestLocation();
     }
   };
-
-  const isTracking = status === "loading" || status === "searching";
-  const statusMessage =
-    status === "loading"     ? t("location.loading") :
-    status === "searching"   ? t("location.searching") :
-    status === "denied"      ? t("location.denied") :
-    status === "unavailable" ? t("location.unavailable") :
-    status === "error"       ? t("location.error") :
-    undefined;
 
   return (
     <GeofenceProvider pois={pois}>
@@ -145,13 +158,14 @@ const TouristMap = memo(function TouristMap() {
       {/* Map */}
       <div
         ref={mapDivRef}
-        className="rounded-xl overflow-hidden border border-gray-200"
-        style={{ height: "calc(100vh - 120px)", minHeight: 400 }}
+        className="overflow-hidden"
+        style={{ height: "100dvh", minHeight: 400 }}
       >
         <MapContainer
-          center={BOUNDARY_CENTER}
-          zoom={6}
-          style={{ height: "100%", width: "100%" }}
+          center={MAP_INITIAL_CENTER}
+          zoom={MAP_INITIAL_ZOOM}
+          zoomControl={false}
+          style={{ height: "100%", width: "100%", background: "#e8e0d8" }}
           preferCanvas
         >
           <TileLayer
@@ -160,6 +174,7 @@ const TouristMap = memo(function TouristMap() {
           />
 
           <MapController mapRef={mapRef} />
+          <MapSizeInvalidator />
 
           {/* User-position marker with pulse dot, accuracy circle, direction arrow */}
           {coordinates && <UserLocationMarker coordinates={coordinates} />}
@@ -192,7 +207,7 @@ const TouristMap = memo(function TouristMap() {
 
       {/* Floating search bar — always visible when no detail panel is open */}
       {!selectedPoi && (
-        <div className="absolute top-4 left-4 z-1000 w-64 sm:w-80">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-2xl z-1000">
           <PoiSearchBar value={searchQuery} onChange={setSearchQuery} placeholder={t("poi.search_placeholder")} />
         </div>
       )}
@@ -208,46 +223,11 @@ const TouristMap = memo(function TouristMap() {
         />
       )}
 
-      {/* "My Location" button — overlaid on the map */}
-      <button
-        onClick={handleLocationButton}
-        disabled={isTracking}
-        aria-label={t("location.my_location")}
-        className="
-          absolute bottom-6 right-4 z-1000
-          flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-md
-          border border-gray-200 text-sm font-medium text-gray-700
-          hover:bg-orange-50 hover:border-orange-300 hover:text-orange-600
-          disabled:opacity-60 disabled:cursor-not-allowed
-          transition-colors
-        "
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4 shrink-0"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-        </svg>
-        {isTracking ? t("location.locating") : t("location.my_location")}
-      </button>
-
-      {/* Status / error banner */}
-      {statusMessage && (
-        <p
-          role="status"
-          className="rounded-lg bg-orange-50 border border-orange-200 px-4 py-2 text-sm text-orange-700"
-        >
-          {statusMessage}
-        </p>
-      )}
+      {/* Location + Language control buttons — overlaid bottom-right */}
+      <MapControlButtons
+        locationStatus={status}
+        onLocationClick={handleLocationButton}
+      />
     </div>
       </AudioProvider>
     </GeofenceProvider>

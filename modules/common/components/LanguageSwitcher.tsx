@@ -43,18 +43,16 @@ export default function LanguageSwitcher() {
 
   return (
     <div ref={containerRef} className="relative">
-      {/* Trigger button */}
+      {/* Trigger button — icon-only */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Chọn ngôn ngữ"
         aria-expanded={open}
-        className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5
-          text-sm text-gray-600 shadow-sm hover:bg-orange-50 hover:border-orange-300
+        className="flex items-center justify-center w-9 h-9 rounded-full border border-gray-200 bg-white
+          text-gray-600 shadow-sm hover:bg-orange-50 hover:border-orange-300
           hover:text-orange-600 transition-colors"
       >
         <GlobeIcon />
-        <span className="hidden sm:inline">{current?.flag} {current?.label}</span>
-        <span className="sm:hidden">{current?.flag}</span>
       </button>
 
       {/* Dropdown panel */}

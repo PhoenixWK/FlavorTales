@@ -40,12 +40,10 @@ export default function GeofenceBanner({ panelOpen }: Props) {
 
   const showOverlapResolving = overlapActive && isResolving;
   const showInsideBanner     = !isResolving && resolvedPoi !== null && insidePois.length > 0;
-  const showGpsLost          = gpsLost;
-  const showGpsWeak          = weakGps && !gpsLost;
 
   if (panelOpen) return null;
 
-  if (!showOverlapResolving && !showInsideBanner && !showExitBanner && !showGpsLost && !showGpsWeak) {
+  if (!showOverlapResolving && !showInsideBanner && !showExitBanner) {
     return null;
   }
 
@@ -69,18 +67,6 @@ export default function GeofenceBanner({ panelOpen }: Props) {
       {showExitBanner && (
         <div className="flex items-center gap-2 bg-gray-700 text-white text-sm px-4 py-2 rounded-full shadow-lg">
           Bạn đã rời vùng thuyết minh
-        </div>
-      )}
-
-      {showGpsLost && (
-        <div className="flex items-center gap-2 bg-amber-500 text-white text-xs px-3 py-1.5 rounded-full shadow">
-          Mất tín hiệu GPS, đang giữ vị trí trước đó
-        </div>
-      )}
-
-      {showGpsWeak && (
-        <div className="flex items-center gap-2 bg-amber-400 text-amber-900 text-xs px-3 py-1.5 rounded-full shadow">
-          Tín hiệu GPS yếu, vị trí có thể không chính xác
         </div>
       )}
 

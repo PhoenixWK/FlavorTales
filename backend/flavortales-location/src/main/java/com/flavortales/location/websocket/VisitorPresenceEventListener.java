@@ -8,16 +8,16 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
 /**
- * Listens for STOMP lifecycle events to maintain the live tourist presence count.
+ * Listens for STOMP lifecycle events to seed the heartbeat registry.
  *
- * <p>When a tourist subscribes to {@value #TOURIST_TOPIC}, their STOMP session ID
- * is registered in {@link VisitorPresenceRegistry}. When they disconnect (tab close,
- * browser close, network loss), Spring WebSocket fires {@link SessionDisconnectEvent}
- * within milliseconds — the session is removed and the updated count is broadcast
- * to all admin dashboard clients.
+ * <p>On subscribe: records an initial heartbeat so the session is visible in
+ * the registry immediately. The count is kept current by periodic heartbeats
+ * from the client; stale entries are evicted by {@link PresenceCleanupScheduler}.
  *
- * <p>Presence is decoupled from MongoDB session data intentionally: presence is
- * ephemeral and connection-scoped; session data persists across reconnects.
+ * <p>On disconnect: the session is <em>not</em> removed immediately. A brief
+ * disconnect (tab switch, mobile background, transient network drop) followed
+ * by a reconnect and heartbeat will keep the tourist counted. Only if no
+ * heartbeat arrives within 90 s will the cleanup scheduler remove the entry.
  */
 @Component
 @RequiredArgsConstructor
@@ -32,15 +32,18 @@ public class VisitorPresenceEventListener {
     public void onSubscribe(SessionSubscribeEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
         if (TOURIST_TOPIC.equals(accessor.getDestination())) {
-            registry.add(accessor.getSessionId());
+            registry.heartbeat(accessor.getSessionId());
             broadcaster.broadcast(registry.getCount());
         }
     }
 
+    /**
+     * Do NOT remove from registry on disconnect — let {@link PresenceCleanupScheduler}
+     * handle eviction after the 90 s grace period expires.
+     */
     @EventListener
     public void onDisconnect(SessionDisconnectEvent event) {
-        if (registry.remove(event.getSessionId())) {
-            broadcaster.broadcast(registry.getCount());
-        }
+        // Intentionally left empty: heartbeat-based eviction handles count decrements.
     }
 }
+

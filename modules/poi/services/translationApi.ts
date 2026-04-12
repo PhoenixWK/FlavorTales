@@ -1,7 +1,16 @@
 const POI_PROXY_BASE = "/api/poi";
 const SHOP_PROXY_BASE = "/api/shop";
 
-export type TranslationLanguage = "english" | "korean" | "chinese" | "russian";
+export type TranslationLanguage = "english" | "korean" | "chinese" | "russian" | "japanese";
+
+export interface TranslationPreviewRequest {
+  poiName: string;
+  poiAddress?: string;
+  shopName: string;
+  shopDescription?: string;
+  cuisineStyle?: string;
+  featuredDish?: string;
+}
 
 export interface PoiLanguageResult {
   language: TranslationLanguage;
@@ -50,8 +59,17 @@ export interface ShopTranslationDetail {
   status: string;
 }
 
-async function post<T>(url: string): Promise<T> {
-  const res = await fetch(url, { method: "POST" });
+export interface TranslationPreviewResponse {
+  poiTranslations: PoiLanguageResult[];
+  shopTranslations: ShopLanguageResult[];
+}
+
+async function post<T>(url: string, body?: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
   const json = await res.json();
   if (!res.ok) throw new Error(json?.message ?? "Translation request failed");
   return json.data as T;
@@ -70,6 +88,12 @@ export async function translatePoi(poiId: number): Promise<PoiLanguageResult[]> 
 
 export async function translateShop(shopId: number): Promise<ShopLanguageResult[]> {
   return post(`${SHOP_PROXY_BASE}/${shopId}/translate`);
+}
+
+export async function previewTranslation(
+  request: TranslationPreviewRequest
+): Promise<TranslationPreviewResponse> {
+  return post(`${POI_PROXY_BASE}/translate/preview`, request);
 }
 
 export async function getPoiTranslation(

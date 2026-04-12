@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PoiCreateDraft } from "@/modules/poi/types/poi";
 import type { SupportedLanguage } from "@/modules/audio/services/audioApi";
+import type { PoiLanguageResult, ShopLanguageResult } from "@/modules/poi/services/translationApi";
 import ViewSection from "@/modules/poi/components/view/ViewSection";
 import PoiViewLocationSection from "@/modules/poi/components/view/PoiViewLocationSection";
 import PoiViewCoverSection from "@/modules/poi/components/view/PoiViewCoverSection";
@@ -14,9 +15,20 @@ interface Props {
   draft: PoiCreateDraft;
   imageFiles: { avatar: File | null; additional: File[] };
   audioBlobs: Partial<Record<SupportedLanguage, Blob>>;
+  onEdit?: (step: number) => void;
+  poiTranslations?: PoiLanguageResult[];
+  shopTranslations?: ShopLanguageResult[];
 }
 
-export default function PoiReviewStep({ draft, imageFiles, audioBlobs }: Props) {
+const AUDIO_LANG_TO_TRANSLATION: Record<string, string> = {
+  en: "english",
+  ko: "korean",
+  zh: "chinese",
+  ru: "russian",
+  ja: "japanese",
+};
+
+export default function PoiReviewStep({ draft, imageFiles, audioBlobs, onEdit, poiTranslations, shopTranslations }: Props) {
   const blobUrlsRef = useRef<string[]>([]);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[] | null>(null);
@@ -76,7 +88,18 @@ export default function PoiReviewStep({ draft, imageFiles, audioBlobs }: Props) 
       )}
 
       {/* ── Vị trí POI ─────────────────────────────────────────────────────── */}
-      <ViewSection title="Vị trí POI">
+      <ViewSection
+        title="Vị trí POI"
+        action={onEdit ? (
+          <button
+            type="button"
+            onClick={() => onEdit(1)}
+            className="text-xs text-orange-500 hover:text-orange-700 font-medium flex items-center gap-1"
+          >
+            ✏️ Chỉnh sửa
+          </button>
+        ) : undefined}
+      >
         <PoiViewLocationSection
           lat={draft.lat!}
           lng={draft.lng!}
@@ -86,10 +109,28 @@ export default function PoiReviewStep({ draft, imageFiles, audioBlobs }: Props) 
       </ViewSection>
 
       {/* ── Thông tin cơ bản ────────────────────────────────────────────────── */}
-      <ViewSection title="Thông tin cơ bản">
+      <ViewSection
+        title="Thông tin cơ bản"
+        action={onEdit ? (
+          <button
+            type="button"
+            onClick={() => onEdit(2)}
+            className="text-xs text-orange-500 hover:text-orange-700 font-medium flex items-center gap-1"
+          >
+            ✏️ Chỉnh sửa
+          </button>
+        ) : undefined}
+      >
         <PoiViewCoverSection
           avatarUrl={avatarUrl}
-          name={draft.shopName}
+          name={(() => {
+            if (selectedLang !== "vi") {
+              const key = AUDIO_LANG_TO_TRANSLATION[selectedLang];
+              const poiTrans = poiTranslations?.find((r) => r.language === key);
+              if (poiTrans?.success && poiTrans.translatedName) return poiTrans.translatedName;
+            }
+            return draft.shopName;
+          })()}
         />
       </ViewSection>
 
@@ -103,14 +144,28 @@ export default function PoiReviewStep({ draft, imageFiles, audioBlobs }: Props) 
               openingHours={draft.openingHours}
               tags={draft.tags.length > 0 ? draft.tags : null}
             />
-          ) : (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
-              <span className="text-amber-500 text-lg shrink-0">🔄</span>
-              <p className="text-sm text-amber-700">
-                Bản dịch sang <strong>{LANG_LABELS[selectedLang]}</strong> sẽ có ngay sau khi POI được gửi duyệt.
-              </p>
-            </div>
-          )}
+          ) : (() => {
+            const key = AUDIO_LANG_TO_TRANSLATION[selectedLang];
+            const shopTrans = shopTranslations?.find((r) => r.language === key);
+            if (shopTrans?.success) {
+              return (
+                <PoiViewInfoSection
+                  description={shopTrans.translatedDescription || null}
+                  featuredDish={shopTrans.translatedFeaturedDish || null}
+                  openingHours={draft.openingHours}
+                  tags={draft.tags.length > 0 ? draft.tags : null}
+                />
+              );
+            }
+            return (
+              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+                <span className="text-amber-500 text-lg shrink-0">⚠</span>
+                <p className="text-sm text-amber-700">
+                  Chưa có bản dịch cho <strong>{LANG_LABELS[selectedLang]}</strong>. Vui lòng hoàn tất bước dịch trước.
+                </p>
+              </div>
+            );
+          })()}
           <PoiViewGallerySection galleryUrls={galleryUrls} name={draft.shopName} />
         </div>
       </ViewSection>

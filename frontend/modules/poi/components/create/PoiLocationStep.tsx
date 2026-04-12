@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import dynamic from "next/dynamic";
 import type { PoiCreateDraft } from "@/modules/poi/types/poi";
 import { BOUNDARY_CENTER, BOUNDARY_RADIUS_M, haversineDistance } from "@/modules/poi/types/poi";
@@ -55,11 +56,11 @@ export function validateStep1(
 }
 
 export default function PoiLocationStep({ draft, errors, onChange, onClearError, onBlurField }: Props) {
-  const handleMapChange = (lat: number, lng: number) => {
+  const handleMapChange = useCallback((lat: number, lng: number) => {
     onChange("lat", lat);
     onChange("lng", lng);
     onClearError("location");
-  };
+  }, [onChange, onClearError]);
 
   return (
     <div className="space-y-5">

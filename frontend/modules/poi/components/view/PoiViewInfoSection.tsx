@@ -1,4 +1,5 @@
 import type { OpeningHourEntry } from "@/modules/shop/services/shopApi";
+import { stripHtml } from "@/shared/utils/stripHtml";
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -21,7 +22,7 @@ export default function PoiViewInfoSection({
       <div>
         <p className="text-xs text-gray-500 mb-1">Description</p>
         <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 min-h-20 leading-relaxed">
-          {description ? description : <span className="text-gray-400">No description provided.</span>}
+          {description ? stripHtml(description) : <span className="text-gray-400">No description provided.</span>}
         </p>
       </div>
 
@@ -30,7 +31,7 @@ export default function PoiViewInfoSection({
         <div>
           <p className="text-xs text-gray-500 mb-1">Featured Dish</p>
           <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 min-h-9 text-center">
-            {featuredDish}
+            {stripHtml(featuredDish)}
           </p>
         </div>
       )}

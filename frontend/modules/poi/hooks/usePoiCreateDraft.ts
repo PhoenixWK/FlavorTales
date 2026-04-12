@@ -144,7 +144,7 @@ export function usePoiCreateDraft(): PoiCreateDraftHook {
   const validateCurrentStep = useCallback(
     (step: number): AllErrors => {
       if (step === 1) return validateStep1(draft);
-      if (step === 2) return validateStep2(draft);
+      if (step === 2) return validateStep2(draft, audioBlobs);
       return {};
     },
     [draft]

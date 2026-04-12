@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 
 /**
  * Category icon components for tourist POI UI.
- * Mirrors the tag-to-icon mapping in poiIconFactory.ts for consistent visuals.
+ * Tag-to-icon mapping mirrors `PoiMarkerIconRenderer.ts`; tag-to-colour mapping is in `constants/poiCategoryColors.ts`.
  */
 
 interface IconProps { className?: string }

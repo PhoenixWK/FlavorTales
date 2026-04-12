@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePoiCreateDraft } from "@/modules/poi/hooks/usePoiCreateDraft";
+import { usePoiTranslation } from "@/modules/poi/hooks/usePoiTranslation";
 import FormSection from "./FormSection";
 import StepIndicator from "./StepIndicator";
 import PoiLocationStep from "./PoiLocationStep";
@@ -34,6 +35,8 @@ export default function CreatePoiForm() {
     validateCurrentStep,
     handleSubmit,
   } = usePoiCreateDraft();
+
+  const { runPreview, ...translationState } = usePoiTranslation();
 
   const handleNext = async () => {
     const stepErrors = validateCurrentStep(currentStep as 1 | 2);
@@ -118,7 +121,7 @@ export default function CreatePoiForm() {
 
         {/* ── Step 3: Dịch thông tin ──────────────────────────────────────── */}
         {currentStep === 3 && (
-          <PoiTranslationStep />
+          <PoiTranslationStep draft={draft} translationState={translationState} runPreview={runPreview} />
         )}
 
         {/* ── Step 4: Xem lại ─────────────────────────────────────────────── */}
@@ -127,6 +130,9 @@ export default function CreatePoiForm() {
             draft={draft}
             imageFiles={imageFiles}
             audioBlobs={audioBlobs}
+            onEdit={(step) => setCurrentStep(step as 1 | 2 | 3 | 4)}
+            poiTranslations={translationState.poiResults}
+            shopTranslations={translationState.shopResults}
           />
         )}
       </div>

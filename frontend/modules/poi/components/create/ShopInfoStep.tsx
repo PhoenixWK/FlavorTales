@@ -16,6 +16,7 @@ export interface Step2Errors {
   additionalImages?: string;
   specialtyDescription?: string;
   tags?: string;
+  audio?: string;
 }
 
 interface Props {
@@ -51,7 +52,8 @@ interface Props {
 }
 
 export function validateStep2(
-  draft: Pick<PoiCreateDraft, "shopName" | "shopDescription" | "avatarPreviewUrl">
+  draft: Pick<PoiCreateDraft, "shopName" | "shopDescription" | "avatarPreviewUrl">,
+  audioBlobs?: Partial<Record<string, Blob>>
 ): Step2Errors {
   const errors: Step2Errors = {};
 
@@ -77,6 +79,10 @@ export function validateStep2(
 
   if (!draft.avatarPreviewUrl) {
     errors.avatar = "Ảnh đại diện là bắt buộc.";
+  }
+
+  if (!audioBlobs || Object.keys(audioBlobs).length === 0) {
+    errors.audio = "Vui lòng tạo ít nhất một audio trước khi tiếp tục.";
   }
 
   return errors;

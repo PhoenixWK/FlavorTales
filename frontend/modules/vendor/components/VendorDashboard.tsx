@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSession, VendorSession } from "@/shared/utils/auth";
+import { useActiveVisitors } from "@/modules/analytics/hooks/useActiveVisitors";
 
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -101,6 +102,7 @@ function OrderRow({ order }: { order: RecentOrder }) {
 
 function StallStatusPanel() {
   const [audioPlaying, setAudioPlaying] = useState(true);
+  const activeVisitors = useActiveVisitors();
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -151,13 +153,17 @@ function StallStatusPanel() {
         </button>
       </div>
 
-      {/* Occupancy */}
+      {/* Occupancy / Real-time visitor count */}
       <div className="flex items-center justify-between pt-3">
         <div>
-          <p className="text-sm font-medium text-gray-900">Occupancy</p>
-          <p className="text-xs text-gray-400 mt-0.5">High traffic area</p>
+          <p className="text-sm font-medium text-gray-900">Active Visitors</p>
+          <p className="text-xs text-gray-400 mt-0.5">Real-time nearby tourists</p>
         </div>
-        <p className="text-2xl font-bold text-gray-900">85%</p>
+        {activeVisitors === null ? (
+          <div className="h-8 w-12 bg-gray-100 rounded-lg animate-pulse" />
+        ) : (
+          <p className="text-2xl font-bold text-gray-900">{activeVisitors}</p>
+        )}
       </div>
     </div>
   );

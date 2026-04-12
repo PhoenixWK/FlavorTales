@@ -1,4 +1,4 @@
-package com.flavortales.content.dto;
+package com.flavortales.common.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

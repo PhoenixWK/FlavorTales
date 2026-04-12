@@ -1,7 +1,7 @@
 package com.flavortales.content.service.translation;
 
+import com.flavortales.common.dto.ShopLanguageResult;
 import com.flavortales.common.service.GoogleTranslationService;
-import com.flavortales.content.dto.ShopLanguageResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -58,29 +58,39 @@ public class ShopTranslationOrchestrator {
         Map<String, Object> shop = jdbcTemplate.queryForMap(
             "SELECT name, description, cuisine_style, featured_dish FROM shop WHERE shop_id = ?",
             shopId);
+        String name         = (String) shop.get("name");
+        String description  = (String) shop.get("description");
+        String cuisineStyle = (String) shop.get("cuisine_style");
+        String featuredDish = (String) shop.get("featured_dish");
+        return translateOnly(name, description, cuisineStyle, featuredDish, shopId);
+    }
 
-        String name          = (String) shop.get("name");
-        String description   = (String) shop.get("description");
-        String cuisineStyle  = (String) shop.get("cuisine_style");
-        String featuredDish  = (String) shop.get("featured_dish");
+    /**
+     * Translates shop fields without persisting to the database.
+     * Used for preview before the vendor submits the form.
+     */
+    public List<ShopLanguageResult> translateOnly(String name, String description,
+                                                   String cuisineStyle, String featuredDish) {
+        return translateOnly(name, description, cuisineStyle, featuredDish, null);
+    }
 
-        CompletableFuture<ShopLanguageResult> enFuture =
-            CompletableFuture.supplyAsync(() ->
-                translate(shopId, "english", "en", name, description, cuisineStyle, featuredDish), taskExecutor);
-        CompletableFuture<ShopLanguageResult> koFuture =
-            CompletableFuture.supplyAsync(() ->
-                translate(shopId, "korean", "ko", name, description, cuisineStyle, featuredDish), taskExecutor);
-        CompletableFuture<ShopLanguageResult> zhFuture =
-            CompletableFuture.supplyAsync(() ->
-                translate(shopId, "chinese", "zh", name, description, cuisineStyle, featuredDish), taskExecutor);
-        CompletableFuture<ShopLanguageResult> ruFuture =
-            CompletableFuture.supplyAsync(() ->
-                translate(shopId, "russian", "ru", name, description, cuisineStyle, featuredDish), taskExecutor);
-        CompletableFuture<ShopLanguageResult> jaFuture =
-            CompletableFuture.supplyAsync(() ->
-                translate(shopId, "japanese", "ja", name, description, cuisineStyle, featuredDish), taskExecutor);
-
-        return List.of(enFuture.join(), koFuture.join(), zhFuture.join(), ruFuture.join(), jaFuture.join());
+    private List<ShopLanguageResult> translateOnly(String name, String description,
+                                                    String cuisineStyle, String featuredDish,
+                                                    Integer shopId) {
+        record LangPair(String n, String c) {}
+        var langs = List.of(
+            new LangPair("english",  "en"),
+            new LangPair("korean",   "ko"),
+            new LangPair("chinese",  "zh"),
+            new LangPair("russian",  "ru"),
+            new LangPair("japanese", "ja")
+        );
+        var futures = langs.stream()
+            .map(l -> CompletableFuture.supplyAsync(
+                () -> translate(shopId, l.n(), l.c(), name, description, cuisineStyle, featuredDish),
+                taskExecutor))
+            .toList();
+        return futures.stream().map(CompletableFuture::join).toList();
     }
 
     private ShopLanguageResult translate(Integer shopId, String language, String langCode,
@@ -92,7 +102,7 @@ public class ShopTranslationOrchestrator {
             String tCuisine = translate(cuisineStyle, langCode);
             String tDish    = translate(featuredDish, langCode);
 
-            persist(language, shopId, tName, tDesc, tCuisine, tDish);
+            if (shopId != null) persist(language, shopId, tName, tDesc, tCuisine, tDish);
 
             return ShopLanguageResult.builder()
                 .language(language).languageCode(langCode).success(true)
@@ -105,6 +115,24 @@ public class ShopTranslationOrchestrator {
                 .language(language).languageCode(langCode).success(false)
                 .errorMessage("Translation to " + language + " failed: " + e.getMessage())
                 .build();
+        }
+    }
+
+    /**
+     * Persists pre-translated results (e.g. from Redis cache) without calling Google API.
+     */
+    public void saveFromResults(Integer shopId, List<ShopLanguageResult> results) {
+        for (ShopLanguageResult r : results) {
+            if (r.isSuccess()) {
+                try {
+                    persist(r.getLanguage(), shopId,
+                            r.getTranslatedName(), r.getTranslatedDescription(),
+                            r.getTranslatedCuisineStyle(), r.getTranslatedFeaturedDish());
+                } catch (Exception e) {
+                    log.error("Failed to persist cached shop translation lang={} shopId={}: {}",
+                              r.getLanguage(), shopId, e.getMessage());
+                }
+            }
         }
     }
 

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 
 /**
  * Translates POI name and address into all 4 supported languages in parallel.
@@ -52,50 +53,84 @@ public class PoiTranslationOrchestrator {
      * Does NOT throw even if all translations fail.
      */
     public List<PoiLanguageResult> translateAndSave(Poi poi) {
-        CompletableFuture<PoiLanguageResult> enFuture =
-            CompletableFuture.supplyAsync(() -> translate(poi, "english", "en"), taskExecutor);
-        CompletableFuture<PoiLanguageResult> koFuture =
-            CompletableFuture.supplyAsync(() -> translate(poi, "korean", "ko"), taskExecutor);
-        CompletableFuture<PoiLanguageResult> zhFuture =
-            CompletableFuture.supplyAsync(() -> translate(poi, "chinese", "zh"), taskExecutor);
-        CompletableFuture<PoiLanguageResult> ruFuture =
-            CompletableFuture.supplyAsync(() -> translate(poi, "russian", "ru"), taskExecutor);
-        CompletableFuture<PoiLanguageResult> jaFuture =
-            CompletableFuture.supplyAsync(() -> translate(poi, "japanese", "ja"), taskExecutor);
-
-        return List.of(
-            enFuture.join(),
-            koFuture.join(),
-            zhFuture.join(),
-            ruFuture.join(),
-            jaFuture.join()
-        );
+        return runInParallel(lang -> translateAndPersist(poi, lang));
     }
 
-    private PoiLanguageResult translate(Poi poi, String language, String langCode) {
+    /**
+     * Translates POI name and address without persisting to the database.
+     * Used for preview before the vendor submits the form.
+     */
+    public List<PoiLanguageResult> translateOnly(String name, String address) {
+        return runInParallel(lang -> translateFields(name, address, lang));
+    }
+
+    private List<PoiLanguageResult> runInParallel(
+            java.util.function.Function<String[], PoiLanguageResult> task) {
+        record LangPair(String name, String code) {}
+        var langs = List.of(
+            new LangPair("english", "en"),
+            new LangPair("korean",  "ko"),
+            new LangPair("chinese", "zh"),
+            new LangPair("russian", "ru"),
+            new LangPair("japanese","ja")
+        );
+        var futures = langs.stream()
+            .map(l -> CompletableFuture.supplyAsync(
+                    () -> task.apply(new String[]{l.name(), l.code()}), taskExecutor))
+            .toList();
+        return futures.stream().map(CompletableFuture::join).toList();
+    }
+
+    private PoiLanguageResult translateAndPersist(Poi poi, String[] lang) {
+        String language = lang[0];
+        String langCode = lang[1];
         try {
-            String translatedName = translationService.translate(poi.getName(), SOURCE_LANG, langCode);
+            String translatedName    = translationService.translate(poi.getName(), SOURCE_LANG, langCode);
             String translatedAddress = poi.getAddress() != null && !poi.getAddress().isBlank()
-                ? translationService.translate(poi.getAddress(), SOURCE_LANG, langCode)
-                : null;
-
+                ? translationService.translate(poi.getAddress(), SOURCE_LANG, langCode) : null;
             persist(language, poi, translatedName, translatedAddress);
-
             return PoiLanguageResult.builder()
-                .language(language)
-                .languageCode(langCode)
-                .success(true)
-                .translatedName(translatedName)
-                .translatedAddress(translatedAddress)
-                .build();
+                .language(language).languageCode(langCode).success(true)
+                .translatedName(translatedName).translatedAddress(translatedAddress).build();
         } catch (Exception e) {
             log.error("POI translation failed for language '{}' (poiId={}): {}", language, poi.getPoiId(), e.getMessage());
             return PoiLanguageResult.builder()
-                .language(language)
-                .languageCode(langCode)
-                .success(false)
-                .errorMessage("Translation to " + language + " failed: " + e.getMessage())
-                .build();
+                .language(language).languageCode(langCode).success(false)
+                .errorMessage("Translation to " + language + " failed: " + e.getMessage()).build();
+        }
+    }
+
+    private PoiLanguageResult translateFields(String name, String address, String[] lang) {
+        String language = lang[0];
+        String langCode = lang[1];
+        try {
+            String translatedName    = translationService.translate(name, SOURCE_LANG, langCode);
+            String translatedAddress = address != null && !address.isBlank()
+                ? translationService.translate(address, SOURCE_LANG, langCode) : null;
+            return PoiLanguageResult.builder()
+                .language(language).languageCode(langCode).success(true)
+                .translatedName(translatedName).translatedAddress(translatedAddress).build();
+        } catch (Exception e) {
+            log.error("POI preview translation failed for language '{}': {}", language, e.getMessage());
+            return PoiLanguageResult.builder()
+                .language(language).languageCode(langCode).success(false)
+                .errorMessage("Translation to " + language + " failed: " + e.getMessage()).build();
+        }
+    }
+
+    /**
+     * Persists pre-translated results (e.g. from Redis cache) without calling Google API.
+     */
+    public void saveFromResults(Poi poi, List<PoiLanguageResult> results) {
+        for (PoiLanguageResult r : results) {
+            if (r.isSuccess()) {
+                try {
+                    persist(r.getLanguage(), poi, r.getTranslatedName(), r.getTranslatedAddress());
+                } catch (Exception e) {
+                    log.error("Failed to persist cached POI translation lang={} poiId={}: {}",
+                              r.getLanguage(), poi.getPoiId(), e.getMessage());
+                }
+            }
         }
     }
 

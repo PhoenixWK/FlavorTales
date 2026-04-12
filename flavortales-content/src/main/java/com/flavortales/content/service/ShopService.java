@@ -9,6 +9,7 @@ import com.flavortales.content.dto.ShopCreateRequest;
 import com.flavortales.content.dto.ShopCreateResponse;
 import com.flavortales.content.dto.ShopResponse;
 import com.flavortales.content.dto.ShopUpdateRequest;
+import com.flavortales.common.event.ShopApprovedEvent;
 import com.flavortales.content.event.ShopTranslationRequestedEvent;
 import com.flavortales.content.service.translation.ShopTranslationOrchestrator;
 import com.flavortales.notification.service.EmailService;
@@ -339,6 +340,8 @@ public class ShopService {
                     "UPDATE poi SET status = 'active', updated_at = NOW() WHERE poi_id = ?",
                     poiId);
         }
+
+        eventPublisher.publishEvent(new ShopApprovedEvent(shopId, poiId));
 
         String vendorEmail = (String) shopMeta.get("vendor_email");
         String shopName    = (String) shopMeta.get("name");

@@ -25,7 +25,6 @@ const mockFetchPoiAudio = fetchPoiAudio as MockedFunction<typeof fetchPoiAudio>;
 
 const COOLDOWN_MS = 10 * 60 * 1_000; // 10 minutes (must match implementation)
 const NORMAL_EXIT_TRAIL_MS = 3_000;
-const OVERLAP_TRANSITION_MAX_MS = 15_000;
 
 function makeTrack(
   audioId: number,
@@ -42,13 +41,23 @@ function makeTrack(
 
 /** Creates a real HTMLAudioElement mock that the hook can use. */
 function makeAudioMock() {
-  return {
+  const mock = {
     play: vi.fn().mockResolvedValue(undefined),
     pause: vi.fn(),
+    load: vi.fn(),
     src: "",
     volume: 1,
+    ended: false,
+    error: null as null | MediaError,
+    currentTime: 0,
     onended: null as ((event: Event) => void) | null,
+    onerror: null as ((event: Event) => void) | null,
+    getAttribute(attr: string): string | null {
+      if (attr === "src") return mock.src || null;
+      return null;
+    },
   };
+  return mock;
 }
 
 /** Helper to build the hook under test with a given audioRef mock. */
@@ -135,21 +144,26 @@ describe("useGeofencedAudio", () => {
 
   /**
    * TC-S07-U-A03 [P1][Negative]
-   * play() when POI is on cooldown → stays "idle", audio not fetched.
+   * Geofence auto-entry (force=true) bypasses the 10-min cooldown.
+   * When the user manually calls play() while in idle state on cooldown,
+   * it should remain idle because loadAndPlay is called with force=false.
+   * Note: auto-entry from the geofence effect always uses force=true and ignores cooldown.
    */
-  it("TC-S07-U-A03 [P1][Negative] cooldown prevents playback", () => {
-    // Manually put POI 1 on cooldown
+  it("TC-S07-U-A03 [P1][Negative] cooldown respects force flag: auto-entry bypasses, manual play respects", async () => {
+    // POI 1 on cooldown
     localStorage.setItem(
       "ft_audio_cooldown",
       JSON.stringify({ "1": Date.now() })
     );
-    const { result } = buildHook(audioMock, 1);
-    act(() => { result.current.play(); });
-    // Even if loading starts briefly, it should settle back to idle
-    act(() => { vi.advanceTimersByTime(100); });
-    // fetchPoiAudio should not be called when on cooldown (checked in loadAndPlay)
-    // The hook sets idle right after detecting cooldown
-    expect(result.current.playState).toBe("idle");
+
+    // Auto-entry via geofence effect (force=true) should bypass cooldown and load
+    const { result, rerender } = buildHook(audioMock, null);
+    await act(async () => {
+      rerender({ resolvedPoiId: 1, overlapActive: false, userLanguage: "vi" });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.playState).toBe("playing"); // cooldown bypassed
   });
 
   /**
@@ -175,7 +189,7 @@ describe("useGeofencedAudio", () => {
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     act(() => { result.current.pause(); });
     expect(result.current.playState).toBe("paused");
-    act(() => { result.current.play(); });
+    await act(async () => { result.current.play(); await Promise.resolve(); });
     expect(result.current.playState).toBe("playing");
   });
 
@@ -214,38 +228,36 @@ describe("useGeofencedAudio", () => {
   /**
    * TC-S07-U-A08 [P1][Happy]
    * Overlap A→B transition: resolvedPoiId A → B while overlapActive.
-   * Audio A naturally ends (onended fires) → triggers B loading/playing.
-   * A delayed fetch for POI 2 lets us observe the "loading" state before it resolves.
+   * A is stopped immediately and B starts loading without any delay.
    */
-  it("TC-S07-U-A08 [P1][Happy] overlap A→B: A ends naturally → B starts loading", async () => {
+  it("TC-S07-U-A08 [P1][Happy] overlap A→B: A stopped immediately, B starts loading", async () => {
     let resolvePoi2Fetch!: (tracks: ReturnType<typeof makeTrack>[]) => void;
     mockFetchPoiAudio
-      .mockResolvedValueOnce([makeTrack(10, "vi")]) // POI 1 resolves immediately
+      .mockResolvedValueOnce([makeTrack(10, "vi")])
       .mockImplementationOnce(
-        () => new Promise((res) => { resolvePoi2Fetch = res; }) // POI 2 - held
+        () => new Promise((res) => { resolvePoi2Fetch = res; })
       );
 
-    const { result, rerender } = buildHook(audioMock, 1, true);
-    act(() => { result.current.play(); });
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
-    expect(result.current.playState).toBe("playing");
-
-    // Switch to POI 2 while overlap is active → hook enters "finishing"
-    act(() => {
-      rerender({ resolvedPoiId: 2, overlapActive: true, userLanguage: "vi" });
-    });
-    expect(result.current.playState).toBe("finishing");
-
-    // Simulate natural audio end for POI 1 → triggers POI 2 fetch
+    // Start outside all POIs, then enter POI 1 so effect triggers auto-play cleanly
+    const { result, rerender } = buildHook(audioMock, null, true);
     await act(async () => {
-      if (audioMock.onended) {
-        (audioMock.onended as unknown as () => void)();
-      }
+      rerender({ resolvedPoiId: 1, overlapActive: true, userLanguage: "vi" });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.playState).toBe("playing");
+    expect(result.current.currentPoiId).toBe(1);
+
+    // Switch to POI 2 while overlap is active → A stops immediately, B starts loading
+    await act(async () => {
+      rerender({ resolvedPoiId: 2, overlapActive: true, userLanguage: "vi" });
       await Promise.resolve();
     });
 
-    // POI 2 fetch is still pending → should be in "loading" state
+    expect(audioMock.pause).toHaveBeenCalled();
+    expect(audioMock.src).toBe("");
     expect(result.current.playState).toBe("loading");
+    expect(result.current.currentPoiId).toBe(2);
 
     // Resolve POI 2 fetch so the hook can clean up properly
     await act(async () => {
@@ -256,19 +268,175 @@ describe("useGeofencedAudio", () => {
   });
 
   /**
+   * TC-S07-U-A10 [P1][Happy]
+   * Non-overlap A→B: resolvedPoiId changes A→B without overlap.
+   * A is stopped immediately (no 3s trail) and B starts loading right away.
+   */
+  it("TC-S07-U-A10 [P1][Happy] non-overlap A→B: A stopped immediately, B starts loading", async () => {
+    let resolvePoi2Fetch!: (tracks: ReturnType<typeof makeTrack>[]) => void;
+    mockFetchPoiAudio
+      .mockResolvedValueOnce([makeTrack(10, "vi")])
+      .mockImplementationOnce(
+        () => new Promise((res) => { resolvePoi2Fetch = res; })
+      );
+
+    // Start outside, enter POI 1 to reach "playing" cleanly via effect
+    const { result, rerender } = buildHook(audioMock, null, false);
+    await act(async () => {
+      rerender({ resolvedPoiId: 1, overlapActive: false, userLanguage: "vi" });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.playState).toBe("playing");
+
+    // Switch POI without overlap → A must stop immediately
+    await act(async () => {
+      rerender({ resolvedPoiId: 2, overlapActive: false, userLanguage: "vi" });
+      await Promise.resolve();
+    });
+
+    expect(audioMock.pause).toHaveBeenCalled();
+    expect(audioMock.src).toBe("");
+    expect(result.current.playState).toBe("loading");
+    expect(result.current.currentPoiId).toBe(2);
+
+    // Cleanup: resolve pending fetch
+    await act(async () => {
+      resolvePoi2Fetch([makeTrack(20, "vi")]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
+  /**
+   * TC-S07-U-A11 [P1][Happy]
+   * A→B while A is still loading (fetch not yet resolved).
+   * The stale load for A must be abandoned; B starts loading.
+   */
+  it("TC-S07-U-A11 [P1][Happy] A→B while A still loading: stale fetch abandoned, B loads", async () => {
+    let resolvePoi1Fetch!: (tracks: ReturnType<typeof makeTrack>[]) => void;
+    let resolvePoi2Fetch!: (tracks: ReturnType<typeof makeTrack>[]) => void;
+    mockFetchPoiAudio
+      .mockImplementationOnce(() => new Promise((res) => { resolvePoi1Fetch = res; }))
+      .mockImplementationOnce(() => new Promise((res) => { resolvePoi2Fetch = res; }));
+
+    // Start outside, then enter POI 1 — fetch for POI 1 stays pending
+    const { result, rerender } = buildHook(audioMock, null, false);
+    act(() => {
+      rerender({ resolvedPoiId: 1, overlapActive: false, userLanguage: "vi" });
+    });
+    expect(result.current.playState).toBe("loading");
+    expect(result.current.currentPoiId).toBe(1);
+
+    // Switch to POI 2 before POI 1 fetch resolves
+    await act(async () => {
+      rerender({ resolvedPoiId: 2, overlapActive: false, userLanguage: "vi" });
+      await Promise.resolve();
+    });
+
+    // POI 2 fetch is held — state should be loading for POI 2
+    expect(result.current.currentPoiId).toBe(2);
+    expect(result.current.playState).toBe("loading");
+
+    // Resolve stale POI 1 fetch — should be a no-op (generation guard)
+    await act(async () => {
+      resolvePoi1Fetch([makeTrack(10, "vi")]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    // State must still belong to POI 2
+    expect(result.current.currentPoiId).toBe(2);
+
+    // Cleanup
+    await act(async () => {
+      resolvePoi2Fetch([makeTrack(20, "vi")]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
+  /**
+   * TC-S07-U-A12 [P2][Negative]
+   * Rerender with same resolvedPoiId (A→A) → no additional pause/play.
+   */
+  it("TC-S07-U-A12 [P2][Negative] same POI rerender → no extra pause or load", async () => {
+    const { result, rerender } = buildHook(audioMock, null, false);
+    await act(async () => {
+      rerender({ resolvedPoiId: 1, overlapActive: false, userLanguage: "vi" });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.playState).toBe("playing");
+
+    const pauseCallsBefore = (audioMock.pause as ReturnType<typeof vi.fn>).mock.calls.length;
+    const fetchCallsBefore = mockFetchPoiAudio.mock.calls.length;
+
+    act(() => { rerender({ resolvedPoiId: 1, overlapActive: false, userLanguage: "vi" }); });
+
+    expect((audioMock.pause as ReturnType<typeof vi.fn>).mock.calls.length).toBe(pauseCallsBefore);
+    expect(mockFetchPoiAudio.mock.calls.length).toBe(fetchCallsBefore);
+    expect(result.current.playState).toBe("playing");
+  });
+
+  /**
+   * TC-S07-U-A13 [P2][Happy]
+   * After A→B switch, normal exit B→null still uses the 3s trail.
+   */
+  it("TC-S07-U-A13 [P2][Happy] after A→B, exit B→null still trails 3s then idle", async () => {
+    mockFetchPoiAudio
+      .mockResolvedValueOnce([makeTrack(10, "vi")])
+      .mockResolvedValueOnce([makeTrack(20, "vi")]);
+
+    // Enter POI 1 from outside
+    const { result, rerender } = buildHook(audioMock, null, false);
+    await act(async () => {
+      rerender({ resolvedPoiId: 1, overlapActive: false, userLanguage: "vi" });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.playState).toBe("playing");
+
+    // Switch A→B
+    await act(async () => {
+      rerender({ resolvedPoiId: 2, overlapActive: false, userLanguage: "vi" });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.playState).toBe("playing");
+    expect(result.current.currentPoiId).toBe(2);
+
+    // Exit B→null
+    act(() => { rerender({ resolvedPoiId: null, overlapActive: false, userLanguage: "vi" }); });
+    expect(result.current.playState).toBe("finishing");
+
+    // Before trail ends → still finishing
+    act(() => { vi.advanceTimersByTime(NORMAL_EXIT_TRAIL_MS - 100); });
+    expect(result.current.playState).toBe("finishing");
+
+    // After trail + fade → idle
+    act(() => { vi.advanceTimersByTime(700); });
+    expect(result.current.playState).toBe("idle");
+  });
+
+  /**
    * TC-S07-U-A09 [P1][Happy]
    * Language preference: userLanguage "en" → prefer "en" track, fall back to "vi".
-   * When only "vi" track available, "vi" should be selected.
+   * When only "vi" track available, "vi" should be selected and audio proxied via serve endpoint.
    */
   it("TC-S07-U-A09 [P1][Happy] language fallback: no 'en' track → falls back to 'vi'", async () => {
-    mockFetchPoiAudio.mockResolvedValue([makeTrack(10, "vi")]); // only vi available
+    mockFetchPoiAudio.mockResolvedValue([makeTrack(10, "vi")]);
 
-    const { result } = buildHook(audioMock, 1, false, "en");
-    act(() => { result.current.play(); });
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    // Enter POI 1 from outside to trigger auto-play cleanly
+    const { result, rerender } = buildHook(audioMock, null, false, "en");
+    await act(async () => {
+      rerender({ resolvedPoiId: 1, overlapActive: false, userLanguage: "en" });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
     // Should successfully play using the "vi" fallback
     expect(result.current.playState).toBe("playing");
-    expect(audioMock.src).toBe("https://cdn.example.com/audio/10.mp3");
+    // Src is routed through the Next.js proxy (R2 signing)
+    expect(audioMock.src).toBe("/api/audio/serve?url=https%3A%2F%2Fcdn.example.com%2Faudio%2F10.mp3");
   });
 });

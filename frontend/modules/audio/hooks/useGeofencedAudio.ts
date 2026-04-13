@@ -11,12 +11,6 @@ const COOLDOWN_MS = 10 * 60 * 1_000; // 10 minutes
 /** FR-LM-008 §3a: Audio continues this long after a normal zone exit. */
 const NORMAL_EXIT_TRAIL_MS = 3_000;
 
-/**
- * NFR-GEO-U03: In an overlap A→B transition, drain A naturally but
- * force-cut after this maximum.
- */
-const OVERLAP_TRANSITION_MAX_MS = 15_000;
-
 /** Fade duration before a forced stop. */
 const FADE_MS = 500;
 
@@ -54,9 +48,7 @@ export interface UseGeofencedAudioResult {
  * Transition modes:
  *  - Normal exit (resolvedPoiId → null while playing):
  *      trail for NORMAL_EXIT_TRAIL_MS then fade out.
- *  - Overlap A→B (resolvedPoiId A → B while overlapActive):
- *      drain A naturally; force-cut after OVERLAP_TRANSITION_MAX_MS;
- *      start B within < 1 s (NFR-GEO-U03).
+ *  - POI change A→B: stop A immediately and play B without delay.
  *
  * 10-minute per-POI cooldown stored in localStorage (NFR-GEO-R02).
  */
@@ -320,38 +312,14 @@ export function useGeofencedAudio(
       return;
     }
 
-    // ── Transition A → B ────────────────────────────────────────────────────
+    // ── Transition A → B: stop A immediately and play B ────────────────────
     if (prev !== null && next !== null && prev !== next && isActive) {
-      const wasOverlap = st.current.overlapWasActive;
+      clearFinishTimer();
+      const el = audioRef.current;
+      if (el) { el.onended = null; el.onerror = null; el.pause(); el.src = ""; el.volume = 1; }
+      st.current.pendingPoiId = null;
       st.current.overlapWasActive = overlapActive;
-      st.current.pendingPoiId = next;
-
-      if (wasOverlap) {
-        // NFR-GEO-U03: Drain A naturally; force-cut after max 15 s
-        syncState("finishing");
-        clearFinishTimer();
-        st.current.finishTimer = setTimeout(() => {
-          const el = audioRef.current;
-          if (el) { el.onended = null; el.onerror = null; el.pause(); el.src = ""; el.volume = 1; }
-          const pending = st.current.pendingPoiId;
-          st.current.pendingPoiId = null;
-          syncState("idle", null);
-          if (pending !== null) loadAndPlayRef.current(pending, true);
-        }, OVERLAP_TRANSITION_MAX_MS);
-        // Natural audio end is handled by el.onended (triggers pendingPoiId)
-      } else {
-        // Non-overlap zone change: 3 s trail then switch
-        syncState("finishing");
-        clearFinishTimer();
-        st.current.finishTimer = setTimeout(() => {
-          const el = audioRef.current;
-          if (el) { el.onended = null; el.onerror = null; el.pause(); el.src = ""; el.volume = 1; }
-          const pending = st.current.pendingPoiId;
-          st.current.pendingPoiId = null;
-          syncState("idle", null);
-          if (pending !== null) loadAndPlayRef.current(pending, true);
-        }, NORMAL_EXIT_TRAIL_MS);
-      }
+      loadAndPlayRef.current(next, true);
       return;
     }
 

@@ -11,4 +11,5 @@ package com.flavortales.common.config;
  * Do NOT re-add {@code @Configuration} or any {@code @Bean} methods here.
  */
 public class SecurityConfig {
+
 }

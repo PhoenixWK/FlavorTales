@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Realtime Tourist Tracking (WebSocket) – FlavorTales Sequence Diagrams</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'default',
+  sequence: {
+    diagramMarginX: 30,
+    diagramMarginY: 20,
+    actorMargin: 60,
+    width: 160,
+    height: 50,
+    boxMargin: 10,
+    boxTextMargin: 5,
+    noteMargin: 10,
+    messageMargin: 35,
+    mirrorActors: true,
+    useMaxWidth: true
+  },
+  themeVariables: {
+    primaryColor: '#fff7ed',
+    primaryTextColor: '#1e293b',
+    primaryBorderColor: '#f97316',
+    lineColor: '#64748b',
+    secondaryColor: '#f1f5f9',
+    tertiaryColor: '#fef3c7',
+    actorBkg: '#fff7ed',
+    actorBorder: '#f97316',
+    actorTextColor: '#9a3412',
+    activationBkgColor: '#ffedd5',
+    activationBorderColor: '#f97316',
+    noteBkgColor: '#fef9c3',
+    noteBorderColor: '#fbbf24',
+    noteTextColor: '#713f12'
+  }
+});
+
+function exportSVG(containerId, filename) {
+  const svg = document.querySelector('#' + containerId + ' svg');
+  if (!svg) { alert('Diagram chưa render xong, vui lòng thử lại sau 1 giây.'); return; }
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  const blob = new Blob([clone.outerHTML], {type: 'image/svg+xml'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = filename + '.svg'; a.click();
+}
+
+function copySVG(containerId) {
+  const svg = document.querySelector('#' + containerId + ' svg');
+  if (!svg) { alert('Diagram chưa render xong.'); return; }
+  navigator.clipboard.writeText(svg.outerHTML).then(() => {
+    const btn = event.target; btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy SVG', 1500);
+  });
+}
+
+function printDiagram() { window.print(); }
+</script>
+</head>
+<body>
+<header>
+  <h1>FlavorTales – Sequence Diagrams</h1>
+  <p>Diagram 8 · Theo dõi số lượng Tourist theo thời gian thực (WebSocket / STOMP)</p>
+</header>
+<nav>
+  <a href="01-geofence-detection.html">1. Geofence Detection</a>
+  <a href="02-poi-approval-workflow.html">2. POI Approval Workflow</a>
+  <a href="03-shop-creation-approval.html">3. Shop Creation &amp; Approval</a>
+  <a href="04-browse-nearby-pois.html">4. Browse Nearby POIs</a>
+  <a href="05-file-upload-r2.html">5. File Upload to R2</a>
+  <a href="06-audio-upload-tts.html">6. Audio TTS &amp; Upload</a>
+  <a href="07-audio-translation.html">7. Audio Translation</a>
+  <a class="active" href="08-realtime-tourist-websocket.html">8. Realtime Tourist Tracking</a>
+  <a href="index.html">← Index</a>
+</nav>
+
+<div class="container">
+
+  <!-- Overview note -->
+  <div class="note-box" style="margin-bottom: 28px;">
+    <strong>Kiến trúc tổng quan:</strong>
+    Hệ thống dùng <strong>STOMP over SockJS</strong> (Spring <code>@EnableWebSocketMessageBroker</code>) để push số lượng tourist đang online theo thời gian thực.
+    Có <strong>hai luồng song song</strong>:
+    <br>① <strong>Tourist App</strong> subscribe <code>/topic/tourist-ping</code> → server ghi nhận presence;
+    <br>② <strong>Admin Dashboard</strong> subscribe <code>/topic/active-visitors</code> → nhận count update ngay khi tourist kết nối / mất kết nối.
+    <br/>Ngoài ra, Admin có thể truy vấn thống kê lịch sử qua REST <code>GET /api/analytics/admin/visitors/stats</code> (MongoDB aggregation).
+  </div>
+
+  <!-- ─── Phase 1: Tourist App connects & registers presence ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 1 – Tourist App Kết Nối WebSocket &amp; Đăng Ký Presence</h2>
+        <p>SockJS handshake → STOMP CONNECT → SUBSCRIBE /topic/tourist-ping → VisitorPresenceRegistry.add()</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d8p1','08-phase1-tourist-connect')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d8p1')">Copy SVG</button>
+        <button class="btn btn-secondary" onclick="printDiagram()">🖨 Print</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Tourist App (Frontend)</span>
+      <span class="actor-badge"><span class="dot" style="background:#64748b"></span>SockJS / STOMP Client</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>WebSocketConfig (Spring)</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>VisitorPresenceEventListener</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>VisitorPresenceRegistry</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>ActiveVisitorBroadcaster</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Endpoint WebSocket:</strong> <code>ws://&lt;host&gt;/ws</code> với SockJS fallback.
+      Server cấu hình trong <code>WebSocketConfig</code>:
+      topic prefix <code>/topic</code>, app prefix <code>/app</code>.
+      Tourist App <strong>không cần JWT</strong> để kết nối WebSocket – presence tracking là anonymous.
+    </div>
+
+    <div class="diagram-body">
+      <div id="d8p1" class="mermaid">
+sequenceDiagram
+    autonumber
+    actor App as Tourist App
+    participant SJS as SockJS Client
+    participant WS as WebSocketConfig
+    participant VEL as VisitorPresenceEventListener
+    participant REG as VisitorPresenceRegistry
+    participant BCT as ActiveVisitorBroadcaster
+
+    App->>SJS: Khoi tao SockJS va StompClient
+    SJS->>WS: HTTP Upgrade - WebSocket Handshake
+    WS-->>SJS: 101 Switching Protocols
+    SJS-->>App: onConnect callback
+
+    App->>SJS: Subscribe /topic/tourist-ping
+    SJS->>WS: STOMP SUBSCRIBE /topic/tourist-ping
+    WS->>VEL: SessionSubscribeEvent
+    VEL->>VEL: Kiem tra destination = /topic/tourist-ping
+    VEL->>REG: registry.add stompSessionId
+    REG-->>VEL: void
+    VEL->>BCT: broadcaster.broadcast count
+    BCT->>WS: convertAndSend /topic/active-visitors
+    Note over BCT,WS: Push count moi toi Admin Dashboard
+    WS-->>BCT: delivered
+    BCT-->>VEL: void
+    VEL-->>WS: void
+    WS-->>SJS: STOMP MESSAGE
+    SJS-->>App: subscribed OK
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Phase 2: Admin Dashboard connects & receives count ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 2 – Admin Dashboard Kết Nối &amp; Nhận Count Realtime</h2>
+        <p>Admin subscribe /topic/active-visitors → nhận push ngay khi count thay đổi</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d8p2','08-phase2-admin-subscribe')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d8p2')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>Admin Dashboard (Frontend)</span>
+      <span class="actor-badge"><span class="dot" style="background:#64748b"></span>SockJS / STOMP Client</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>WebSocketConfig (Spring Broker)</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>ActiveVisitorBroadcaster</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>VisitorPresenceRegistry</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Lưu ý bảo mật:</strong> Admin Dashboard phải đính kèm <code>Authorization: Bearer &lt;JWT&gt;</code>
+      trong STOMP CONNECT headers (hoặc HTTP cookie). <code>SecurityConfig</code> bảo vệ
+      endpoint <code>/api/analytics/**</code>, nhưng WebSocket handshake <code>/ws</code>
+      có thể cấu hình thêm <code>AuthChannelInterceptor</code> để xác thực STOMP session.
+    </div>
+
+    <div class="diagram-body">
+      <div id="d8p2" class="mermaid">
+sequenceDiagram
+    autonumber
+    actor ADM as Admin Dashboard
+    participant SJS as SockJS Client
+    participant WS as Spring STOMP Broker
+    participant BCT as ActiveVisitorBroadcaster
+    participant REG as VisitorPresenceRegistry
+
+    ADM->>SJS: Khoi tao SockJS + connect voi Bearer JWT
+    SJS->>WS: HTTP Upgrade - WebSocket
+    WS-->>SJS: 101 Switching Protocols
+    SJS-->>ADM: onConnect callback
+
+    ADM->>SJS: Subscribe /topic/active-visitors
+    SJS->>WS: STOMP SUBSCRIBE /topic/active-visitors
+    WS-->>SJS: ACK - subscription registered
+    SJS-->>ADM: subscribed OK
+
+    Note over ADM: Hien thi counter - dang cho push
+
+    loop Moi khi tourist connect hoac disconnect
+        BCT->>REG: getCount
+        REG-->>BCT: N tourists dang ket noi
+        BCT->>WS: convertAndSend /topic/active-visitors - value N
+        WS-->>SJS: STOMP MESSAGE N
+        SJS-->>ADM: receive count N
+        ADM->>ADM: cap nhat UI - N tourists online
+    end
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Phase 3: Tourist Disconnect ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 3 – Tourist Mất Kết Nối (Tab Đóng / Network Loss)</h2>
+        <p>SessionDisconnectEvent → VisitorPresenceRegistry.remove() → broadcast count mới</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d8p3','08-phase3-tourist-disconnect')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d8p3')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Tourist App (Browser)</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>Spring WebSocket Infra</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>VisitorPresenceEventListener</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>VisitorPresenceRegistry</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>ActiveVisitorBroadcaster</span>
+      <span class="actor-badge"><span class="dot" style="background:#6366f1"></span>Admin Dashboard</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Quan trọng:</strong> Spring WebSocket phát hiện mất kết nối trong vòng <strong>vài mili-giây</strong>
+      thông qua TCP close / WebSocket close frame. Không cần heartbeat poll.
+      <code>SessionDisconnectEvent</code> được fire kể cả khi client đóng tab đột ngột (browser gửi TCP FIN).
+    </div>
+
+    <div class="diagram-body">
+      <div id="d8p3" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant App as Tourist Browser<br/>(đóng tab / mất mạng)
+    participant WS as Spring WebSocket Infra
+    participant VEL as VisitorPresenceEventListener<br/>EventListener
+    participant REG as VisitorPresenceRegistry
+    participant BCT as ActiveVisitorBroadcaster
+    participant ADM as Admin Dashboard
+
+    alt Tourist đóng tab / navigate away
+        App->>WS: WebSocket Close Frame (code 1001)
+    else Mất mạng / crash browser
+        Note over App,WS: TCP FIN hoặc timeout<br/>Spring detect mất kết nối
+    end
+
+    WS->>+VEL: fire SessionDisconnectEvent<br/>event.getSessionId() = stompSessionId
+    VEL->>+REG: registry.remove(stompSessionId)
+    REG->>REG: touristStompSessions.remove(stompSessionId)
+    Note over REG: Trả về true nếu session<br/>tồn tại trong registry
+    REG-->>-VEL: true (count thay đổi)
+
+    VEL->>+BCT: broadcaster.broadcast(registry.getCount())
+    BCT->>WS: messagingTemplate.convertAndSend to /topic/active-visitors count minus 1
+    WS-->>ADM: STOMP MESSAGE body: N-1
+    ADM->>ADM: setCount(N-1), cap nhat N-1 tourists online
+    BCT-->>-VEL: void
+    VEL-->>-WS: void
+
+    Note over VEL: Nếu remove() trả về false<br/>(session không phải tourist),<br/>broadcast KHÔNG được gọi
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Phase 4: Admin queries historical stats via REST ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 4 – Admin Truy Vấn Thống Kê Lịch Sử (REST + MongoDB Aggregation)</h2>
+        <p>GET /api/analytics/admin/visitors/stats?period=day|week|month|year → VisitorStatsService MongoDB $group pipeline</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d8p4','08-phase4-analytics-rest')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d8p4')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>Admin Dashboard</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>AdminAnalyticsController</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>VisitorStatsService</span>
+      <span class="actor-badge"><span class="dot" style="background:#f59e0b"></span>SessionCreatedEventListener</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>MongoDB (visitor_events)</span>
+      <span class="actor-badge"><span class="dot" style="background:#6366f1"></span>TouristSessionService (event source)</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Luồng ghi dữ liệu:</strong>
+      Khi tourist tạo session mới (<code>POST /api/tourist/sessions</code>),
+      <code>TouristSessionService</code> publish <code>SessionCreatedEvent</code>.
+      <code>SessionCreatedEventListener</code> (analytics module) lắng nghe event và lưu
+      <code>VisitorEvent { timestamp }</code> vào MongoDB collection <code>visitor_events</code>.
+      <br><strong>Luồng đọc:</strong> <code>VisitorStatsService.getStats(period)</code>
+      chạy MongoDB aggregation pipeline <code>$match → $group (dateToString) → $sort</code>
+      để trả về tập <code>List&lt;VisitorStatPoint&gt;</code> cho dashboard vẽ chart.
+    </div>
+
+    <div class="diagram-body">
+      <div id="d8p4a" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant TSS as TouristSessionService
+    participant EVT as SessionCreatedEvent
+    participant SEL as SessionCreatedEventListener
+    participant MDB as MongoDB visitor_events
+
+    Note over TSS: Khi tourist tao session moi POST /api/tourist/sessions
+    TSS->>TSS: publishEvent(new SessionCreatedEvent(sessionId, occurredAt))
+    TSS->>+EVT: ApplicationEventPublisher.publishEvent()
+    EVT->>+SEL: onSessionCreated(event)
+    SEL->>SEL: VisitorEvent.builder().timestamp(occurredAt).build()
+    SEL->>+MDB: visitorEventRepository.save(VisitorEvent)
+    MDB-->>-SEL: VisitorEvent saved with id and timestamp
+    SEL-->>-EVT: void
+    EVT-->>-TSS: async (non-blocking)
+    Note over MDB: visitor_events dùng làm<br/>nguồn dữ liệu analytics historical
+      </div>
+    </div>
+
+    <div class="diagram-body" style="margin-top: 20px;">
+      <div id="d8p4b" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant ADM as Admin Dashboard
+    participant AC as AdminAnalyticsController
+    participant VS as VisitorStatsService
+    participant MDB as MongoDB visitor_events
+
+    ADM->>+AC: GET /api/analytics/admin/visitors/stats?period=week
+    Note over AC: SecurityConfig: ROLE_admin required
+    AC->>+VS: getStats(week)
+    VS->>VS: resolveFrom(week) from = now - 7 days<br/>resolveDateFormat(week) format = %Y-%m-%d
+    VS->>+MDB: aggregate match+group by dateToString+sort ASC
+    MDB-->>-VS: list of date-count pairs e.g. 2026-04-05 = 42
+    VS->>VS: map rows to List of VisitorStatPoint
+    VS-->>-AC: List&lt;VisitorStatPoint&gt;
+    AC-->>-ADM: 200 OK<br/>ApiResponse success:true, data:[{label,count},...]
+    ADM->>ADM: Render line chart / bar chart<br/>x-axis: date label, y-axis: visitor count
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Architecture Summary ─── -->
+  <div class="intro-card" style="margin-top: 32px; border-left-color: #10b981;">
+    <h2 style="color:#065f46;">Tóm tắt kiến trúc – Realtime Tourist Tracking</h2>
+    <table class="stack-table">
+      <thead>
+        <tr>
+          <th>Thành phần</th>
+          <th>Class / Bean</th>
+          <th>Vai trò</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>WebSocket endpoint</td>
+          <td><code>WebSocketConfig</code></td>
+          <td>STOMP broker, SockJS fallback tại <code>/ws</code></td>
+        </tr>
+        <tr>
+          <td>Presence registry</td>
+          <td><code>VisitorPresenceRegistry</code></td>
+          <td><code>ConcurrentHashMap.newKeySet()</code> lưu STOMP session IDs của tourist</td>
+        </tr>
+        <tr>
+          <td>Presence lifecycle</td>
+          <td><code>VisitorPresenceEventListener</code></td>
+          <td>Listen <code>SessionSubscribeEvent</code> + <code>SessionDisconnectEvent</code> → cập nhật registry</td>
+        </tr>
+        <tr>
+          <td>Broadcast</td>
+          <td><code>ActiveVisitorBroadcaster</code></td>
+          <td><code>SimpMessagingTemplate</code> push count tới <code>/topic/active-visitors</code></td>
+        </tr>
+        <tr>
+          <td>Tourist presence topic</td>
+          <td><code>/topic/tourist-ping</code></td>
+          <td>Tourist subscribe → server ghi nhận là online</td>
+        </tr>
+        <tr>
+          <td>Admin count topic</td>
+          <td><code>/topic/active-visitors</code></td>
+          <td>Admin subscribe → nhận <code>long</code> count mỗi khi thay đổi</td>
+        </tr>
+        <tr>
+          <td>Analytics event writer</td>
+          <td><code>SessionCreatedEventListener</code></td>
+          <td>Nghe <code>SessionCreatedEvent</code> → lưu <code>VisitorEvent</code> vào MongoDB</td>
+        </tr>
+        <tr>
+          <td>Historical analytics</td>
+          <td><code>VisitorStatsService</code></td>
+          <td>MongoDB aggregation pipeline, group by date (day/week/month/year, TZ +07:00)</td>
+        </tr>
+        <tr>
+          <td>REST endpoint</td>
+          <td><code>AdminAnalyticsController</code></td>
+          <td><code>GET /api/analytics/admin/visitors/stats?period=</code>, yêu cầu <code>ROLE_admin</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+<footer>FlavorTales – Food Tourism Platform · Sequence Diagrams Documentation · Tạo bởi GitHub Copilot dựa trên source code thực tế</footer>
+</body>
+</html>

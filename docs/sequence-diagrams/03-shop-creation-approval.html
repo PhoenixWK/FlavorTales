@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop Creation & Approval – FlavorTales</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true, theme: 'default',
+  sequence: {
+    diagramMarginX: 30, diagramMarginY: 20,
+    actorMargin: 50, width: 150, height: 50,
+    boxMargin: 10, boxTextMargin: 5, noteMargin: 10,
+    messageMargin: 35, mirrorActors: true, useMaxWidth: true
+  },
+  themeVariables: {
+    primaryColor: '#fff7ed', primaryTextColor: '#1e293b',
+    primaryBorderColor: '#f97316', lineColor: '#64748b',
+    secondaryColor: '#f1f5f9', tertiaryColor: '#fef3c7',
+    actorBkg: '#fff7ed', actorBorder: '#f97316', actorTextColor: '#9a3412',
+    activationBkgColor: '#ffedd5', activationBorderColor: '#f97316',
+    noteBkgColor: '#fef9c3', noteBorderColor: '#fbbf24', noteTextColor: '#713f12'
+  }
+});
+function exportSVG(id, name) {
+  const svg = document.querySelector('#'+id+' svg');
+  if (!svg) { alert('Vui lòng thử lại sau 1 giây.'); return; }
+  const clone = svg.cloneNode(true); clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([clone.outerHTML],{type:'image/svg+xml'}));
+  a.download = name+'.svg'; a.click();
+}
+function copySVG(id) {
+  const svg = document.querySelector('#'+id+' svg');
+  if (!svg) { alert('Vui lòng thử lại.'); return; }
+  navigator.clipboard.writeText(svg.outerHTML).then(() => {
+    const btn = event.target; btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy SVG', 1500);
+  });
+}
+</script>
+</head>
+<body>
+<header>
+  <h1>FlavorTales – Sequence Diagrams</h1>
+  <p>Diagram 3 of 5 · Shop + Menu Item Creation &amp; Admin Approval</p>
+</header>
+<nav>
+  <a href="01-geofence-detection.html">1. Geofence Detection</a>
+  <a href="02-poi-approval-workflow.html">2. POI Approval Workflow</a>
+  <a class="active" href="03-shop-creation-approval.html">3. Shop Creation &amp; Approval</a>
+  <a href="04-browse-nearby-pois.html">4. Browse Nearby POIs</a>
+  <a href="05-file-upload-r2.html">5. File Upload to R2</a>
+  <a href="index.html">← Index</a>
+</nav>
+
+<div class="container">
+
+  <!-- ─── Step 1: Upload Images ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Step 1 – Vendor Upload Ảnh Shop lên Cloudflare R2</h2>
+        <p>POST /api/file/upload → FileService.uploadImage() → R2FileStorageService.upload() → S3Client.putObject()</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d3s1','03-step1-upload-images')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d3s1')">Copy SVG</button>
+        <button class="btn btn-secondary" onclick="window.print()">🖨 Print</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Vendor Browser</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>JwtAuthenticationFilter</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>FileController /api/file/upload</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>FileService</span>
+      <span class="actor-badge"><span class="dot" style="background:#6366f1"></span>R2FileStorageService</span>
+      <span class="actor-badge"><span class="dot" style="background:#ec4899"></span>AWS S3Client SDK</span>
+      <span class="actor-badge"><span class="dot" style="background:#14b8a6"></span>Cloudflare R2 (S3-compatible)</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>MySQL Primary (file_asset table)</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Flow này được gọi nhiều lần:</strong> Vendor upload avatar (1 lần) + gallery images (tối đa 5 lần) trước khi tạo Shop. 
+      Mỗi lần upload trả về <code>fileId</code>, sau đó được dùng trong <code>ShopCreateRequest.avatarFileId</code> và <code>additionalImageIds</code>.
+    </div>
+
+    <div class="diagram-body">
+      <div id="d3s1" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant VB as Vendor Browser
+    participant JWT as JwtAuthFilter
+    participant FC as FileController
+    participant FS as FileService
+    participant R2S as R2StorageService
+    participant S3 as S3Client SDK
+    participant R2 as Cloudflare R2
+    participant DB as MySQL Primary
+
+    VB->>+JWT: POST /api/file/upload<br/>multipart/form-data, Bearer token<br/>file=binary image data
+    JWT->>JWT: Validate JWT, extract vendorEmail
+    JWT-->>-FC: forward
+
+    FC->>+FS: uploadImage(file, vendorEmail)
+
+    FS->>FS: Validate MIME: file.getContentType()<br/>must be image/jpeg or image/png
+    alt Invalid MIME type
+        FS-->>FC: throw InvalidFileTypeException
+        FC-->>VB: 400 Bad Request: Only JPEG/PNG allowed
+    end
+
+    FS->>FS: Validate size: file.getSize()<br/>must be under 5MB (5242880 bytes)
+    alt File too large
+        FS-->>FC: throw FileTooLargeException
+        FC-->>VB: 400 Bad Request: File must be under 5MB
+    end
+
+    FS->>+R2S: buildImageKey(vendorEmail, originalFilename)
+    Note over R2S: Extract username prefix from email<br/>Result: username/images/filename
+    R2S-->>-FS: objectKey = username/images/filename
+
+    FS->>FS: bytes = file.getBytes()
+
+    FS->>+R2S: upload(objectKey, bytes, mimeType)
+    R2S->>R2S: Build PutObjectRequest<br/>bucket=R2_BUCKET, key=objectKey<br/>contentLength, contentType=mimeType
+    R2S->>+S3: s3Client.putObject(request,<br/>RequestBody.fromBytes(bytes))
+    Note over S3,R2: HTTP PUT to Cloudflare R2<br/>S3-compatible API
+    S3->>+R2: PUT /R2_BUCKET/objectKey
+    R2-->>-S3: 200 OK with ETag
+    S3-->>-R2S: PutObjectResponse
+    R2S->>R2S: publicUrl = R2_PUBLIC_URL/objectKey
+    R2S-->>-FS: publicUrl string
+
+    FS->>+DB: INSERT INTO file_asset<br/>object_key, file_url, original_filename<br/>mime_type, size_bytes, uploaded_by, created_at
+    DB-->>-FS: generated fileId integer
+
+    FS-->>-FC: FileUploadResponse<br/>fileId, fileUrl, originalFilename, mimeType, sizeBytes
+    FC-->>VB: 200 OK - fileId and fileUrl returned
+
+    Note over VB: Store fileId for next step
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Step 2: Create Shop ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Step 2 – Vendor Tạo Shop (Dùng fileId Đã Upload)</h2>
+        <p>POST /api/shop → ShopService.createShop() → JdbcTemplate INSERT → @Async email admin</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d3s2','03-step2-create-shop')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d3s2')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Vendor Browser</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>JwtAuthenticationFilter</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>ShopController /api/shop</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>ShopService (JdbcTemplate)</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>MySQL Primary</span>
+      <span class="actor-badge"><span class="dot" style="background:#f59e0b"></span>EmailService (@Async)</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Lưu ý:</strong> <code>ShopService</code> dùng <code>JdbcTemplate</code> trực tiếp (không qua JPA Repository) để INSERT shop và shop_image records.
+      Shop được tạo với <code>status = 'pending'</code>, liên kết với POI đã tạo trước (cùng vendor).
+    </div>
+
+    <div class="diagram-body">
+      <div id="d3s2" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant VB as Vendor Browser
+    participant JWT as JwtAuthFilter
+    participant ShC as ShopController
+    participant ShS as ShopService
+    participant JT as JdbcTemplate
+    participant ES as EmailService
+    participant AE as Admin Email
+
+    VB->>+JWT: POST /api/shop<br/>Bearer vendorJwt<br/>ShopCreateRequest: name, description<br/>avatarFileId=42, additionalImageIds=[43,44]
+    JWT->>JWT: Validate JWT, extract vendorEmail
+    JWT-->>-ShC: forward
+
+    ShC->>+ShS: createShop(ShopCreateRequest, vendorEmail)
+
+    ShS->>+JT: SELECT id FROM poi<br/>WHERE vendor_email=? AND status IN pending,active<br/>ORDER BY created_at DESC LIMIT 1
+    JT-->>-ShS: poiId of linked POI
+
+    ShS->>+JT: INSERT INTO shop<br/>poi_id, vendor_id, name, description<br/>avatar_file_id, status=pending<br/>opening_hours JSON, tags JSON, created_at=NOW()
+    JT-->>-ShS: generated shopId
+
+    loop For each additionalImageId
+        ShS->>+JT: INSERT INTO shop_image<br/>shop_id, file_asset_id, display_order
+        JT-->>-ShS: OK
+    end
+
+    ShS->>+ES: sendAdminNewShopNotification(shopName, vendorEmail)
+    Note over ES: Async - fires in separate thread<br/>does not block response
+    ES->>+AE: SMTP: New shop submission shopName<br/>from vendor vendorEmail
+    AE-->>-ES: sent
+    ES-->>-ShS: async fire-and-forget
+
+    ShS-->>-ShC: ShopCreateResponse: shopId, status=pending
+    ShC-->>VB: 201 Created - shopId and status=pending
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Step 3: Admin Approval (reference to D2) ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Step 3 – Admin Phê Duyệt Shop (Full @Transactional Flow)</h2>
+        <p>PATCH /api/shop/admin/{shopId}/approve → UPDATE shop + poi + @Async email vendor</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d3s3','03-step3-admin-approve')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d3s3')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="diagram-body">
+      <div id="d3s3" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant AB as Admin Browser
+    participant JWT as JwtAuthFilter
+    participant ShC as ShopController
+    participant ShS as ShopService
+    participant JT as JdbcTemplate
+    participant PCS as PoiCacheService
+    participant RD as Redis
+    participant ES as EmailService
+    participant VE as Vendor Email
+
+    AB->>+JWT: PATCH /api/shop/admin/shopId/approve<br/>Authorization: Bearer adminJwt<br/>Body: notes=All requirements met
+    JWT->>JWT: Validate JWT, verify ROLE_admin
+    JWT-->>-ShC: forward request
+
+    ShC->>+ShS: approveShop(shopId, notes)
+
+    ShS->>+JT: SELECT shop.id, shop.poi_id,<br/>shop.name, user.email as vendorEmail<br/>FROM shop JOIN user ON vendor_id<br/>WHERE shop.id = shopId
+    JT-->>-ShS: returns poiId, vendorEmail, shopName
+
+    Note over ShS,JT: BEGIN TRANSACTION
+
+    ShS->>+JT: UPDATE shop SET status=active,<br/>approved_at=NOW(), admin_notes=notes<br/>WHERE id=shopId
+    JT-->>-ShS: 1 row updated
+
+    ShS->>+JT: UPDATE poi SET status=active,<br/>updated_at=NOW()<br/>WHERE id=poiId
+    JT-->>-ShS: 1 row updated
+
+    Note over ShS,JT: COMMIT TRANSACTION
+
+    ShS->>+PCS: evict(poiId)
+    PCS->>+RD: DEL poi-poiId
+    RD-->>PCS: deleted
+    PCS->>RD: DEL poi-list-active
+    RD-->>-PCS: deleted
+    PCS-->>-ShS: cache invalidated
+
+    ShS->>+ES: sendShopApprovedEmail(vendorEmail, shopName, notes)
+    Note over ES: Async - runs in separate thread<br/>fire-and-forget, does not block
+    ES->>+VE: SMTP: subject=Your shop is now live<br/>to=vendorEmail, body=HTML template
+    VE-->>-ES: email sent
+    ES-->>-ShS: async fire-and-forget
+
+    ShS-->>-ShC: void
+    ShC-->>-AB: 200 OK<br/>ApiResponse: success=true,<br/>message=Shop approved successfully
+      </div>
+    </div>
+  </div>
+
+</div>
+<footer>FlavorTales – Food Tourism Platform · Sequence Diagrams Documentation</footer>
+</body>
+</html>

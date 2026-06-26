@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Translation – Multi-language TTS – FlavorTales</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true, theme: 'default',
+  sequence: {
+    diagramMarginX: 30, diagramMarginY: 20,
+    actorMargin: 55, width: 155, height: 50,
+    boxMargin: 10, boxTextMargin: 5, noteMargin: 10,
+    messageMargin: 35, mirrorActors: true, useMaxWidth: true
+  },
+  themeVariables: {
+    primaryColor: '#fff7ed', primaryTextColor: '#1e293b',
+    primaryBorderColor: '#f97316', lineColor: '#64748b',
+    secondaryColor: '#f1f5f9', tertiaryColor: '#fef3c7',
+    actorBkg: '#fff7ed', actorBorder: '#f97316', actorTextColor: '#9a3412',
+    activationBkgColor: '#ffedd5', activationBorderColor: '#f97316',
+    noteBkgColor: '#fef9c3', noteBorderColor: '#fbbf24', noteTextColor: '#713f12'
+  }
+});
+function exportSVG(id, name) {
+  const svg = document.querySelector('#'+id+' svg');
+  if (!svg) { alert('Vui lòng thử lại sau 1 giây.'); return; }
+  const clone = svg.cloneNode(true); clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([clone.outerHTML],{type:'image/svg+xml'}));
+  a.download = name+'.svg'; a.click();
+}
+function copySVG(id) {
+  const svg = document.querySelector('#'+id+' svg');
+  if (!svg) { alert('Vui lòng thử lại.'); return; }
+  navigator.clipboard.writeText(svg.outerHTML).then(() => {
+    const btn = event.target; btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy SVG', 1500);
+  });
+}
+</script>
+<style>
+.lang-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #f1f5f9;
+}
+@media (max-width: 700px) { .lang-grid { grid-template-columns: 1fr 1fr; } }
+.lang-card {
+  border-radius: 10px;
+  padding: .9rem 1.1rem;
+  border: 2px solid;
+}
+.lang-card .lang-name { font-weight: 700; font-size: 1rem; margin-bottom: .3rem; }
+.lang-card .lang-code { font-family: monospace; font-size: .8rem; opacity: .7; }
+.lang-card .voice-name { font-size: .78rem; margin-top: .4rem; background: rgba(255,255,255,.6); border-radius: 4px; padding: .15rem .4rem; display: inline-block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FlavorTales – Sequence Diagrams</h1>
+  <p>Diagram 7 of 7 · Dịch Audio Thuyết Minh Sang Nhiều Ngôn Ngữ (All-language TTS)</p>
+</header>
+<nav>
+  <a href="index.html">Index</a>
+  <a href="01-geofence-detection.html">1. Geofence Detection</a>
+  <a href="02-poi-approval-workflow.html">2. POI Approval Workflow</a>
+  <a href="03-shop-creation-approval.html">3. Shop Creation &amp; Approval</a>
+  <a href="04-browse-nearby-pois.html">4. Browse Nearby POIs</a>
+  <a href="05-file-upload-r2.html">5. File Upload to R2</a>
+  <a href="06-audio-upload-tts.html">6. Audio TTS &amp; Upload</a>
+  <a class="active" href="07-audio-translation.html">7. Audio Translation</a>
+</nav>
+
+<div class="container">
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  Bảng ngôn ngữ hỗ trợ                                      -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="diagram-card" style="margin-bottom:2rem;">
+    <div class="diagram-card-header">
+      <div>
+        <h2>6 Ngôn Ngữ Được Hỗ Trợ</h2>
+        <p>Google Cloud TTS · Mỗi ngôn ngữ dùng một voice riêng biệt</p>
+      </div>
+    </div>
+    <div class="lang-grid">
+      <div class="lang-card" style="background:#eff6ff; border-color:#3b82f6;">
+        <div class="lang-name" style="color:#1d4ed8;">🇻🇳 Tiếng Việt</div>
+        <div class="lang-code">vi</div>
+        <div class="voice-name">vi-VN-Standard-A</div>
+        <div style="font-size:.78rem; color:#64748b; margin-top:.3rem;">Nguồn gốc · Không dịch</div>
+      </div>
+      <div class="lang-card" style="background:#f0fdf4; border-color:#22c55e;">
+        <div class="lang-name" style="color:#15803d;">🇺🇸 English</div>
+        <div class="lang-code">en</div>
+        <div class="voice-name">en-US-Wavenet-D</div>
+        <div style="font-size:.78rem; color:#64748b; margin-top:.3rem;">vi → en (Google Translate)</div>
+      </div>
+      <div class="lang-card" style="background:#fef9ec; border-color:#f59e0b;">
+        <div class="lang-name" style="color:#d97706;">🇨🇳 中文</div>
+        <div class="lang-code">zh</div>
+        <div class="voice-name">cmn-CN-Wavenet-A</div>
+        <div style="font-size:.78rem; color:#64748b; margin-top:.3rem;">vi → zh (Google Translate)</div>
+      </div>
+      <div class="lang-card" style="background:#fdf4ff; border-color:#a855f7;">
+        <div class="lang-name" style="color:#7c3aed;">🇰🇷 한국어</div>
+        <div class="lang-code">ko</div>
+        <div class="voice-name">ko-KR-Wavenet-A</div>
+        <div style="font-size:.78rem; color:#64748b; margin-top:.3rem;">vi → ko (Google Translate)</div>
+      </div>
+      <div class="lang-card" style="background:#fff1f2; border-color:#f43f5e;">
+        <div class="lang-name" style="color:#be123c;">🇷🇺 Русский</div>
+        <div class="lang-code">ru</div>
+        <div class="voice-name">ru-RU-Wavenet-A</div>
+        <div style="font-size:.78rem; color:#64748b; margin-top:.3rem;">vi → ru (Google Translate)</div>
+      </div>
+      <div class="lang-card" style="background:#ecfdf5; border-color:#10b981;">
+        <div class="lang-name" style="color:#047857;">🇯🇵 日本語</div>
+        <div class="lang-code">ja</div>
+        <div class="voice-name">ja-JP-Wavenet-B</div>
+        <div style="font-size:.78rem; color:#64748b; margin-top:.3rem;">vi → ja (Google Translate)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHASE 1 – Preview All Languages (parallel)                -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 1 – Preview Tất Cả Ngôn Ngữ Song Song</h2>
+        <p>POST /api/audio/tts/preview-all · Chỉ cần nhập text Tiếng Việt · 6 CompletableFuture chạy đồng thời</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d7p1','07-audio-preview-all')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d7p1')">Copy SVG</button>
+        <button class="btn btn-secondary" onclick="window.print()">🖨 Print</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Vendor App (Frontend)</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>AudioController /api/audio</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>TtsOrchestrationService</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>GoogleTranslationService</span>
+      <span class="actor-badge"><span class="dot" style="background:#6366f1"></span>GoogleCloudTtsService</span>
+    </div>
+
+    <div class="note-box note-blue">
+      <strong>Kiến trúc parallel:</strong> <code>TtsOrchestrationService.generateAllLanguages()</code> tạo
+      <strong>6 CompletableFuture</strong>, mỗi future xử lý một ngôn ngữ độc lập.
+      Nếu một ngôn ngữ lỗi, các ngôn ngữ còn lại vẫn trả về kết quả bình thường (partial success).
+    </div>
+
+    <div id="d7p1" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant V as Vendor App
+    participant AC as AudioController
+    participant Orch as TtsOrchestrationService
+    participant Trans as GoogleTranslationService
+    participant TTS as GoogleCloudTtsService
+
+    V->>AC: POST /api/audio/tts/preview-all<br/>{text: "Quán ăn nổi tiếng..."}
+    note over AC: Chỉ nhận text Tiếng Việt<br/>AllLanguagesTtsRequest
+
+    AC->>Orch: generateAllLanguages(viText)
+
+    note over Orch: Tạo 6 CompletableFuture<br/>chạy song song (parallel)
+
+    par Vietnamese (trực tiếp)
+        Orch->>TTS: synthesize(viText, "vi-VN", "vi-VN-Standard-A")
+        TTS-->>Orch: byte[] mp3_vi
+    and English
+        Orch->>Trans: translate(viText, "vi", "en")
+        Trans-->>Orch: enText
+        Orch->>TTS: synthesize(enText, "en-US", "en-US-Wavenet-D")
+        TTS-->>Orch: byte[] mp3_en
+    and Chinese
+        Orch->>Trans: translate(viText, "vi", "zh")
+        Trans-->>Orch: zhText
+        Orch->>TTS: synthesize(zhText, "zh-CN", "cmn-CN-Wavenet-A")
+        TTS-->>Orch: byte[] mp3_zh
+    and Korean
+        Orch->>Trans: translate(viText, "vi", "ko")
+        Trans-->>Orch: koText
+        Orch->>TTS: synthesizeKorean(koText)
+        TTS-->>Orch: byte[] mp3_ko
+    and Russian
+        Orch->>Trans: translate(viText, "vi", "ru")
+        Trans-->>Orch: ruText
+        Orch->>TTS: synthesizeRussian(ruText)
+        TTS-->>Orch: byte[] mp3_ru
+    and Japanese
+        Orch->>Trans: translate(viText, "vi", "ja")
+        Trans-->>Orch: jaText
+        Orch->>TTS: synthesizeJapanese(jaText)
+        TTS-->>Orch: byte[] mp3_ja
+    end
+
+    Orch->>Orch: Collect results:<br/>success → Base64.encode(mp3Bytes)<br/>error → wrap TtsError{lang, message}
+
+    Orch-->>AC: List&lt;LanguageTtsResult&gt;
+
+    AC-->>V: 200 OK AllLanguagesTtsResponse {<br/>  audioBase64: {vi:..., en:..., zh:..., ko:..., ru:..., ja:...},<br/>  errors: [ ] (nếu có lỗi một số ngôn ngữ)<br/>}
+
+    note over V: Frontend decode base64<br/>Phát thử từng tab ngôn ngữ<br/>Không upload R2, không lưu DB
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHASE 2 – Save all languages to DB                         -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 2 – Lưu Tất Cả Ngôn Ngữ Vào DB (Upload Song Song)</h2>
+        <p>Frontend gọi 6 POST /api/audio/shop/{shopId}/tts song song · mỗi ngôn ngữ 1 audio record riêng</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d7p2','07-audio-save-all')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d7p2')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="note-box note-orange">
+      <strong>Frontend orchestrates:</strong> Sau khi vendor nghe thử xong và bấm "Lưu tất cả",
+      frontend gọi hàm <code>uploadAudiosForShop(shopId, audioBlobs, onError)</code> trong <code>audioApi.ts</code>
+      — tạo <strong>6 Promise</strong> chạy đồng thời, mỗi Promise gọi một endpoint riêng.
+    </div>
+
+    <div id="d7p2" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant V as Vendor App
+    participant AC as AudioController
+    participant AS as AudioService
+    participant TTS as GoogleCloudTtsService
+    participant R2 as R2FileStorageService
+    participant DB as MySQL audio table
+    participant Cache as Redis
+
+    note over V: Vendor nhấn "Lưu tất cả ngôn ngữ"<br/>uploadAudiosForShop() → 6 Promise.all()
+
+    par Upload vi
+        V->>AC: POST /api/audio/shop/{shopId}/tts<br/>{text, language:"vi"}
+        AC->>AS: generateSingleAudio(..., shopId)
+        AS->>TTS: synthesize(text, "vi-VN", "vi-VN-Standard-A")
+        TTS-->>AS: mp3Bytes_vi
+        AS->>R2: upload mp3_vi
+        AS->>DB: upsertAudioRecord(shopId, fileId, "vi", 'google_tts')
+        DB-->>V: {audioId, fileUrl, language:"vi"}
+    and Upload en
+        V->>AC: POST /api/audio/shop/{shopId}/tts<br/>{text, language:"en"}
+        AC->>AS: generateSingleAudio(..., shopId)
+        AS->>TTS: synthesize(enText, "en-US", "en-US-Wavenet-D")
+        TTS-->>AS: mp3Bytes_en
+        AS->>R2: upload mp3_en
+        AS->>DB: upsertAudioRecord(shopId, fileId, "en", 'google_tts')
+        DB-->>V: {audioId, fileUrl, language:"en"}
+    and Upload zh/ko/ru/ja
+        V->>AC: POST /api/audio/shop/{shopId}/tts × 4<br/>(zh, ko, ru, ja)
+        AC-->>V: 4 × {audioId, fileUrl, language}
+    end
+
+    note over DB: 6 records trong bảng audio<br/>UNIQUE (shop_id, language_code)<br/>Tất cả status='pending'
+
+    AS->>Cache: evictByShop(shopId) [mỗi lần upsert]
+
+    note over V: UI cập nhật badge ✓ cho từng ngôn ngữ<br/>Hiển thị lỗi inline nếu 1 ngôn ngữ thất bại
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHASE 3 – Tourist plays audio theo ngôn ngữ               -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 3 – Tourist Nghe Audio Theo Ngôn Ngữ Session</h2>
+        <p>GET /api/audio/poi/{poiId} → Redis cache → Tourist app chọn đúng track theo languageCode</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d7p3','07-audio-tourist-playback')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d7p3')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Tourist App (Frontend)</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>AudioController /api/audio</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>AudioService</span>
+      <span class="actor-badge"><span class="dot" style="background:#ef4444"></span>Redis (AudioCacheService)</span>
+      <span class="actor-badge"><span class="dot" style="background:#f43f5e"></span>MySQL (audio table)</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>AudioContext.tsx (Playback)</span>
+    </div>
+
+    <div id="d7p3" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant T as Tourist App
+    participant AC as AudioController
+    participant AS as AudioService
+    participant Cache as Redis
+    participant DB as MySQL
+    participant Player as AudioContext
+
+    note over T: GeofenceDetector phát hiện tourist<br/>vào vùng POI X
+
+    T->>AC: GET /api/audio/poi/{poiId}
+    AC->>AS: getAudioByPoi(poiId)
+    AS->>Cache: GET audio:poi:{poiId}
+
+    alt Cache HIT (TTL 15 phút)
+        Cache-->>AS: List&lt;AudioResponse&gt;
+    else Cache MISS
+        AS->>DB: SELECT * FROM audio<br/>WHERE poi_id=? AND status='active'
+        DB-->>AS: List&lt;AudioResponse&gt;
+        AS->>Cache: SET audio:poi:{poiId} TTL=15min
+    end
+
+    AS-->>T: [{audioId, languageCode, fileUrl, ...} × N]
+
+    note over T: toAudioByLanguage(list)<br/>→ {vi: ..., en: ..., zh: ..., ko: ..., ru: ..., ja: ...}
+
+    T->>T: Đọc session.language từ localStorage<br/>(ft_session_id đã được set khi tạo session)
+    T->>T: Chọn track = audioByLanguage[sessionLanguage]
+
+    alt Track tồn tại
+        T->>Player: playAudioFromUrl(track.fileUrl, poi.name)
+        note over Player: AudioContext phát MP3 từ CDN URL<br/>AudioPlayerBar hiện trên màn hình
+        Player-->>T: playing = true
+    else Không có audio ngôn ngữ này
+        T->>T: Fallback → audioByLanguage["vi"]<br/>hoặc track đầu tiên available
+    end
+
+    note over Player: NFR-GEO-R02: Cooldown 10 phút/POI<br/>Không phát lại trong 10 phút
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHASE 4 – Error cases                                     -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 4 – Xử Lý Lỗi Trong Quá Trình Dịch và Tổng Hợp</h2>
+        <p>Partial success: một số ngôn ngữ lỗi vẫn trả về kết quả các ngôn ngữ còn lại</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d7p4','07-audio-error-handling')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d7p4')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div id="d7p4" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant V as Vendor App
+    participant Orch as TtsOrchestrationService
+    participant Trans as GoogleTranslationService
+    participant TTS as GoogleCloudTtsService
+
+    V->>Orch: generateAllLanguages(viText)
+
+    par Vietnamese (OK)
+        Orch->>TTS: synthesize(viText, "vi-VN", ...)
+        TTS-->>Orch: LanguageTtsResult.success("vi", mp3Bytes)
+    and English (Translate lỗi)
+        Orch->>Trans: translate(viText, "vi", "en")
+        Trans-->>Orch: GoogleApiException (quota exceeded)
+        Orch->>Orch: catch exception<br/>→ LanguageTtsResult.failure("en", "Translation failed")
+    and Japanese (TTS lỗi)
+        Orch->>Trans: translate(viText, "vi", "ja")
+        Trans-->>Orch: jaText (OK)
+        Orch->>TTS: synthesizeJapanese(jaText)
+        TTS-->>Orch: IOException (network error)
+        Orch->>Orch: catch exception<br/>→ LanguageTtsResult.failure("ja", "TTS synthesis failed")
+    and zh, ko, ru (OK)
+        Orch-->>Orch: 3 × LanguageTtsResult.success(...)
+    end
+
+    Orch-->>V: AllLanguagesTtsResponse {<br/>  audioBase64: {vi:..., zh:..., ko:..., ru:...},<br/>  errors: [<br/>    {language:"en", message:"Translation failed"},<br/>    {language:"ja", message:"TTS synthesis failed"}<br/>  ]<br/>}
+
+    note over V: UI: 4 tab ngôn ngữ có nút "Nghe thử" ✓<br/>2 tab lỗi hiển thị thông báo đỏ<br/>Vendor có thể retry từng ngôn ngữ riêng
+    </div>
+  </div>
+
+  <!-- Tóm tắt flow đầy đủ -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Tóm Tắt – Toàn Bộ Luồng Audio Multi-language</h2>
+        <p>Từ Vendor nhập text đến Tourist nghe audio đúng ngôn ngữ</p>
+      </div>
+    </div>
+    <div style="padding: 1.5rem 2rem;">
+      <pre style="background:#1e293b; color:#e2e8f0; border-radius:10px; padding:1.5rem; font-size:.85rem; line-height:1.8; overflow-x:auto;">
+Vendor nhập text (vi)
+  │
+  ├── [Nghe thử] POST /api/audio/tts/preview-all
+  │     │  TtsOrchestrationService
+  │     ├── vi: synthesize trực tiếp
+  │     └── en/zh/ko/ru/ja: Google Translate → synthesize
+  │           ↓ AllLanguagesTtsResponse {audioBase64, errors}
+  │     Frontend: decode base64, phát thử 6 tab
+  │
+  └── [Lưu chính thức] uploadAudiosForShop() × 6 (parallel)
+        POST /api/audio/shop/{shopId}/tts (× 6)
+        Mỗi request: synthesize → R2 → file_asset → audio record
+        DB: 6 records, UNIQUE(shop_id, language_code), status=pending
+
+        [Admin duyệt shop] → UPDATE audio SET status='active'
+        Redis: evictByShop + evictByPoi
+
+Tourist vào vùng POI (geofence triggered)
+  │
+  ├── GET /api/audio/poi/{poiId}
+  │     Redis cache (TTL 15 min) → MySQL (status='active')
+  │     → [{languageCode, fileUrl} × N]
+  │
+  └── AudioContext: chọn track theo session language
+        audioByLanguage[sessionLanguage] → play fileUrl
+        Fallback: audioByLanguage["vi"] nếu không có bản dịch
+        NFR-GEO-R02: cooldown 10 phút/POI
+      </pre>
+    </div>
+  </div>
+
+</div><!-- /container -->
+<footer>FlavorTales – Audio Multi-language Translation · Diagram 7/7 · Dựa trên source code thực tế</footer>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browse Nearby POIs – FlavorTales</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true, theme: 'default',
+  sequence: {
+    diagramMarginX: 30, diagramMarginY: 20,
+    actorMargin: 55, width: 155, height: 50,
+    boxMargin: 10, boxTextMargin: 5, noteMargin: 10,
+    messageMargin: 35, mirrorActors: true, useMaxWidth: true
+  },
+  themeVariables: {
+    primaryColor: '#fff7ed', primaryTextColor: '#1e293b',
+    primaryBorderColor: '#f97316', lineColor: '#64748b',
+    secondaryColor: '#f1f5f9', tertiaryColor: '#fef3c7',
+    actorBkg: '#fff7ed', actorBorder: '#f97316', actorTextColor: '#9a3412',
+    activationBkgColor: '#ffedd5', activationBorderColor: '#f97316',
+    noteBkgColor: '#fef9c3', noteBorderColor: '#fbbf24', noteTextColor: '#713f12'
+  }
+});
+function exportSVG(id, name) {
+  const svg = document.querySelector('#'+id+' svg');
+  if (!svg) { alert('Vui lòng thử lại sau 1 giây.'); return; }
+  const clone = svg.cloneNode(true); clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([clone.outerHTML],{type:'image/svg+xml'}));
+  a.download = name+'.svg'; a.click();
+}
+function copySVG(id) {
+  const svg = document.querySelector('#'+id+' svg');
+  if (!svg) { alert('Vui lòng thử lại.'); return; }
+  navigator.clipboard.writeText(svg.outerHTML).then(() => {
+    const btn = event.target; btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy SVG', 1500);
+  });
+}
+</script>
+</head>
+<body>
+<header>
+  <h1>FlavorTales – Sequence Diagrams</h1>
+  <p>Diagram 4 of 5 · Tourist Browse Nearby POIs with Redis Cache</p>
+</header>
+<nav>
+  <a href="01-geofence-detection.html">1. Geofence Detection</a>
+  <a href="02-poi-approval-workflow.html">2. POI Approval Workflow</a>
+  <a href="03-shop-creation-approval.html">3. Shop Creation &amp; Approval</a>
+  <a class="active" href="04-browse-nearby-pois.html">4. Browse Nearby POIs</a>
+  <a href="05-file-upload-r2.html">5. File Upload to R2</a>
+  <a href="index.html">← Index</a>
+</nav>
+
+<div class="container">
+
+  <!-- ─── Main Cache Flow ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Main Flow – Fetch Active POIs với Redis Read-Through Cache</h2>
+        <p>GET /api/poi → @ReadOnly → DataSourceAspect → PoiCacheService → Redis / MySQL Replica</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d4main','04-main-browse-pois')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d4main')">Copy SVG</button>
+        <button class="btn btn-secondary" onclick="window.print()">🖨 Print</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Tourist Browser / Mobile App</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>PoiController /api/poi</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>DataSourceAspect [AOP]</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>PoiService</span>
+      <span class="actor-badge"><span class="dot" style="background:#f59e0b"></span>PoiCacheService</span>
+      <span class="actor-badge"><span class="dot" style="background:#d97706"></span>Redis (poi:list:active, TTL 1h)</span>
+      <span class="actor-badge"><span class="dot" style="background:#6366f1"></span>RoutingDataSource</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>MySQL Replica [Read-Only]</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Read Path Architecture:</strong>
+      <code>@ReadOnly</code> AOP annotation → <code>DataSourceAspect</code> intercepts → set <code>DataSourceContextHolder = REPLICA</code> 
+      → <code>RoutingDataSource.determineCurrentLookupKey()</code> returns replica key → all SQL goes to MySQL Replica.
+      Redis cache key = <code>"poi:list:active"</code>, TTL = 3600 seconds (1 hour). 
+      Cache failure → silent fallback to DB (Redis errors are caught and logged).
+    </div>
+
+    <div class="diagram-body">
+      <div id="d4main" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant TB as Tourist Browser<br/>/ Mobile App
+    participant PC as PoiController<br/>/api/poi [public]
+    participant DSA as DataSourceAspect<br/>[AOP @ReadOnly]
+    participant PS as PoiService
+    participant PCS as PoiCacheService
+    participant RD as Redis<br/>key: "poi:list:active"
+    participant RDS as RoutingDataSource
+    participant DB as MySQL Replica<br/>[read-only]
+
+    TB->>+PC: GET /api/poi
+    Note over TB,PC: Public endpoint – no JWT required<br/>Optional Header: X-Session-Id
+
+    PC->>+DSA: invoke getActivePois()
+    Note over DSA: Spring AOP intercepts<br/>@ReadOnly annotated method
+    DSA->>DSA: DataSourceContextHolder<br/>.set(DataSourceType.REPLICA)
+    DSA->>+PS: getActivePois()
+
+    PS->>+PCS: getActivePoisFromCache()
+    PCS->>+RD: GET "poi:list:active"
+
+    alt CACHE HIT – Redis returns data
+        RD-->>PCS: Serialized JSON<br/>List&lt;PoiResponse&gt;
+        PCS-->>-PS: Optional.of(List&lt;PoiResponse&gt;)
+        Note over PS: Bỏ qua database hoàn toàn
+    else CACHE MISS – key không tồn tại / expired
+        RD-->>PCS: nil (key not found)
+        PCS-->>PS: Optional.empty()
+
+        PS->>+RDS: poiRepository.findByStatus(PoiStatus.active)
+        Note over RDS: determineCurrentLookupKey()<br/>→ returns "replica"
+        RDS->>+DB: SELECT p.*, s.id as linkedShopId,<br/>  s.name as linkedShopName,<br/>  fa.file_url as avatarUrl,<br/>  ...<br/>FROM poi p<br/>LEFT JOIN shop s ON p.id = s.poi_id<br/>  AND s.status = 'active'<br/>LEFT JOIN file_asset fa<br/>  ON s.avatar_file_id = fa.id<br/>WHERE p.status = 'active'<br/>ORDER BY p.created_at DESC
+        DB-->>-RDS: ResultSet (rows)
+        RDS-->>-PS: List&lt;Poi&gt; entities
+
+        PS->>PS: poiMapper.toPoiResponseList(pois)<br/>Map entity → PoiResponse DTO
+
+        PS->>+PCS: putActivePois(List&lt;PoiResponse&gt;)
+        PCS->>+RD: SET "poi:list:active"<br/>  {JSON serialized list}<br/>  EX 3600
+        RD-->>-PCS: OK
+        PCS-->>-PS: cached
+    end
+
+    PS-->>-DSA: List&lt;PoiResponse&gt;
+    DSA->>DSA: DataSourceContextHolder.clear()
+    Note over DSA: Reset ke primary để<br/>các write ops không bị ảnh hưởng
+    DSA-->>-PC: List&lt;PoiResponse&gt;
+
+    PC-->>-TB: 200 OK<br/>ApiResponse {<br/>  success: true,<br/>  data: [<br/>    {<br/>      poiId, name,<br/>      latitude, longitude, radius,<br/>      linkedShopId, linkedShopName,<br/>      avatarUrl, shopDescription,<br/>      shopTags, openingHours,<br/>      shopGalleryUrls,<br/>      likesCount, status<br/>    }, ...<br/>  ]<br/>}
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Frontend Rendering ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Frontend – Render Leaflet Map &amp; Nearby POI List</h2>
+        <p>React component processes POI list → render Leaflet markers → calculate distances → display nearby POIs</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d4fe','04-frontend-leaflet')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d4fe')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors (Frontend)</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Map Page (Next.js App Router)</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>Leaflet / react-leaflet</span>
+      <span class="actor-badge"><span class="dot" style="background:#64748b"></span>Browser Geolocation API</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>POI API Client</span>
+    </div>
+
+    <div class="diagram-body">
+      <div id="d4fe" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant MP as Map Page<br/>(Next.js /map)
+    participant API as POI API Client<br/>(fetch /api/poi)
+    participant GEO as Browser<br/>Geolocation API
+    participant LF as Leaflet Map<br/>(react-leaflet)
+
+    MP->>+API: Fetch on component mount:<br/>GET /api/poi
+    Note over MP,API: useEffect(() => fetchPois(), [])
+    API-->>-MP: List&lt;PoiResponse&gt;<br/>[ { poiId, lat, lng, radius,<br/>   shopName, avatarUrl, ... } ]
+
+    MP->>+GEO: navigator.geolocation.getCurrentPosition()
+    GEO-->>-MP: GeolocationPosition {<br/>  coords: { latitude, longitude } }
+
+    MP->>+LF: &lt;MapContainer center={[userLat, userLng]}&gt;<br/>  &lt;TileLayer url="openstreetmap" /&gt;<br/>  {pois.map(poi =&gt; &lt;Marker /&gt;)}
+
+    loop Render mỗi POI marker
+        MP->>MP: distance = haversine(<br/>  userLat, userLng,<br/>  poi.latitude, poi.longitude )
+
+        alt distance ≤ poi.radius
+            MP->>LF: Render CircleMarker(orange)<br/>+ Popup với shopName,<br/>  openingHours, avatarUrl
+            MP->>MP: Thêm vào "Nearby POIs" list
+        else distance > poi.radius
+            MP->>LF: Render Marker(grey pin)<br/>+ Popup với basic info
+        end
+    end
+
+    LF-->>-MP: Map rendered
+
+    MP->>MP: Hiển thị "Nearby POIs" sidebar<br/>sort by distance ASC
+
+    Note over MP: User click vào marker:<br/>Hiển thị shop detail,<br/>menu items, audio guide
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Cache Invalidation ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Cache Invalidation – Khi POI/Shop Thay Đổi</h2>
+        <p>PoiCacheService.evict() + evictActivePoisList() → Redis DEL keys</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d4cache','04-cache-invalidation')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d4cache')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="note-box">
+      <strong>Cache eviction được trigger bởi:</strong>
+      <code>PoiService.updatePoi()</code>, <code>PoiService.deletePoi()</code>, <code>PoiService.likePoi()</code>, <code>PoiService.unlikePoi()</code>,
+      và <code>ShopService.approveShop()</code> / <code>ShopService.rejectShop()</code>.
+    </div>
+
+    <div class="diagram-body">
+      <div id="d4cache" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant PS as PoiService /<br/>ShopService
+    participant PCS as PoiCacheService
+    participant RD as Redis
+
+    Note over PS: Trigger: update/delete/like/approve/reject
+    PS->>+PCS: evict(poiId)
+    PCS->>+RD: DEL "poi:{poiId}"
+    RD-->>-PCS: (integer) 1
+    PCS-->>-PS: single POI cache cleared
+
+    PS->>+PCS: evictActivePoisList()
+    PCS->>+RD: DEL "poi:list:active"
+    RD-->>-PCS: (integer) 1
+    PCS-->>-PS: list cache cleared
+
+    Note over PCS,RD: Nếu Redis không khả dụng,<br/>exception được catch + log,<br/>app tiếp tục chạy bình thường<br/>(silent fallback to DB)
+
+    Note over PS: Next GET /api/poi request<br/>→ Cache MISS → fetch from DB<br/>→ Re-populate Redis cache
+      </div>
+    </div>
+  </div>
+
+</div>
+<footer>FlavorTales – Food Tourism Platform · Sequence Diagrams Documentation</footer>
+</body>
+</html>

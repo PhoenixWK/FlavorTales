@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlavorTales – Geofence Algorithms</title>
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, { delimiters: [
+      {left:'$$',right:'$$',display:true},
+      {left:'$',right:'$',display:false}
+    ]})"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f8f9fb;
+      color: #1e1e2e;
+      line-height: 1.7;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .page { max-width: 900px; margin: 0 auto; }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #e85d2f 0%, #f4a038 100%);
+      color: white;
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      margin-bottom: 2.5rem;
+    }
+    header h1 { font-size: 1.9rem; font-weight: 700; }
+    header p  { opacity: .88; margin-top: .4rem; font-size: 1rem; }
+
+    /* ── Section ── */
+    section {
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+      padding: 2rem 2.2rem;
+      margin-bottom: 2rem;
+    }
+    section h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #e85d2f;
+      border-left: 4px solid #e85d2f;
+      padding-left: .75rem;
+      margin-bottom: 1.2rem;
+    }
+    section h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #333;
+      margin: 1.4rem 0 .5rem;
+    }
+    p { margin-bottom: .75rem; }
+
+    /* ── Formula box ── */
+    .formula-box {
+      background: #fef6f0;
+      border: 1px solid #f4c09a;
+      border-radius: 10px;
+      padding: 1.2rem 1.5rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+      text-align: center;
+    }
+
+    /* ── Table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: .93rem;
+    }
+    th {
+      background: #e85d2f;
+      color: white;
+      padding: .55rem .9rem;
+      text-align: left;
+    }
+    td {
+      padding: .5rem .9rem;
+      border-bottom: 1px solid #eee;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #fafafa; }
+
+    /* ── Code block ── */
+    pre {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 10px;
+      padding: 1.2rem 1.4rem;
+      overflow-x: auto;
+      font-size: .87rem;
+      line-height: 1.6;
+      margin: 1rem 0;
+    }
+    code { font-family: 'Cascadia Code', 'Fira Code', monospace; }
+    pre code { color: inherit; }
+    .kw  { color: #cba6f7; }
+    .fn  { color: #89b4fa; }
+    .num { color: #fab387; }
+    .cm  { color: #6c7086; font-style: italic; }
+    .str { color: #a6e3a1; }
+
+    /* ── Visual diagram ── */
+    .diagram-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 1.5rem 0;
+    }
+    svg text { font-family: 'Segoe UI', sans-serif; }
+
+    /* ── Example card ── */
+    .example-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    @media (max-width: 620px) { .example-grid { grid-template-columns: 1fr; } }
+
+    .poi-card {
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      border: 2px solid transparent;
+    }
+    .poi-a { background: #eef6ff; border-color: #3b82f6; }
+    .poi-b { background: #fef9ec; border-color: #f59e0b; }
+    .poi-card .label {
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: .4rem;
+    }
+    .poi-a .label { color: #2563eb; }
+    .poi-b .label { color: #d97706; }
+    .score-row { display: flex; justify-content: space-between; font-size: .9rem; }
+    .score-row span:last-child { font-weight: 600; }
+    .total-row {
+      margin-top: .5rem;
+      padding-top: .5rem;
+      border-top: 1px solid rgba(0,0,0,.1);
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .winner-badge {
+      display: inline-block;
+      background: #22c55e;
+      color: white;
+      font-size: .78rem;
+      font-weight: 700;
+      border-radius: 20px;
+      padding: .15rem .6rem;
+      margin-left: .5rem;
+      vertical-align: middle;
+    }
+
+    /* ── Callout ── */
+    .callout {
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      margin: 1rem 0;
+      font-size: .95rem;
+    }
+    .callout-info  { background: #eff6ff; border-left: 4px solid #3b82f6; }
+    .callout-warn  { background: #fffbeb; border-left: 4px solid #f59e0b; }
+    .callout-green { background: #f0fdf4; border-left: 4px solid #22c55e; }
+
+    /* ── Flow steps ── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+      margin: 1rem 0;
+    }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: .9rem;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #e85d2f;
+      color: white;
+      font-weight: 700;
+      font-size: .85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-body { flex: 1; padding-top: .2rem; }
+
+    footer {
+      text-align: center;
+      color: #888;
+      font-size: .85rem;
+      margin-top: 2.5rem;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>FlavorTales – Geofence Algorithms</h1>
+    <p>Công thức Haversine &amp; thuật toán resolve POI chồng lấp</p>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHẦN 1 – HAVERSINE                                        -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="haversine">
+    <h2>1. Công thức Haversine</h2>
+
+    <p>
+      FlavorTales <strong>không gửi tọa độ tourist lên server</strong> để tính geofence.
+      Server chỉ cung cấp danh sách POI (lat, lng, radius). Frontend tự tính khoảng cách
+      bằng <strong>Haversine formula</strong> — công thức tính đường chim bay (great-circle distance)
+      giữa hai điểm trên mặt cầu.
+    </p>
+
+    <h3>Công thức toán học</h3>
+
+    <div class="formula-box">
+      $$a = \sin^2\!\frac{\Delta\phi}{2} + \cos\phi_1 \cdot \cos\phi_2 \cdot \sin^2\!\frac{\Delta\lambda}{2}$$
+      $$d = 2R \cdot \arctan2\!\left(\sqrt{a},\; \sqrt{1-a}\right)$$
+    </div>
+
+    <table>
+      <thead><tr><th>Ký hiệu</th><th>Trong code</th><th>Ý nghĩa</th></tr></thead>
+      <tbody>
+        <tr><td>$\phi_1,\,\phi_2$</td><td><code>lat1, lat2</code></td><td>Vĩ độ hai điểm (radian)</td></tr>
+        <tr><td>$\lambda_1,\,\lambda_2$</td><td><code>lng1, lng2</code></td><td>Kinh độ hai điểm (radian)</td></tr>
+        <tr><td>$\Delta\phi$</td><td><code>dLat</code></td><td>Hiệu vĩ độ</td></tr>
+        <tr><td>$\Delta\lambda$</td><td><code>dLng</code></td><td>Hiệu kinh độ</td></tr>
+        <tr><td>$R$</td><td><code>6 371 000</code></td><td>Bán kính Trái Đất (m)</td></tr>
+        <tr><td>$d$</td><td>giá trị trả về</td><td>Khoảng cách (mét)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Giải thích từng dòng code</h3>
+
+<pre><code><span class="kw">const</span> dLat = <span class="fn">toRad</span>(lat2 - lat1);   <span class="cm">// Δφ — hiệu vĩ độ → radian</span>
+<span class="kw">const</span> dLng = <span class="fn">toRad</span>(lng2 - lng1);   <span class="cm">// Δλ — hiệu kinh độ → radian</span>
+
+<span class="cm">// a = sin²(Δφ/2) + cosφ₁·cosφ₂·sin²(Δλ/2)</span>
+<span class="kw">const</span> a =
+  Math.<span class="fn">sin</span>(dLat / <span class="num">2</span>) ** <span class="num">2</span>
+  + Math.<span class="fn">cos</span>(<span class="fn">toRad</span>(lat1)) * Math.<span class="fn">cos</span>(<span class="fn">toRad</span>(lat2))
+    * Math.<span class="fn">sin</span>(dLng / <span class="num">2</span>) ** <span class="num">2</span>;
+
+<span class="cm">// d = 2R · atan2(√a, √(1−a))</span>
+<span class="kw">return</span> EARTH_RADIUS_M * <span class="num">2</span> * Math.<span class="fn">atan2</span>(Math.<span class="fn">sqrt</span>(a), Math.<span class="fn">sqrt</span>(<span class="num">1</span> - a));</code></pre>
+
+    <h3>Tại sao dùng <code>atan2</code> thay vì <code>asin</code>?</h3>
+    <p>
+      $\arctan2(\sqrt{a},\,\sqrt{1-a})$ tương đương $\arcsin(\sqrt{a})$ về mặt toán học,
+      nhưng <strong>ổn định hơn về số học</strong> (numerically stable) khi $a \to 0$
+      (hai điểm rất gần nhau) hoặc $a \to 1$ (hai điểm gần đối cực — antipodal points),
+      tránh lỗi floating-point precision.
+    </p>
+
+    <h3>Sai số thực tế</h3>
+    <div class="callout callout-warn">
+      Trái Đất hơi dẹt (ellipsoid, không phải hình cầu hoàn hảo) nên công thức Haversine
+      có sai số tối đa <strong>~0.5%</strong>. Với geofencing bán kính hàng chục–vài trăm mét
+      như FlavorTales, sai số này hoàn toàn chấp nhận được.
+    </div>
+
+    <h3>Ví dụ tính tay</h3>
+    <p>
+      Tourist ở <strong>(10.7769, 106.7009)</strong> — POI tại <strong>(10.7775, 106.7015)</strong>,
+      radius = <strong>80 m</strong>.
+    </p>
+    <div class="formula-box">
+      $$\Delta\phi = \text{toRad}(10.7775 - 10.7769) = \text{toRad}(0.0006) \approx 1.047 \times 10^{-5} \text{ rad}$$
+      $$\Delta\lambda = \text{toRad}(106.7015 - 106.7009) = \text{toRad}(0.0006) \approx 1.047 \times 10^{-5} \text{ rad}$$
+      $$a \approx 1.09 \times 10^{-10} + 0.863 \times 1.09 \times 10^{-10} \approx 2.03 \times 10^{-10}$$
+      $$d = 2 \times 6{,}371{,}000 \times \arctan2(\sqrt{a}, \sqrt{1-a}) \approx \mathbf{78.5 \text{ m}}$$
+    </div>
+    <div class="callout callout-green">
+      $78.5\text{ m} \le 80\text{ m}$ → Tourist <strong>đang trong vùng geofence</strong> của POI này.
+    </div>
+
+    <!-- SVG minh họa -->
+    <h3>Minh hoạ trực quan</h3>
+    <div class="diagram-wrap">
+      <svg width="420" height="260" viewBox="0 0 420 260">
+        <!-- Earth circle -->
+        <circle cx="210" cy="130" r="110" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+        <text x="210" y="258" text-anchor="middle" font-size="12" fill="#3b82f6">Trái Đất (R = 6 371 000 m)</text>
+
+        <!-- Arc (great-circle) -->
+        <path d="M 130 75 Q 210 30 290 75" fill="none" stroke="#e85d2f" stroke-width="2.5" stroke-dasharray="6,3"/>
+
+        <!-- Point A -->
+        <circle cx="130" cy="75" r="7" fill="#2563eb"/>
+        <text x="110" y="65" font-size="13" font-weight="bold" fill="#2563eb">Tourist</text>
+        <text x="108" y="80" font-size="11" fill="#2563eb">(φ₁, λ₁)</text>
+
+        <!-- Point B -->
+        <circle cx="290" cy="75" r="7" fill="#e85d2f"/>
+        <text x="295" y="65" font-size="13" font-weight="bold" fill="#e85d2f">POI</text>
+        <text x="295" y="80" font-size="11" fill="#e85d2f">(φ₂, λ₂)</text>
+
+        <!-- Distance label -->
+        <text x="210" y="45" text-anchor="middle" font-size="13" font-weight="bold" fill="#e85d2f">d (great-circle)</text>
+
+        <!-- Center angle -->
+        <line x1="210" y1="130" x2="130" y2="75" stroke="#6c7086" stroke-width="1.2" stroke-dasharray="4,3"/>
+        <line x1="210" y1="130" x2="290" y2="75" stroke="#6c7086" stroke-width="1.2" stroke-dasharray="4,3"/>
+        <path d="M 195 117 Q 210 108 225 117" fill="none" stroke="#6c7086" stroke-width="1.3"/>
+        <text x="210" y="112" text-anchor="middle" font-size="11" fill="#6c7086">θ</text>
+        <text x="210" y="155" text-anchor="middle" font-size="11" fill="#555">d = R·θ = 2R·atan2(√a, √(1−a))</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHẦN 2 – OVERLAP RESOLVER                                 -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="overlap">
+    <h2>2. Giải quyết vấn đề Tourist đứng giữa 2+ POI chồng lấp</h2>
+
+    <p>
+      Khi bán kính của hai POI chồng lên nhau, tourist có thể đồng thời thỏa mãn điều kiện
+      <em>"đang trong"</em> cả hai. Hệ thống cần quyết định phát audio của POI nào.
+    </p>
+
+    <div class="callout callout-info">
+      <strong>Kiến trúc:</strong> Logic này chạy hoàn toàn trên <strong>frontend</strong>
+      (<code>useOverlapResolver.ts</code>). Server không tham gia vào quá trình này.
+    </div>
+
+    <h3>Luồng xử lý</h3>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>Phát hiện chồng lấp:</strong>
+          <code>useGeofenceDetector</code> trả về <code>insidePois.length &gt;= 2</code>
+          → <code>overlappingPois</code> được set.
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>Bắt đầu cooldown 5 giây:</strong>
+          Hook đặt <code>isResolving = true</code>, UI hiển thị trạng thái "đang xác định".
+          Nếu nhóm POI thay đổi trong 5 giây, cooldown được reset.
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Xác định chế độ chuyển động:</strong>
+          Đọc <code>speed</code> từ buffer 3 điểm gần nhất → phân loại
+          <em>đứng yên</em> (&lt; 0.5 m/s) hay <em>đang di chuyển</em>.
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <strong>Chấm điểm:</strong> <code>scoreAndResolve()</code> tính điểm
+          theo 4 yếu tố có trọng số $w_1, w_2, w_3, w_4$.
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <strong>Chọn winner:</strong> POI điểm cao nhất.
+          Tie-break = poiId nhỏ hơn (deterministic).
+          Kết quả được set vào <code>resolvedPoiId</code>.
+        </div>
+      </div>
+    </div>
+
+    <h3>Công thức chấm điểm</h3>
+
+    <div class="formula-box">
+      $$\text{score}_i = w_1 \cdot \frac{1}{d_i} + w_2 \cdot \mathbb{1}[\text{heading}_i] + w_3 \cdot \frac{\text{likes}_i}{\text{maxLikes}} + w_4 \cdot \text{context}_i$$
+    </div>
+
+    <table>
+      <thead><tr><th>Yếu tố</th><th>Công thức</th><th>Ý nghĩa</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Distance</strong> $w_1/d_i$</td>
+          <td>$1\,/\,\text{haversineMetres}(\ldots)$</td>
+          <td>POI càng gần → điểm càng cao</td>
+        </tr>
+        <tr>
+          <td><strong>Heading</strong> $w_2$</td>
+          <td>$\mathbb{1}[\text{góc lệch} &lt; 45°]$</td>
+          <td>Tourist đang đi về phía POI đó</td>
+        </tr>
+        <tr>
+          <td><strong>Popularity</strong> $w_3$</td>
+          <td>$\text{likesCount}\,/\,\text{maxLikes}$</td>
+          <td>POI được yêu thích hơn</td>
+        </tr>
+        <tr>
+          <td><strong>Context</strong> $w_4$</td>
+          <td>Shop mở + có approved audio = 1</td>
+          <td>POI đang "hoạt động"</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Trọng số theo chế độ chuyển động</h3>
+
+    <table>
+      <thead><tr><th>Chế độ</th><th>$w_1$ (khoảng cách)</th><th>$w_2$ (hướng)</th><th>$w_3$ (lượt thích)</th><th>$w_4$ (context)</th></tr></thead>
+      <tbody>
+        <tr><td>Bình thường</td><td>0.40</td><td>0.30</td><td>0.20</td><td>0.10</td></tr>
+        <tr><td>Đứng yên (&lt;0.5 m/s)</td><td>0.55</td><td><strong>0.00</strong></td><td>0.25</td><td>0.10</td></tr>
+        <tr><td>Buffer &lt; 5 điểm</td><td>0.55</td><td>0.30</td><td>0.25</td><td>0.10</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-warn">
+      Khi tourist <strong>đứng yên</strong>, $w_2 = 0$ vì không có hướng di chuyển đáng tin cậy.
+      Khi buffer GPS chưa đủ 5 điểm, tăng $w_1$ để ưu tiên khoảng cách thực tế.
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHẦN 3 – VÍ DỤ TRỰC QUAN                                  -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="example">
+    <h2>3. Ví dụ trực quan</h2>
+
+    <!-- SVG sơ đồ hai POI chồng lấp -->
+    <h3>Sơ đồ: Tourist đứng trong vùng giao của POI A và POI B</h3>
+    <div class="diagram-wrap">
+      <svg width="440" height="270" viewBox="0 0 440 270">
+        <!-- POI A circle -->
+        <circle cx="175" cy="135" r="90" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2.5"/>
+        <!-- POI B circle -->
+        <circle cx="265" cy="135" r="90" fill="rgba(245,158,11,0.12)" stroke="#f59e0b" stroke-width="2.5"/>
+
+        <!-- Overlap zone fill -->
+        <path d="M 220 57 Q 265 45 285 90 Q 312 135 285 180 Q 265 225 220 213 Q 175 225 155 180 Q 128 135 155 90 Q 175 45 220 57Z"
+              fill="rgba(139,92,246,0.10)" stroke="none"/>
+
+        <!-- POI A center -->
+        <circle cx="175" cy="135" r="6" fill="#2563eb"/>
+        <text x="145" y="108" font-size="15" font-weight="bold" fill="#2563eb">POI A</text>
+        <text x="141" y="124" font-size="11" fill="#2563eb">dist = 30 m</text>
+        <text x="141" y="139" font-size="11" fill="#2563eb">radius = 70 m</text>
+        <text x="141" y="154" font-size="11" fill="#2563eb">likes = 120</text>
+
+        <!-- POI B center -->
+        <circle cx="265" cy="135" r="6" fill="#d97706"/>
+        <text x="280" y="108" font-size="15" font-weight="bold" fill="#d97706">POI B</text>
+        <text x="280" y="124" font-size="11" fill="#d97706">dist = 25 m</text>
+        <text x="280" y="139" font-size="11" fill="#d97706">radius = 80 m</text>
+        <text x="280" y="154" font-size="11" fill="#d97706">likes = 80</text>
+
+        <!-- Tourist (đang đi về hướng A) -->
+        <circle cx="220" cy="138" r="9" fill="#e85d2f" stroke="white" stroke-width="2"/>
+        <text x="220" y="175" text-anchor="middle" font-size="12" font-weight="bold" fill="#e85d2f">Tourist</text>
+
+        <!-- Arrow heading toward A -->
+        <line x1="220" y1="138" x2="180" y2="120" stroke="#e85d2f" stroke-width="2.5" marker-end="url(#arrowRed)"/>
+        <text x="192" y="115" font-size="11" fill="#e85d2f">heading</text>
+
+        <defs>
+          <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#e85d2f"/>
+          </marker>
+        </defs>
+
+        <!-- Labels -->
+        <text x="220" y="255" text-anchor="middle" font-size="12" fill="#888">Vùng chồng lấp (màu tím nhạt) — cả hai POI đều "inside"</text>
+      </svg>
+    </div>
+
+    <!-- ── Ví dụ 1: Đang di chuyển ── -->
+    <h3>Ví dụ 1 — Tourist đang di chuyển về hướng POI A</h3>
+    <p>
+      Tourist đứng ở vùng giao, tốc độ <strong>1.2 m/s</strong>, buffer đủ 5 điểm.
+      Hướng di chuyển lệch POI A <strong>20°</strong> (match), lệch POI B <strong>110°</strong> (không match).
+    </p>
+
+    <div class="example-grid">
+      <div class="poi-card poi-a">
+        <div class="label">POI A <span class="winner-badge">WINNER</span></div>
+        <div class="score-row"><span>Distance: $0.40 \times \frac{1}{30}$</span><span>0.01333</span></div>
+        <div class="score-row"><span>Heading: $0.30 \times 1$</span><span>0.30000</span></div>
+        <div class="score-row"><span>Popularity: $0.20 \times \frac{120}{120}$</span><span>0.20000</span></div>
+        <div class="score-row"><span>Context: $0.10 \times 1$</span><span>0.10000</span></div>
+        <div class="total-row"><span>Tổng điểm</span><span>0.61333</span></div>
+      </div>
+      <div class="poi-card poi-b">
+        <div class="label">POI B</div>
+        <div class="score-row"><span>Distance: $0.40 \times \frac{1}{25}$</span><span>0.01600</span></div>
+        <div class="score-row"><span>Heading: $0.30 \times 0$</span><span>0.00000</span></div>
+        <div class="score-row"><span>Popularity: $0.20 \times \frac{80}{120}$</span><span>0.13333</span></div>
+        <div class="score-row"><span>Context: $0.10 \times 0$</span><span>0.00000</span></div>
+        <div class="total-row"><span>Tổng điểm</span><span>0.14933</span></div>
+      </div>
+    </div>
+    <div class="callout callout-green">
+      <strong>Kết quả:</strong> POI A thắng (0.613 &gt; 0.149) dù xa hơn POI B,
+      vì tourist đang <strong>đi về hướng POI A</strong> — heading chiếm 0.30 điểm.
+    </div>
+
+    <!-- ── Ví dụ 2: Đứng yên ── -->
+    <h3>Ví dụ 2 — Tourist đứng yên (không có hướng di chuyển)</h3>
+    <p>
+      Cùng vị trí, nhưng tourist <strong>đứng yên</strong> (speed &lt; 0.5 m/s).
+      Trọng số heading $w_2 = 0$.
+    </p>
+    <div class="example-grid">
+      <div class="poi-card poi-a">
+        <div class="label">POI A <span class="winner-badge">WINNER</span></div>
+        <div class="score-row"><span>Distance: $0.55 \times \frac{1}{30}$</span><span>0.01833</span></div>
+        <div class="score-row"><span>Heading: $0.00 \times 1$ (vô hiệu)</span><span>0.00000</span></div>
+        <div class="score-row"><span>Popularity: $0.25 \times \frac{120}{120}$</span><span>0.25000</span></div>
+        <div class="score-row"><span>Context: $0.10 \times 1$</span><span>0.10000</span></div>
+        <div class="total-row"><span>Tổng điểm</span><span>0.36833</span></div>
+      </div>
+      <div class="poi-card poi-b">
+        <div class="label">POI B</div>
+        <div class="score-row"><span>Distance: $0.55 \times \frac{1}{25}$</span><span>0.02200</span></div>
+        <div class="score-row"><span>Heading: $0.00 \times 0$ (vô hiệu)</span><span>0.00000</span></div>
+        <div class="score-row"><span>Popularity: $0.25 \times \frac{80}{120}$</span><span>0.16667</span></div>
+        <div class="score-row"><span>Context: $0.10 \times 0$</span><span>0.00000</span></div>
+        <div class="total-row"><span>Tổng điểm</span><span>0.18867</span></div>
+      </div>
+    </div>
+    <div class="callout callout-green">
+      <strong>Kết quả:</strong> POI A vẫn thắng nhờ <strong>popularity cao hơn</strong> (120 vs 80 likes)
+      và có context bonus (shop mở + có audio). Khi đứng yên, popularity trở thành yếu tố quyết định.
+    </div>
+
+    <!-- ── Ví dụ 3: Tie-break ── -->
+    <h3>Ví dụ 3 — Hai POI hoàn toàn bằng điểm (Tie-break)</h3>
+    <p>
+      Hai POI có cùng khoảng cách, cùng likes, cùng context, không có heading.
+      Điểm bằng nhau tuyệt đối.
+    </p>
+    <div class="callout callout-warn">
+      <strong>Tie-break rule:</strong> Chọn <code>poiId</code> nhỏ hơn.
+      Ví dụ POI #12 và POI #15 → chọn <strong>POI #12</strong>. Quy tắc này đảm bảo
+      kết quả <em>deterministic</em> — luôn nhất quán, không random.
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHẦN 4 – TÓM TẮT LUỒNG ĐẦY ĐỦ                            -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="summary">
+    <h2>4. Tóm tắt luồng đầy đủ (Phase 3)</h2>
+<pre><code>Browser GPS (watchPosition)
+  │  coordinates {lat, lng, accuracy, speed, heading}
+  ▼
+useUserLocation          ← throttle 3 s, pause khi tab ẩn
+  │
+  ▼
+LocationContext          ← single source of truth cho GPS
+  │
+  ▼
+GeofenceProvider
+  ├─ usePositionBuffer   ← sliding window lịch sử GPS
+  │
+  ├─ useGeofenceDetector ← haversineMetres(tourist, poi) cho mỗi POI
+  │    • dist ≤ radius  → "inside"
+  │    • thoát + chậm   → "grace_period" (10 s)
+  │    • thoát + nhanh  → "outside" ngay
+  │    • không có GPS   → gpsLost = true (10 s)
+  │
+  └─ useOverlapResolver  ← khi insidePois.length ≥ 2
+       • Chờ 5 s (cooldown)
+       • scoreAndResolve():
+           score = w1/dist + w2·heading + w3·likes + w4·context
+       • resolvedPoiId = winner
+  │
+  ▼
+Consumer component
+  └─ updateTouristSession(sessionId, { viewedPoiIds })
+       → PATCH /api/tourist/sessions/{sessionId}
+       → MongoDB lưu danh sách POI đã vào</code></pre>
+  </section>
+
+  <footer>
+    FlavorTales &copy; 2026 — Tài liệu nội bộ, sinh tự động từ source code
+  </footer>
+</div>
+</body>
+</html>

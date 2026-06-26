@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POI Creation & Admin Approval Workflow – FlavorTales</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'default',
+  sequence: {
+    diagramMarginX: 30, diagramMarginY: 20,
+    actorMargin: 55, width: 155, height: 50,
+    boxMargin: 10, boxTextMargin: 5, noteMargin: 10,
+    messageMargin: 35, mirrorActors: true, useMaxWidth: true
+  },
+  themeVariables: {
+    primaryColor: '#fff7ed', primaryTextColor: '#1e293b',
+    primaryBorderColor: '#f97316', lineColor: '#64748b',
+    secondaryColor: '#f1f5f9', tertiaryColor: '#fef3c7',
+    actorBkg: '#fff7ed', actorBorder: '#f97316', actorTextColor: '#9a3412',
+    activationBkgColor: '#ffedd5', activationBorderColor: '#f97316',
+    noteBkgColor: '#fef9c3', noteBorderColor: '#fbbf24', noteTextColor: '#713f12'
+  }
+});
+function exportSVG(id, name) {
+  const svg = document.querySelector('#'+id+' svg');
+  if (!svg) { alert('Vui lòng thử lại sau 1 giây.'); return; }
+  const clone = svg.cloneNode(true); clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([clone.outerHTML],{type:'image/svg+xml'}));
+  a.download = name+'.svg'; a.click();
+}
+function copySVG(id) {
+  const svg = document.querySelector('#'+id+' svg');
+  if (!svg) { alert('Vui lòng thử lại.'); return; }
+  navigator.clipboard.writeText(svg.outerHTML).then(() => {
+    const btn = event.target; btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy SVG', 1500);
+  });
+}
+</script>
+</head>
+<body>
+<header>
+  <h1>FlavorTales – Sequence Diagrams</h1>
+  <p>Diagram 2 of 5 · POI Creation &amp; Admin Approval Workflow</p>
+</header>
+<nav>
+  <a href="01-geofence-detection.html">1. Geofence Detection</a>
+  <a class="active" href="02-poi-approval-workflow.html">2. POI Approval Workflow</a>
+  <a href="03-shop-creation-approval.html">3. Shop Creation &amp; Approval</a>
+  <a href="04-browse-nearby-pois.html">4. Browse Nearby POIs</a>
+  <a href="05-file-upload-r2.html">5. File Upload to R2</a>
+  <a href="index.html">← Index</a>
+</nav>
+
+<div class="container">
+
+  <!-- ─── Phase 1: Vendor Creates POI ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 1 – Vendor Tạo POI</h2>
+        <p>POST /api/poi → PoiController.createPoi() → validateBoundary() → checkProximityConflict() → poiRepository.save()</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d2p1','02-phase1-vendor-create-poi')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d2p1')">Copy SVG</button>
+        <button class="btn btn-secondary" onclick="window.print()">🖨 Print</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Vendor Browser</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>JwtAuthenticationFilter</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>PoiController</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>PoiService</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>PoiRepository → MySQL Primary</span>
+      <span class="actor-badge"><span class="dot" style="background:#f59e0b"></span>EmailService (@Async)</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Geofence validation xảy ra phía SERVER khi tạo POI:</strong>
+      (1) <code>validateBoundary()</code> kiểm tra POI nằm trong vùng food-street (config: center lat/lng + max-radius-m).
+      (2) <code>checkProximityConflict()</code> từ chối nếu có POI active nào khác cách ≤ 5m (tránh duplicate).
+      Cả hai dùng Haversine formula với Earth radius = 6,371,000 m.
+    </div>
+
+    <div class="diagram-body">
+      <div id="d2p1" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant VB as Vendor Browser
+    participant JWT as JwtAuthentication<br/>Filter
+    participant PC as PoiController<br/>/api/poi
+    participant PS as PoiService
+    participant PR as PoiRepository<br/>MySQL Primary
+    participant ES as EmailService<br/>[@Async]
+
+    VB->>+JWT: POST /api/poi<br/>Authorization: Bearer {token}<br/>Body: CreatePoiRequest {<br/>  latitude, longitude, radius,<br/>  address, name, shopName,<br/>  avatarFileId, additionalImageIds,<br/>  tags, openingHours }
+    JWT->>JWT: Extract JWT from header
+    JWT->>JWT: Validate signature + expiry
+    JWT->>JWT: Load UserDetails by email
+    JWT->>JWT: Set SecurityContext<br/>(vendorEmail, ROLE_vendor)
+    JWT-->>-PC: forward request
+
+    PC->>+PS: createPoi(CreatePoiRequest, vendorEmail)
+
+    PS->>PS: validateBoundary(latitude, longitude)
+    Note over PS: haversineMetres(lat, lng,<br/>config.centerLat, config.centerLng)<br/>≤ config.maxRadiusM ?
+    alt Tọa độ NGOÀI boundary
+        PS-->>PC: throw PoiOutsideBoundaryException
+        PC-->>VB: 400 Bad Request<br/>{ success: false, message: "POI location is outside allowed boundary" }
+    end
+
+    PS->>+PR: findByStatus(PoiStatus.active)
+    PR-->>-PS: List&lt;Poi&gt; (all active POIs)
+    PS->>PS: checkProximityConflict(latitude, longitude)
+    Note over PS: Với mỗi active POI:<br/>haversineMetres(newLat, newLng,<br/>  existingPoi.lat, existingPoi.lng)<br/>< 5.0 meters?
+    alt Có POI active trong bán kính 5m
+        PS-->>PC: throw PoiProximityConflictException
+        PC-->>VB: 409 Conflict<br/>{ success: false, message: "Too close to existing POI" }
+    end
+
+    PS->>+PR: save(Poi {<br/>  vendorEmail, latitude, longitude, radius,<br/>  address, name, status = PENDING,<br/>  createdAt = now() })
+    PR-->>-PS: Poi { poiId (generated), ...}
+
+    PS->>+ES: sendAdminNewShopNotification(<br/>  shopName, vendorEmail)
+    Note over ES: @Async – fire and forget<br/>Admin nhận email thông báo<br/>có submission mới
+    ES-->>-PS: (async, không chờ)
+
+    PS-->>-PC: PoiResponse {<br/>  poiId, name, latitude, longitude,<br/>  status = "pending", createdAt }
+    PC-->>VB: 201 Created<br/>ApiResponse { success: true,<br/>  data: PoiResponse }
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Phase 2: Admin Reviews Pending ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 2 – Admin Xem Danh Sách Pending</h2>
+        <p>GET /api/shop/admin/pending → ShopController.getPendingShops() → ShopService → JdbcTemplate</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d2p2','02-phase2-admin-review')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d2p2')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="note-box">
+      <strong>Kiến trúc quan trọng:</strong> Admin duyệt POI <strong>KHÔNG qua <code>PoiController</code></strong>.
+      Endpoint approval nằm trong <code>ShopController</code> vì POI và Shop được submit cùng nhau.
+      Khi approve shop → <code>ShopService</code> tự động set cả <code>shop.status = active</code> VÀ <code>poi.status = active</code>.
+    </div>
+
+    <div class="diagram-body">
+      <div id="d2p2" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant AB as Admin Browser
+    participant JWT as JwtAuthentication<br/>Filter
+    participant ShC as ShopController<br/>/api/shop/admin
+    participant ShS as ShopService
+    participant JT as JdbcTemplate<br/>MySQL Primary
+
+    AB->>+JWT: GET /api/shop/admin/pending<br/>Authorization: Bearer {adminToken}
+    JWT->>JWT: Validate JWT, check ROLE_admin
+    JWT-->>-ShC: forward
+
+    ShC->>+ShS: getPendingShops()
+    ShS->>+JT: SELECT s.*, p.latitude, p.longitude,<br/>  p.radius, u.email as vendorEmail,<br/>  fa.file_url as avatarUrl<br/>FROM shop s<br/>JOIN poi p ON s.poi_id = p.id<br/>JOIN user u ON s.vendor_id = u.id<br/>LEFT JOIN file_asset fa ON s.avatar_file_id = fa.id<br/>WHERE s.status = 'pending'
+    JT-->>-ShS: List&lt;Map&lt;String, Object&gt;&gt;
+    ShS-->>-ShC: List&lt;AdminShopResponse&gt; {<br/>  shopId, name, description,<br/>  vendorEmail, latitude, longitude,<br/>  radius, avatarUrl, galleryUrls,<br/>  createdAt }
+    ShC-->>AB: 200 OK<br/>ApiResponse { data: [...] }
+    Note over AB: Admin xem danh sách,<br/>click vào từng shop để review chi tiết
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Phase 3: Admin Approve ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 3A – Admin Phê Duyệt (Approve)</h2>
+        <p>PATCH /api/shop/admin/{shopId}/approve → ShopService.approveShop() → UPDATE shop + poi → @Async email</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d2p3a','02-phase3a-approve')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d2p3a')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="diagram-body">
+      <div id="d2p3a" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant AB as Admin Browser
+    participant ShC as ShopController<br/>/api/shop/admin
+    participant ShS as ShopService<br/>[@Transactional]
+    participant JT as JdbcTemplate<br/>MySQL Primary
+    participant ES as EmailService<br/>[@Async]
+    participant VE as Vendor Email<br/>(SMTP)
+
+    AB->>+ShC: PATCH /api/shop/admin/{shopId}/approve<br/>Authorization: Bearer {adminToken}<br/>Body: { "notes": "Approved, looks great!" }
+    Note over ShC: Extract notes from request body<br/>Extract adminEmail from Authentication
+    ShC->>+ShS: approveShop(shopId, notes)
+    Note over ShS: @Transactional – atomic
+
+    ShS->>+JT: SELECT shop_id, poi_id, vendor_id,<br/>name, status FROM shop WHERE id = ?
+    JT-->>-ShS: shop { shopId, poiId, vendorEmail, name }
+
+    ShS->>+JT: UPDATE shop<br/>SET status = 'active',<br/>    approved_at = NOW(),<br/>    admin_notes = ?<br/>WHERE id = ?
+    JT-->>-ShS: rows affected = 1
+
+    ShS->>+JT: UPDATE poi<br/>SET status = 'active',<br/>    updated_at = NOW()<br/>WHERE id = ? (shop.poi_id)
+    JT-->>-ShS: rows affected = 1
+
+    Note over ShS,JT: Transaction commits here
+
+    ShS->>+ES: sendShopApprovedEmail(<br/>  vendorEmail, shopName, notes)
+    Note over ES: @Async – separate thread pool<br/>Không block response về admin
+    ES->>+VE: SMTP sendMimeMessage(<br/>  to: vendorEmail,<br/>  subject: "Your shop has been approved",<br/>  body: HTML template với shopName, notes )
+    VE-->>-ES: sent
+    ES-->>-ShS: (async)
+
+    ShS-->>-ShC: void (success)
+    ShC-->>-AB: 200 OK<br/>ApiResponse { success: true,<br/>  message: "Shop approved successfully" }
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Phase 3B: Admin Reject ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 3B – Admin Từ Chối (Reject)</h2>
+        <p>PATCH /api/shop/admin/{shopId}/reject → ShopService.rejectShop() → UPDATE shop + poi → @Async email</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d2p3b','02-phase3b-reject')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d2p3b')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="diagram-body">
+      <div id="d2p3b" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant AB as Admin Browser
+    participant ShC as ShopController<br/>/api/shop/admin
+    participant ShS as ShopService<br/>[@Transactional]
+    participant JT as JdbcTemplate<br/>MySQL Primary
+    participant ES as EmailService<br/>[@Async]
+    participant VE as Vendor Email<br/>(SMTP)
+
+    AB->>+ShC: PATCH /api/shop/admin/{shopId}/reject<br/>Authorization: Bearer {adminToken}<br/>Body: { "notes": "Missing required info..." }
+    ShC->>+ShS: rejectShop(shopId, notes)
+    Note over ShS: @Transactional
+
+    ShS->>+JT: SELECT shop details WHERE id = ?
+    JT-->>-ShS: shop { poiId, vendorEmail, name }
+
+    ShS->>+JT: UPDATE shop<br/>SET status = 'rejected',<br/>    admin_notes = ?,<br/>    updated_at = NOW()<br/>WHERE id = ?
+    JT-->>-ShS: OK
+
+    ShS->>+JT: UPDATE poi<br/>SET status = 'rejected',<br/>    updated_at = NOW()<br/>WHERE id = ? (shop.poi_id)
+    JT-->>-ShS: OK
+
+    Note over ShS,JT: Transaction commits
+
+    ShS->>+ES: sendShopRejectedEmail(<br/>  vendorEmail, shopName, notes)
+    ES->>+VE: SMTP send rejection email<br/>with reason in notes
+    VE-->>-ES: sent
+    ES-->>-ShS: (async)
+
+    ShS-->>-ShC: void
+    ShC-->>-AB: 200 OK<br/>ApiResponse { success: true,<br/>  message: "Shop rejected" }
+
+    Note over VE: Vendor nhận email với lý do<br/>từ chối, có thể cập nhật và<br/>submit lại
+      </div>
+    </div>
+  </div>
+
+  <!-- Status lifecycle summary -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>POI &amp; Shop Status Lifecycle Overview</h2>
+        <p>Trạng thái chuyển đổi của POI và Shop trong toàn bộ workflow</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d2status','02-status-lifecycle')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d2status')">Copy SVG</button>
+      </div>
+    </div>
+    <div class="diagram-body">
+      <div id="d2status" class="mermaid">
+stateDiagram-v2
+    direction LR
+
+    [*] --> pending : POST /api/poi (Vendor)
+
+    state pending {
+        [*] --> waiting
+        note right of waiting
+            EmailService.sendAdminNewShopNotification()
+            is called async after save
+        end note
+    }
+
+    pending --> active : PATCH /api/shop/admin/shopId/approve
+    pending --> rejected : PATCH /api/shop/admin/shopId/reject
+    active --> pending : PUT /api/poi/id (Vendor update)
+    active --> deleted : DELETE /api/poi/id?hard=false
+    active --> inactive : Admin deactivation
+    rejected --> [*]
+    deleted --> [*]
+      </div>
+    </div>
+  </div>
+
+</div>
+<footer>FlavorTales – Food Tourism Platform · Sequence Diagrams Documentation</footer>
+</body>
+</html>

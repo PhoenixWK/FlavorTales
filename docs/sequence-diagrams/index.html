@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlavorTales – Sequence Diagrams Index</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+.index-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 24px;
+  margin-top: 8px;
+}
+.index-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.05);
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+}
+.index-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.08);
+}
+.index-card-stripe {
+  height: 6px;
+}
+.index-card-body { padding: 24px; flex: 1; }
+.index-card-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  font-size: 0.875rem; font-weight: 700; color: white;
+  margin-bottom: 12px;
+}
+.index-card h3 { font-size: 1.05rem; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
+.index-card p { font-size: 0.85rem; color: #64748b; line-height: 1.5; margin-bottom: 12px; }
+.index-card-footer { padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { background: #e2e8f0; border-radius: 20px; padding: 3px 10px; font-size: 0.75rem; color: #475569; }
+.actors-count {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.78rem; color: #94a3b8; margin-left: auto;
+}
+.index-card-footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.btn-view { background: #f97316; color: white; padding: 8px 20px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: background 0.15s; }
+.btn-view:hover { background: #ea580c; }
+
+.intro-card {
+  background: white;
+  border-radius: 12px;
+  padding: 28px 32px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  margin-bottom: 32px;
+  border-left: 5px solid #f97316;
+}
+.intro-card h2 { font-size: 1.1rem; font-weight: 700; color: #9a3412; margin-bottom: 8px; }
+.intro-card p { font-size: 0.9rem; color: #475569; line-height: 1.6; margin-bottom: 4px; }
+.intro-card code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.82rem; color: #7c3aed; }
+.stack-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
+.stack-table th { background: #fff7ed; color: #9a3412; text-align: left; padding: 10px 14px; border-bottom: 2px solid #fed7aa; }
+.stack-table td { padding: 9px 14px; border-bottom: 1px solid #f1f5f9; color: #374151; }
+.stack-table tr:last-child td { border-bottom: none; }
+.badge-ok { background: #dcfce7; color: #15803d; border-radius: 20px; padding: 2px 10px; font-size: 0.78rem; font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FlavorTales – Sequence Diagrams</h1>
+  <p>Tài liệu kỹ thuật · 8 luồng nghiệp vụ quan trọng · Dựa trên source code thực tế</p>
+</header>
+<nav>
+  <a class="active" href="index.html">Index</a>
+  <a href="01-geofence-detection.html">1. Geofence Detection</a>
+  <a href="02-poi-approval-workflow.html">2. POI Approval Workflow</a>
+  <a href="03-shop-creation-approval.html">3. Shop Creation &amp; Approval</a>
+  <a href="04-browse-nearby-pois.html">4. Browse Nearby POIs</a>
+  <a href="05-file-upload-r2.html">5. File Upload to R2</a>
+  <a href="06-audio-upload-tts.html">6. Audio TTS &amp; Upload</a>
+  <a href="07-audio-translation.html">7. Audio Translation</a>
+  <a href="08-realtime-tourist-websocket.html">8. Realtime Tourist (WS)</a>
+</nav>
+
+<div class="container">
+
+  <!-- Intro -->
+  <div class="intro-card">
+    <h2>Về bộ tài liệu này</h2>
+    <p>
+      Tất cả sequence diagrams được vẽ dựa trên <strong>source code thực tế</strong> của FlavorTales (Spring Boot 3.5 / Java 21, Next.js 15, MySQL 8, Redis 7.2, MongoDB 7, Cloudflare R2).
+      Tên class, tên method, tên endpoint đều khớp với code trong repository.
+    </p>
+    <p style="margin-top:8px;">
+      Mỗi diagram có nút <strong>⬇ Export SVG</strong> để tải SVG chất lượng cao, và nút <strong>Copy SVG</strong> để paste trực tiếp vào Google Docs hoặc Slides.
+    </p>
+    <table class="stack-table">
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Technology</th>
+          <th>Xuất hiện trong diagram</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Backend</td><td>Java 21, Spring Boot 3.5, Maven</td><td>1, 2, 3, 4, 5</td></tr>
+        <tr><td>Auth</td><td>JWT (JJWT 0.12.6), HTTP-only cookies, Spring Security (stateless)</td><td>1, 2, 3, 5</td></tr>
+        <tr><td>Database (Primary)</td><td>MySQL 8 – JPA/Hibernate, JdbcTemplate</td><td>2, 3, 4, 5</td></tr>
+        <tr><td>Database (Replica)</td><td>MySQL 8 Replica – @ReadOnly AOP, RoutingDataSource</td><td>1, 4</td></tr>
+        <tr><td>Cache</td><td>Redis 7.2 – Manual cache via PoiCacheService (TTL 1h)</td><td>1, 4</td></tr>
+        <tr><td>Session Store</td><td>MongoDB 7 – TouristSession (TTL 1h)</td><td>1</td></tr>
+        <tr><td>File Storage</td><td>Cloudflare R2 (S3-compatible), AWS SDK v2</td><td>3, 5</td></tr>
+        <tr><td>Email</td><td>SMTP + Thymeleaf templates, @Async</td><td>2, 3</td></tr>
+        <tr><td>Maps (Frontend)</td><td>Leaflet / react-leaflet, Haversine formula (client-side)</td><td>1, 4</td></tr>
+        <tr><td>WebSocket</td><td>Spring WebSocket STOMP, SockJS fallback</td><td>8</td></tr>
+        <tr><td>Analytics</td><td>MongoDB aggregation pipeline, SessionCreatedEvent</td><td>8</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Cards Grid -->
+  <div class="index-grid">
+
+    <!-- Card 1 -->
+    <a class="index-card" href="01-geofence-detection.html">
+      <div class="index-card-stripe" style="background: linear-gradient(90deg,#f97316,#fb923c)"></div>
+      <div class="index-card-body">
+        <div class="index-card-num" style="background:#f97316">1</div>
+        <h3>Tourist Check-in / Geofence Detection</h3>
+        <p>
+          Tourist tạo anonymous session (MongoDB), fetch danh sách POI active (Redis cache + MySQL Replica),
+          sau đó <strong>frontend tính khoảng cách Haversine</strong> client-side để phát hiện khi tourist vào vùng POI.
+          Cập nhật <code>viewedPoiIds</code> trong session.
+        </p>
+        <div class="tag-list">
+          <span class="tag">TouristSessionController</span>
+          <span class="tag">TouristSessionService</span>
+          <span class="tag">MongoDB TTL</span>
+          <span class="tag">PoiCacheService</span>
+          <span class="tag">Redis</span>
+          <span class="tag">Leaflet Haversine</span>
+        </div>
+      </div>
+      <div class="index-card-footer">
+        <div class="index-card-footer-inner">
+          <div>
+            <span class="badge-ok">3 phases</span>
+            <span style="font-size:0.78rem;color:#94a3b8;margin-left:10px;">Core Feature</span>
+          </div>
+          <span class="btn-view">Xem Diagram →</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Card 2 -->
+    <a class="index-card" href="02-poi-approval-workflow.html">
+      <div class="index-card-stripe" style="background: linear-gradient(90deg,#8b5cf6,#a78bfa)"></div>
+      <div class="index-card-body">
+        <div class="index-card-num" style="background:#8b5cf6">2</div>
+        <h3>POI Creation &amp; Admin Approval Workflow</h3>
+        <p>
+          Vendor tạo POI: server xác thực <code>validateBoundary()</code> và <code>checkProximityConflict()</code> (Haversine).
+          Admin duyệt qua <code>ShopController</code> (không phải <code>PoiController</code>):
+          <code>approveShop()</code> set cả <code>shop.status</code> và <code>poi.status = active</code> trong 1 transaction.
+        </p>
+        <div class="tag-list">
+          <span class="tag">PoiController</span>
+          <span class="tag">PoiService</span>
+          <span class="tag">validateBoundary</span>
+          <span class="tag">ShopController</span>
+          <span class="tag">@Transactional</span>
+          <span class="tag">@Async Email</span>
+        </div>
+      </div>
+      <div class="index-card-footer">
+        <div class="index-card-footer-inner">
+          <div>
+            <span class="badge-ok">4 phases + status chart</span>
+            <span style="font-size:0.78rem;color:#94a3b8;margin-left:10px;">Approval Workflow</span>
+          </div>
+          <span class="btn-view">Xem Diagram →</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Card 3 -->
+    <a class="index-card" href="03-shop-creation-approval.html">
+      <div class="index-card-stripe" style="background: linear-gradient(90deg,#0ea5e9,#38bdf8)"></div>
+      <div class="index-card-body">
+        <div class="index-card-num" style="background:#0ea5e9">3</div>
+        <h3>Shop + Image Upload &amp; Admin Approval</h3>
+        <p>
+          Vendor upload nhiều ảnh qua <code>POST /api/file/upload</code> → lấy <code>fileId</code>.
+          Sau đó tạo shop với <code>avatarFileId</code> + <code>additionalImageIds</code>.
+          <code>ShopService</code> dùng <code>JdbcTemplate</code> (không JPA).
+          Admin approve → cache invalidation → email @Async.
+        </p>
+        <div class="tag-list">
+          <span class="tag">FileController</span>
+          <span class="tag">R2FileStorageService</span>
+          <span class="tag">S3Client.putObject()</span>
+          <span class="tag">ShopService</span>
+          <span class="tag">JdbcTemplate</span>
+          <span class="tag">PoiCacheService</span>
+        </div>
+      </div>
+      <div class="index-card-footer">
+        <div class="index-card-footer-inner">
+          <div>
+            <span class="badge-ok">3 steps</span>
+            <span style="font-size:0.78rem;color:#94a3b8;margin-left:10px;">File Storage Integration</span>
+          </div>
+          <span class="btn-view">Xem Diagram →</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Card 4 -->
+    <a class="index-card" href="04-browse-nearby-pois.html">
+      <div class="index-card-stripe" style="background: linear-gradient(90deg,#10b981,#34d399)"></div>
+      <div class="index-card-body">
+        <div class="index-card-num" style="background:#10b981">4</div>
+        <h3>Tourist Browse Nearby POIs (Redis Cache)</h3>
+        <p>
+          Public endpoint <code>GET /api/poi</code>, <code>@ReadOnly</code> AOP → route sang MySQL Replica.
+          <code>PoiCacheService</code> manually read-through Redis (<code>"poi:list:active"</code>, TTL 1h).
+          Cache MISS → query replica → <code>putActivePois()</code>.
+          Frontend render Leaflet map + sidebar POIs gần nhất.
+        </p>
+        <div class="tag-list">
+          <span class="tag">@ReadOnly AOP</span>
+          <span class="tag">DataSourceAspect</span>
+          <span class="tag">RoutingDataSource</span>
+          <span class="tag">PoiCacheService</span>
+          <span class="tag">Redis TTL 1h</span>
+          <span class="tag">MySQL Replica</span>
+        </div>
+      </div>
+      <div class="index-card-footer">
+        <div class="index-card-footer-inner">
+          <div>
+            <span class="badge-ok">3 diagrams</span>
+            <span style="font-size:0.78rem;color:#94a3b8;margin-left:10px;">Read Path / Caching</span>
+          </div>
+          <span class="btn-view">Xem Diagram →</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Card 5 -->
+    <a class="index-card" href="05-file-upload-r2.html" style="order:5">
+      <div class="index-card-stripe" style="background: linear-gradient(90deg,#ec4899,#f472b6)"></div>
+      <div class="index-card-body">
+        <div class="index-card-num" style="background:#ec4899">5</div>
+        <h3>Image Upload to Cloudflare R2</h3>
+        <p>
+          Validate MIME (<code>image/jpeg</code>/<code>image/png</code>) + size (≤ 5MB) →
+          <code>buildImageKey()</code> tạo object key → <code>S3Client.putObject(PutObjectRequest)</code> →
+          INSERT <code>file_asset</code> → trả về <code>{fileId, fileUrl}</code>.
+          Bao gồm error cases và cách <code>fileId</code> được tái dùng bởi POI và Shop.
+        </p>
+        <div class="tag-list">
+          <span class="tag">FileController</span>
+          <span class="tag">FileService</span>
+          <span class="tag">R2FileStorageService</span>
+          <span class="tag">AWS S3Client v2</span>
+          <span class="tag">Cloudflare R2</span>
+          <span class="tag">file_asset table</span>
+        </div>
+      </div>
+      <div class="index-card-footer">
+        <div class="index-card-footer-inner">
+          <div>
+            <span class="badge-ok">3 diagrams</span>
+            <span style="font-size:0.78rem;color:#94a3b8;margin-left:10px;">Infrastructure</span>
+          </div>
+          <span class="btn-view">Xem Diagram →</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Card 6 -->
+    <a class="index-card" href="06-audio-upload-tts.html">
+      <div class="index-card-stripe" style="background: linear-gradient(90deg,#f59e0b,#fbbf24)"></div>
+      <div class="index-card-body">
+        <div class="index-card-num" style="background:#f59e0b">6</div>
+        <h3>Vendor Tạo Audio Thuyết Minh (TTS &amp; Upload)</h3>
+        <p>
+          Vendor nhập text → preview MP3 (stream bytes, không lưu DB) → xác nhận tạo chính thức:
+          <code>AudioService</code> gọi <strong>Google Cloud TTS</strong> → upload MP3 lên R2 →
+          INSERT <code>file_asset</code> → <code>upsertAudioRecord()</code> (UNIQUE shop+language).
+          Redis cache evict sau mỗi lần ghi. Audio status bắt đầu bằng <code>pending</code>.
+        </p>
+        <div class="tag-list">
+          <span class="tag">AudioController</span>
+          <span class="tag">AudioService</span>
+          <span class="tag">GoogleCloudTtsService</span>
+          <span class="tag">R2FileStorageService</span>
+          <span class="tag">upsertAudioRecord</span>
+          <span class="tag">Redis TTL 15min</span>
+        </div>
+      </div>
+      <div class="index-card-footer">
+        <div class="index-card-footer-inner">
+          <div>
+            <span class="badge-ok">4 phases</span>
+            <span style="font-size:0.78rem;color:#94a3b8;margin-left:10px;">Audio Feature</span>
+          </div>
+          <span class="btn-view">Xem Diagram →</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Card 7 -->
+    <a class="index-card" href="07-audio-translation.html">
+      <div class="index-card-stripe" style="background: linear-gradient(90deg,#6366f1,#818cf8)"></div>
+      <div class="index-card-body">
+        <div class="index-card-num" style="background:#6366f1">7</div>
+        <h3>Dịch Audio Thuyết Minh Sang 6 Ngôn Ngữ</h3>
+        <p>
+          Vendor nhập text Tiếng Việt → <code>POST /api/audio/tts/preview-all</code> →
+          <code>TtsOrchestrationService</code> tạo <strong>6 CompletableFuture song song</strong>:
+          mỗi ngôn ngữ (vi/en/zh/ko/ru/ja) dịch qua <strong>Google Translate</strong> rồi tổng hợp bằng
+          <strong>Google Cloud TTS</strong> (voice riêng biệt). Partial success: lỗi một ngôn ngữ không ảnh hưởng các ngôn ngữ còn lại.
+        </p>
+        <div class="tag-list">
+          <span class="tag">TtsOrchestrationService</span>
+          <span class="tag">GoogleTranslationService</span>
+          <span class="tag">CompletableFuture ×6</span>
+          <span class="tag">vi / en / zh / ko / ru / ja</span>
+          <span class="tag">Partial Success</span>
+          <span class="tag">AudioContext Playback</span>
+        </div>
+      </div>
+      <div class="index-card-footer">
+        <div class="index-card-footer-inner">
+          <div>
+            <span class="badge-ok">4 phases</span>
+            <span style="font-size:0.78rem;color:#94a3b8;margin-left:10px;">Multi-language</span>
+          </div>
+          <span class="btn-view">Xem Diagram →</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Card 8 -->
+    <a class="index-card" href="08-realtime-tourist-websocket.html">
+      <div class="index-card-stripe" style="background: linear-gradient(90deg,#06b6d4,#22d3ee)"></div>
+      <div class="index-card-body">
+        <div class="index-card-num" style="background:#06b6d4">8</div>
+        <h3>Theo Dõi Tourist Theo Thời Gian Thực (WebSocket)</h3>
+        <p>
+          Tourist App subscribe <code>/topic/tourist-ping</code> → <code>VisitorPresenceRegistry</code> ghi nhận STOMP session.
+          Admin Dashboard subscribe <code>/topic/active-visitors</code> → nhận count push ngay khi tourist connect/disconnect.
+          Lịch sử truy vấn qua <code>GET /api/analytics/admin/visitors/stats</code> dùng MongoDB <code>$group</code> aggregation.
+        </p>
+        <div class="tag-list">
+          <span class="tag">WebSocketConfig</span>
+          <span class="tag">STOMP / SockJS</span>
+          <span class="tag">VisitorPresenceRegistry</span>
+          <span class="tag">ActiveVisitorBroadcaster</span>
+          <span class="tag">SessionDisconnectEvent</span>
+          <span class="tag">MongoDB Aggregation</span>
+        </div>
+      </div>
+      <div class="index-card-footer">
+        <div class="index-card-footer-inner">
+          <div>
+            <span class="badge-ok">4 phases</span>
+            <span style="font-size:0.78rem;color:#94a3b8;margin-left:10px;">Realtime / WebSocket</span>
+          </div>
+          <span class="btn-view">Xem Diagram →</span>
+        </div>
+      </div>
+    </a>
+
+  </div><!-- end grid -->
+
+  <!-- Tips for Google Docs -->
+  <div class="intro-card" style="margin-top: 32px; border-left-color: #8b5cf6;">
+    <h2 style="color:#6d28d9;">Hướng dẫn: Thêm SVG vào Google Docs / Slides (chất lượng cao nhất)</h2>
+    <p><strong>Cách 1 – Download SVG rồi convert sang PNG:</strong></p>
+    <p>① Click <strong>⬇ Export SVG</strong> trên diagram → tải file .svg</p>
+    <p>② Mở <code>https://svgtopng.com</code> hoặc Inkscape → convert sang PNG 300 DPI</p>
+    <p>③ Insert PNG vào Google Docs: <em>Insert → Image → Upload from computer</em></p>
+    <br>
+    <p><strong>Cách 2 – Screenshot vùng diagram (nhanh nhất):</strong></p>
+    <p>① Zoom browser 100%, mở diagram cần chụp</p>
+    <p>② Dùng <kbd>Win + Shift + S</kbd> (Windows Snipping Tool) chụp đúng vùng diagram</p>
+    <p>③ Paste vào Google Docs / Slides</p>
+    <br>
+    <p><strong>Cách 3 – In ra PDF (chất lượng vector):</strong></p>
+    <p>① Mở diagram → <kbd>Ctrl + P</kbd> → Save as PDF</p>
+    <p>② Insert PDF page vào Google Slides (<em>Insert → Image → Upload from computer</em>, chọn file PDF)</p>
+  </div>
+
+</div>
+<footer>FlavorTales – Food Tourism Platform · Sequence Diagrams Documentation · Tạo bởi GitHub Copilot dựa trên source code thực tế</footer>
+</body>
+</html>

@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kiến trúc hệ thống — FlavorTales</title>
+  <style>
+    :root {
+      --primary: #e85d04;
+      --primary-dark: #c04b00;
+      --primary-light: #fde8d8;
+      --secondary: #2d6a4f;
+      --accent: #f4a261;
+      --bg: #fafaf8;
+      --surface: #ffffff;
+      --surface2: #f5f5f0;
+      --border: #e8e4dc;
+      --text: #1a1a1a;
+      --text-secondary: #5a5a5a;
+      --text-muted: #9a9a9a;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ── */
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 70%, #e85d04 100%);
+      color: white;
+      padding: 64px 40px 56px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .hero-logo {
+      font-size: 48px; margin-bottom: 12px; display: block;
+    }
+    .hero h1 {
+      font-size: 2.6rem; font-weight: 800; margin-bottom: 8px;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 1.1rem; opacity: 0.85; margin-bottom: 24px; }
+    .hero-meta {
+      display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;
+    }
+    .hero-badge {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 20px; padding: 6px 16px;
+      font-size: 0.85rem; backdrop-filter: blur(4px);
+    }
+
+    /* ── LAYOUT ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+    .page-body { padding: 40px 24px 80px; max-width: 1100px; margin: 0 auto; }
+
+    /* ── TOC ── */
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin-bottom: 40px;
+      box-shadow: var(--shadow);
+    }
+    .toc h2 { font-size: 1rem; font-weight: 700; color: var(--primary); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { padding-left: 20px; column-count: 2; column-gap: 32px; }
+    .toc li { margin-bottom: 6px; }
+    .toc a { color: var(--text-secondary); text-decoration: none; font-size: 0.92rem; transition: color 0.2s; }
+    .toc a:hover { color: var(--primary); }
+    @media (max-width: 600px) { .toc ol { column-count: 1; } }
+
+    /* ── SECTIONS ── */
+    .section {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 36px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow);
+    }
+    .section-header {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 28px; padding-bottom: 16px;
+      border-bottom: 2px solid var(--primary-light);
+    }
+    .section-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(232,93,4,0.3);
+    }
+    .section-title { font-size: 1.4rem; font-weight: 700; color: var(--text); }
+    .section-subtitle { font-size: 0.85rem; color: var(--text-muted); }
+
+    h3 { font-size: 1.1rem; font-weight: 600; color: var(--primary-dark); margin: 24px 0 12px; }
+    h4 { font-size: 0.95rem; font-weight: 600; color: var(--text); margin: 16px 0 8px; }
+    p { color: var(--text-secondary); margin-bottom: 12px; }
+
+    /* ── PRINCIPLES GRID ── */
+    .principles-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;
+    }
+    .principle-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+    .principle-title { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 4px; }
+    .principle-desc { font-size: 0.85rem; color: var(--text-secondary); }
+
+    /* ── TABLES ── */
+    .table-wrap { overflow-x: auto; margin: 12px 0; }
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    thead tr { background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%); color: white; }
+    th { padding: 12px 16px; text-align: left; font-weight: 600; white-space: nowrap; }
+    td { padding: 11px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:nth-child(even) { background: var(--surface2); }
+    tbody tr:hover { background: var(--primary-light); }
+    td code { background: #f0f0eb; padding: 2px 6px; border-radius: 4px; font-size: 0.82rem; }
+
+    /* ── ARCHITECTURE DIAGRAM ── */
+    .arch-diagram {
+      background: #0d1117;
+      border-radius: 12px;
+      padding: 32px;
+      margin: 20px 0;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.8rem;
+      color: #c9d1d9;
+      overflow-x: auto;
+      line-height: 1.8;
+      position: relative;
+      white-space: pre;
+    }
+    .arch-diagram .comment { color: #8b949e; }
+    .arch-diagram .highlight { color: #58a6ff; font-weight: bold; }
+    .arch-diagram .highlight-green { color: #3fb950; }
+    .arch-diagram .highlight-orange { color: #ffa657; }
+    .arch-diagram .highlight-red { color: #ff7b72; }
+    .arch-diagram .highlight-purple { color: #d2a8ff; }
+
+    /* ── COMPONENT CARDS ── */
+    .component-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;
+      margin: 16px 0;
+    }
+    .component-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .component-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+    .component-card-icon { font-size: 28px; margin-bottom: 10px; display: block; }
+    .component-card-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; color: var(--text); }
+    .component-card-port { font-size: 0.78rem; color: var(--primary); font-weight: 600; background: var(--primary-light); padding: 2px 8px; border-radius: 12px; display: inline-block; margin-bottom: 6px; }
+    .component-card-desc { font-size: 0.82rem; color: var(--text-secondary); }
+
+    /* ── MODULE BADGES ── */
+    .module-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;
+      margin: 16px 0;
+    }
+    .module-badge {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 14px;
+    }
+    .module-badge-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+    .module-badge-name { font-size: 0.78rem; font-weight: 700; color: var(--primary-dark); font-family: monospace; margin-bottom: 2px; }
+    .module-badge-desc { font-size: 0.75rem; color: var(--text-secondary); }
+
+    /* ── FLOW DIAGRAM ── */
+    .flow {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0; margin: 20px auto; max-width: 500px;
+    }
+    .flow-step {
+      background: white;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 24px;
+      text-align: center;
+      font-size: 0.88rem; font-weight: 500;
+      width: 100%; max-width: 380px;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+    .flow-step:hover { border-color: var(--primary); }
+    .flow-step.highlight { border-color: var(--primary); background: var(--primary-light); color: var(--primary-dark); font-weight: 700; }
+    .flow-step.highlight-green { border-color: var(--secondary); background: #d8f5e4; color: #1b4332; font-weight: 700; }
+    .flow-arrow {
+      font-size: 18px; color: var(--text-muted); line-height: 1.4; user-select: none;
+    }
+    .flow-split {
+      display: flex; gap: 16px; width: 100%; justify-content: center;
+    }
+    .flow-branch {
+      display: flex; flex-direction: column; align-items: center; gap: 0; flex: 1;
+    }
+
+    /* ── STATUS BADGES ── */
+    .status-flow {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+      margin: 8px 0;
+    }
+    .status-badge {
+      padding: 4px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+    }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-active { background: #d1fae5; color: #065f46; }
+    .status-rejected { background: #fee2e2; color: #991b1b; }
+    .status-inactive { background: #f3f4f6; color: #374151; }
+    .status-suspended { background: #ede9fe; color: #4c1d95; }
+    .status-disabled { background: #fce7f3; color: #831843; }
+    .status-arrow { font-size: 14px; color: var(--text-muted); }
+
+    /* ── DB SCHEMA ── */
+    .db-group {
+      background: var(--surface2);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .db-group-title {
+      font-size: 0.82rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--primary); margin-bottom: 10px;
+    }
+    .db-tables { display: flex; flex-wrap: wrap; gap: 8px; }
+    .db-table-tag {
+      background: white; border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 0.8rem; font-family: monospace; color: var(--text);
+    }
+
+    /* ── SECURITY ── */
+    .security-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px;
+    }
+    .security-card {
+      background: #0d1117;
+      border-radius: 10px; padding: 16px;
+      color: #c9d1d9;
+    }
+    .security-card-icon { font-size: 24px; margin-bottom: 8px; display: block; }
+    .security-card-title { font-size: 0.85rem; font-weight: 700; color: #58a6ff; margin-bottom: 6px; }
+    .security-card-items { list-style: none; }
+    .security-card-items li { font-size: 0.8rem; color: #8b949e; padding: 2px 0; }
+    .security-card-items li::before { content: '▸ '; color: #3fb950; }
+
+    /* ── EXTERNAL SERVICES ── */
+    .ext-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;
+    }
+    .ext-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px;
+    }
+    .ext-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .ext-card-icon { font-size: 28px; }
+    .ext-card-name { font-weight: 700; font-size: 0.95rem; }
+    .ext-card-provider { font-size: 0.78rem; color: var(--primary); font-weight: 600; }
+    .ext-card-desc { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; }
+    .ext-card-constraints { font-size: 0.8rem; color: var(--text-muted); padding: 8px 12px; background: white; border-radius: 6px; border-left: 3px solid var(--accent); }
+
+    /* ── INFO BOXES ── */
+    .info-box {
+      padding: 14px 18px; border-radius: 8px; margin: 12px 0; font-size: 0.88rem;
+    }
+    .info-box.note { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e40af; }
+    .info-box.warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; }
+    .info-box.tip { background: #f0fdf4; border-left: 4px solid #22c55e; color: #14532d; }
+
+    /* ── ENV VARS ── */
+    .env-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 8px;
+    }
+    .env-row {
+      background: #0d1117; border-radius: 6px; padding: 10px 14px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .env-key { font-family: monospace; font-size: 0.82rem; color: #79c0ff; font-weight: bold; }
+    .env-desc { font-size: 0.78rem; color: #8b949e; }
+
+    /* ── FOOTER ── */
+    .footer {
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .footer strong { color: var(--primary); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 1.8rem; }
+      .section { padding: 24px 20px; }
+      .hero { padding: 40px 20px 36px; }
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 8px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+    /* ── INLINE CODE ── */
+    code { background: #f0f0eb; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; font-family: 'Consolas', monospace; }
+    pre code { background: transparent; padding: 0; font-size: 0.82rem; }
+
+    /* ── VISUAL DIAGRAM SVG ── */
+    .diagram-container {
+      background: #0d1117; border-radius: 12px; padding: 24px; margin: 20px 0; overflow-x: auto;
+    }
+    .diagram-container svg { display: block; max-width: 100%; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ HERO ═══════════════════════════ -->
+<header class="hero">
+  <span class="hero-logo">🍜</span>
+  <h1>Kiến trúc hệ thống <span>FlavorTales</span></h1>
+  <p>Mô tả toàn diện kiến trúc kỹ thuật — nền tảng du lịch ẩm thực</p>
+  <div class="hero-meta">
+    <span class="hero-badge">📅 Phiên bản 1.0 — 07/04/2026</span>
+    <span class="hero-badge">☕ Java 21 · Spring Boot 3.5</span>
+    <span class="hero-badge">⚛️ Next.js 15 · React 19</span>
+    <span class="hero-badge">🐳 Docker Compose</span>
+  </div>
+</header>
+
+<div class="page-body">
+
+<!-- ═══════════════════════════ TOC ═══════════════════════════ -->
+<nav class="toc">
+  <h2>📋 Mục lục</h2>
+  <ol>
+    <li><a href="#overview">Tổng quan kiến trúc</a></li>
+    <li><a href="#diagram">Sơ đồ thành phần</a></li>
+    <li><a href="#frontend">Frontend — Next.js</a></li>
+    <li><a href="#backend">Backend — Spring Boot</a></li>
+    <li><a href="#database">Cơ sở dữ liệu</a></li>
+    <li><a href="#external">Dịch vụ bên ngoài</a></li>
+    <li><a href="#communication">Giao tiếp giữa các thành phần</a></li>
+    <li><a href="#security">Bảo mật</a></li>
+    <li><a href="#infrastructure">Hạ tầng &amp; Triển khai</a></li>
+    <li><a href="#dbdesign">Thiết kế cơ sở dữ liệu</a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════════════════════ 1. OVERVIEW ═══════════════════════════ -->
+<section class="section" id="overview">
+  <div class="section-header">
+    <div class="section-icon">🏛️</div>
+    <div>
+      <div class="section-title">1. Tổng quan kiến trúc</div>
+      <div class="section-subtitle">Mô hình tổng thể và các nguyên tắc thiết kế</div>
+    </div>
+  </div>
+
+  <p>FlavorTales được xây dựng theo mô hình <strong>kiến trúc phân tầng (Layered Architecture)</strong> kết hợp <strong>module hoá (Modular Monolith)</strong> ở phía backend. Toàn bộ hệ thống đóng gói bằng Docker Compose, phục vụ ba nhóm người dùng: <strong>Vendor</strong>, <strong>Admin</strong> và <strong>Khách du lịch ẩn danh</strong>.</p>
+
+  <!-- Visual user-type cards -->
+  <div class="component-grid" style="margin-top:20px">
+    <div class="component-card">
+      <span class="component-card-icon">🧑‍🍳</span>
+      <div class="component-card-name">Vendor (Chủ quán)</div>
+      <div class="component-card-desc">Đăng ký tài khoản, tạo POI, quản lý quán ăn, menu, hình ảnh và âm thanh TTS</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">🛡️</span>
+      <div class="component-card-name">Admin</div>
+      <div class="component-card-desc">Phê duyệt POI / Shop, quản lý người dùng, xem analytics và dashboard thời gian thực</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">🗺️</span>
+      <div class="component-card-name">Khách du lịch ẩn danh</div>
+      <div class="component-card-desc">Duyệt bản đồ, nghe audio giới thiệu, tương tác với POI — không cần đăng ký</div>
+    </div>
+  </div>
+
+  <h3>Nguyên tắc thiết kế chính</h3>
+  <div class="principles-grid">
+    <div class="principle-card">
+      <div class="principle-title">🔗 Tách biệt mối quan tâm</div>
+      <div class="principle-desc">Frontend, Backend và Database hoàn toàn độc lập, giao tiếp qua REST API và WebSocket</div>
+    </div>
+    <div class="principle-card">
+      <div class="principle-title">📦 Module hoá backend</div>
+      <div class="principle-desc">Mỗi nghiệp vụ (auth, POI, shop, audio…) là một Maven module riêng biệt</div>
+    </div>
+    <div class="principle-card">
+      <div class="principle-title">⚡ Phân tách đọc/ghi</div>
+      <div class="principle-desc">MySQL Master nhận ghi; MySQL Replica xử lý đọc — định tuyến tự động qua AOP</div>
+    </div>
+    <div class="principle-card">
+      <div class="principle-title">🔑 Stateless Authentication</div>
+      <div class="principle-desc">JWT trong HTTP-only cookie; không lưu phiên phía server</div>
+    </div>
+    <div class="principle-card">
+      <div class="principle-title">🔄 Xử lý bất đồng bộ</div>
+      <div class="principle-desc">Email, dịch thuật, TTS đều chạy bất đồng bộ — không chặn luồng chính</div>
+    </div>
+    <div class="principle-card">
+      <div class="principle-title">📡 Thời gian thực</div>
+      <div class="principle-desc">WebSocket STOMP cho tính năng theo dõi khách du lịch trực tuyến</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 2. COMPONENT DIAGRAM ═══════════════════════════ -->
+<section class="section" id="diagram">
+  <div class="section-header">
+    <div class="section-icon">🗺️</div>
+    <div>
+      <div class="section-title">2. Sơ đồ thành phần</div>
+      <div class="section-subtitle">Kiến trúc tổng thể hệ thống</div>
+    </div>
+  </div>
+
+  <!-- SVG Architecture Diagram -->
+  <div class="diagram-container">
+    <svg viewBox="0 0 900 700" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, sans-serif">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#58a6ff"/>
+        </marker>
+        <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#3fb950"/>
+        </marker>
+        <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#00000040"/>
+        </filter>
+      </defs>
+
+      <!-- Background -->
+      <rect width="900" height="700" fill="#0d1117" rx="12"/>
+
+      <!-- USERS LAYER -->
+      <rect x="160" y="18" width="580" height="58" rx="8" fill="#1c2128" stroke="#30363d" stroke-width="1.5"/>
+      <text x="450" y="36" text-anchor="middle" fill="#8b949e" font-size="11">👥 NGƯỜI DÙNG</text>
+      <rect x="180" y="44" width="140" height="24" rx="4" fill="#21262d"/>
+      <text x="250" y="60" text-anchor="middle" fill="#79c0ff" font-size="11">🗺️ Khách du lịch</text>
+      <rect x="345" y="44" width="110" height="24" rx="4" fill="#21262d"/>
+      <text x="400" y="60" text-anchor="middle" fill="#a5d6ff" font-size="11">🧑‍🍳 Vendor</text>
+      <rect x="475" y="44" width="100" height="24" rx="4" fill="#21262d"/>
+      <text x="525" y="60" text-anchor="middle" fill="#d2a8ff" font-size="11">🛡️ Admin</text>
+
+      <!-- Arrow users → cloudflare -->
+      <line x1="450" y1="76" x2="450" y2="98" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+      <!-- CLOUDFLARE LAYER -->
+      <rect x="160" y="100" width="580" height="52" rx="8" fill="#1c2128" stroke="#ffa657" stroke-width="1.5" filter="url(#shadow)"/>
+      <text x="270" y="121" text-anchor="middle" fill="#ffa657" font-size="11" font-weight="bold">☁️ CLOUDFLARE TUNNEL</text>
+      <rect x="180" y="128" width="200" height="16" rx="4" fill="#2d2011"/>
+      <text x="280" y="140" text-anchor="middle" fill="#ffa657" font-size="10">flavortales.site (Frontend)</text>
+      <rect x="400" y="128" width="230" height="16" rx="4" fill="#2d2011"/>
+      <text x="515" y="140" text-anchor="middle" fill="#ffa657" font-size="10">api.flavortales.site (Backend)</text>
+
+      <!-- Arrows cloudflare → frontend / backend -->
+      <line x1="310" y1="152" x2="260" y2="186" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+      <line x1="580" y1="152" x2="620" y2="186" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+      <!-- FRONTEND BOX -->
+      <rect x="80" y="188" width="220" height="130" rx="8" fill="#1c2128" stroke="#3fb950" stroke-width="2" filter="url(#shadow)"/>
+      <text x="190" y="208" text-anchor="middle" fill="#3fb950" font-size="11" font-weight="bold">⚛️ FRONTEND (Next.js)</text>
+      <text x="190" y="224" text-anchor="middle" fill="#6e7681" font-size="10">Port 3000</text>
+      <rect x="96" y="232" width="192" height="12" rx="3" fill="#161b22"/>
+      <text x="192" y="242" text-anchor="middle" fill="#8b949e" font-size="9">App Router · React 19 · TypeScript</text>
+      <rect x="96" y="248" width="192" height="12" rx="3" fill="#161b22"/>
+      <text x="192" y="258" text-anchor="middle" fill="#8b949e" font-size="9">Tailwind CSS · Leaflet Maps</text>
+      <rect x="96" y="264" width="192" height="12" rx="3" fill="#161b22"/>
+      <text x="192" y="274" text-anchor="middle" fill="#8b949e" font-size="9">STOMP/SockJS WebSocket</text>
+      <rect x="96" y="280" width="192" height="12" rx="3" fill="#161b22"/>
+      <text x="192" y="290" text-anchor="middle" fill="#8b949e" font-size="9">JWT HTTP-only Cookie</text>
+      <rect x="96" y="296" width="192" height="12" rx="3" fill="#161b22"/>
+      <text x="192" y="306" text-anchor="middle" fill="#8b949e" font-size="9">PWA · QR Code · Recharts</text>
+
+      <!-- BACKEND BOX -->
+      <rect x="530" y="188" width="300" height="130" rx="8" fill="#1c2128" stroke="#58a6ff" stroke-width="2" filter="url(#shadow)"/>
+      <text x="680" y="208" text-anchor="middle" fill="#58a6ff" font-size="11" font-weight="bold">🌿 BACKEND (Spring Boot)</text>
+      <text x="680" y="224" text-anchor="middle" fill="#6e7681" font-size="10">Port 8080 — Java 21</text>
+      <rect x="546" y="232" width="268" height="12" rx="3" fill="#161b22"/>
+      <text x="680" y="242" text-anchor="middle" fill="#8b949e" font-size="9">REST API /api/** · WebSocket /ws</text>
+      <rect x="546" y="248" width="268" height="12" rx="3" fill="#161b22"/>
+      <text x="680" y="258" text-anchor="middle" fill="#8b949e" font-size="9">13 Maven Modules · Modular Monolith</text>
+      <rect x="546" y="264" width="268" height="12" rx="3" fill="#161b22"/>
+      <text x="680" y="274" text-anchor="middle" fill="#8b949e" font-size="9">Stateless JWT · AOP Read/Write Routing</text>
+      <rect x="546" y="280" width="268" height="12" rx="3" fill="#161b22"/>
+      <text x="680" y="290" text-anchor="middle" fill="#8b949e" font-size="9">MapStruct · JPA/Hibernate · HikariCP</text>
+      <rect x="546" y="296" width="268" height="12" rx="3" fill="#161b22"/>
+      <text x="680" y="306" text-anchor="middle" fill="#8b949e" font-size="9">Async: Email · Translation · TTS</text>
+
+      <!-- Frontend ↔ Backend arrow -->
+      <line x1="300" y1="253" x2="530" y2="253" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+      <text x="415" y="246" text-anchor="middle" fill="#58a6ff" font-size="9">REST / WebSocket</text>
+
+      <!-- Backend → DB layer arrows -->
+      <line x1="600" y1="318" x2="540" y2="382" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <line x1="660" y1="318" x2="660" y2="382" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <line x1="740" y1="318" x2="780" y2="382" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+      <!-- MYSQL PRIMARY -->
+      <rect x="390" y="384" width="190" height="90" rx="8" fill="#1c2128" stroke="#ff7b72" stroke-width="2" filter="url(#shadow)"/>
+      <text x="485" y="404" text-anchor="middle" fill="#ff7b72" font-size="10" font-weight="bold">🗄️ MySQL Primary</text>
+      <text x="485" y="418" text-anchor="middle" fill="#6e7681" font-size="9">Port 3308 (host)</text>
+      <text x="485" y="432" text-anchor="middle" fill="#8b949e" font-size="9">Read + Write (Master)</text>
+      <text x="485" y="446" text-anchor="middle" fill="#8b949e" font-size="9">GTID Replication ──►</text>
+      <text x="485" y="462" text-anchor="middle" fill="#3fb950" font-size="9">HikariCP Pool: max 10</text>
+
+      <!-- MYSQL REPLICA -->
+      <rect x="600" y="384" width="190" height="90" rx="8" fill="#1c2128" stroke="#ffa657" stroke-width="2" filter="url(#shadow)"/>
+      <text x="695" y="404" text-anchor="middle" fill="#ffa657" font-size="10" font-weight="bold">🗄️ MySQL Replica</text>
+      <text x="695" y="418" text-anchor="middle" fill="#6e7681" font-size="9">Port 3309 (host)</text>
+      <text x="695" y="432" text-anchor="middle" fill="#8b949e" font-size="9">Read Only (Slave)</text>
+      <text x="695" y="446" text-anchor="middle" fill="#8b949e" font-size="9">GTID Auto-position</text>
+      <text x="695" y="462" text-anchor="middle" fill="#3fb950" font-size="9">HikariCP Pool: max 10</text>
+
+      <!-- GTID replication arrow -->
+      <line x1="580" y1="435" x2="600" y2="435" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow)"/>
+
+      <!-- REDIS -->
+      <rect x="110" y="384" width="180" height="90" rx="8" fill="#1c2128" stroke="#d2a8ff" stroke-width="2" filter="url(#shadow)"/>
+      <text x="200" y="404" text-anchor="middle" fill="#d2a8ff" font-size="10" font-weight="bold">⚡ Redis 7.2</text>
+      <text x="200" y="418" text-anchor="middle" fill="#6e7681" font-size="9">Port 6379</text>
+      <text x="200" y="432" text-anchor="middle" fill="#8b949e" font-size="9">Cache & Rate Limiting</text>
+      <text x="200" y="446" text-anchor="middle" fill="#8b949e" font-size="9">Token Blacklist</text>
+      <text x="200" y="462" text-anchor="middle" fill="#3fb950" font-size="9">Jedis 7.1.0</text>
+
+      <!-- Backend → Redis arrow -->
+      <line x1="545" y1="280" x2="290" y2="385" stroke="#d2a8ff" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow)"/>
+
+      <!-- MONGODB -->
+      <rect x="390" y="500" width="180" height="90" rx="8" fill="#1c2128" stroke="#3fb950" stroke-width="2" filter="url(#shadow)"/>
+      <text x="480" y="520" text-anchor="middle" fill="#3fb950" font-size="10" font-weight="bold">🍃 MongoDB 7.0</text>
+      <text x="480" y="534" text-anchor="middle" fill="#6e7681" font-size="9">Port 27017</text>
+      <text x="480" y="548" text-anchor="middle" fill="#8b949e" font-size="9">Tourist Sessions (TTL 1h)</text>
+      <text x="480" y="562" text-anchor="middle" fill="#8b949e" font-size="9">Visitor Events (Analytics)</text>
+      <text x="480" y="576" text-anchor="middle" fill="#3fb950" font-size="9">Spring Data MongoDB</text>
+      <line x1="660" y1="474" x2="530" y2="500" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+      <!-- CLOUDFLARE R2 -->
+      <rect x="600" y="500" width="200" height="90" rx="8" fill="#1c2128" stroke="#ffa657" stroke-width="2" filter="url(#shadow)"/>
+      <text x="700" y="520" text-anchor="middle" fill="#ffa657" font-size="10" font-weight="bold">☁️ Cloudflare R2</text>
+      <text x="700" y="534" text-anchor="middle" fill="#6e7681" font-size="9">S3-compatible Storage</text>
+      <text x="700" y="548" text-anchor="middle" fill="#8b949e" font-size="9">Ảnh (JPEG/PNG ≤20MB)</text>
+      <text x="700" y="562" text-anchor="middle" fill="#8b949e" font-size="9">Audio (MP3 ≤10MB)</text>
+      <text x="700" y="576" text-anchor="middle" fill="#3fb950" font-size="9">CDN: cdn.flavortales.site</text>
+      <line x1="760" y1="474" x2="740" y2="500" stroke="#ffa657" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+      <!-- GOOGLE APIs -->
+      <rect x="100" y="500" width="260" height="90" rx="8" fill="#1c2128" stroke="#79c0ff" stroke-width="2" filter="url(#shadow)"/>
+      <text x="230" y="520" text-anchor="middle" fill="#79c0ff" font-size="10" font-weight="bold">🌐 Google Cloud APIs</text>
+      <text x="230" y="538" text-anchor="middle" fill="#8b949e" font-size="9">Translation API → 5 ngôn ngữ (EN/KO/ZH/JA/RU)</text>
+      <text x="230" y="554" text-anchor="middle" fill="#8b949e" font-size="9">Text-to-Speech → 6 giọng đọc</text>
+      <text x="230" y="570" text-anchor="middle" fill="#8b949e" font-size="9">Wavenet Voice Models</text>
+      <text x="230" y="584" text-anchor="middle" fill="#3fb950" font-size="9">Xử lý @Async — song song 6 luồng</text>
+      <line x1="540" y1="390" x2="350" y2="502" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow)"/>
+
+      <!-- GMAIL -->
+      <rect x="100" y="610" width="180" height="72" rx="8" fill="#1c2128" stroke="#ff7b72" stroke-width="1.5"/>
+      <text x="190" y="630" text-anchor="middle" fill="#ff7b72" font-size="10" font-weight="bold">📧 Gmail SMTP</text>
+      <text x="190" y="646" text-anchor="middle" fill="#8b949e" font-size="9">TLS Port 587</text>
+      <text x="190" y="660" text-anchor="middle" fill="#8b949e" font-size="9">Thymeleaf Template</text>
+      <text x="190" y="674" text-anchor="middle" fill="#3fb950" font-size="9">@Async — không chặn luồng</text>
+      <line x1="190" y1="590" x2="190" y2="610" stroke="#ff7b72" stroke-width="1.5" marker-end="url(#arrow)"/>
+    </svg>
+  </div>
+
+  <div class="info-box note">
+    <strong>📌 Ghi chú:</strong> Tất cả dịch vụ đều chạy trong Docker Compose network, chỉ expose các port cần thiết ra host. Cloudflare Tunnel đảm nhận việc expose ra internet với HTTPS bắt buộc.
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 3. FRONTEND ═══════════════════════════ -->
+<section class="section" id="frontend">
+  <div class="section-header">
+    <div class="section-icon">⚛️</div>
+    <div>
+      <div class="section-title">3. Frontend — Next.js</div>
+      <div class="section-subtitle">Giao diện người dùng, App Router, TypeScript strict</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Thuộc tính</th><th>Giá trị</th></tr></thead>
+      <tbody>
+        <tr><td>Framework</td><td>Next.js 15+ (App Router)</td></tr>
+        <tr><td>Ngôn ngữ</td><td>TypeScript (strict mode — không dùng <code>any</code>)</td></tr>
+        <tr><td>UI Library</td><td>React 19.2.3</td></tr>
+        <tr><td>Styling</td><td>Tailwind CSS 4 — không dùng inline styles</td></tr>
+        <tr><td>Routing</td><td><code>next/navigation</code> (App Router) — <strong>không dùng</strong> <code>next/router</code></td></tr>
+        <tr><td>Port</td><td>3000</td></tr>
+        <tr><td>Build Output</td><td>Standalone (không cần Node server riêng)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>🗂️ Cấu trúc thư mục</h3>
+  <div class="arch-diagram">
+<span class="highlight-green">frontend/</span>
+├── <span class="highlight">app/</span>                    <span class="comment"># Next.js App Router pages</span>
+│   ├── admin/              <span class="comment"># Trang quản trị Admin</span>
+│   ├── vendor/             <span class="comment"># Trang quản lý Vendor</span>
+│   ├── auth/
+│   │   ├── vendor/         <span class="comment"># signup, login, verify, forgot-password, reset-password</span>
+│   │   └── admin/          <span class="comment"># Admin auth flows</span>
+│   ├── map/                <span class="comment"># Bản đồ du lịch (Leaflet)</span>
+│   └── api/                <span class="comment"># Route handlers (Next.js API)</span>
+│
+├── <span class="highlight">modules/</span>               <span class="comment"># Logic nghiệp vụ theo module</span>
+│   ├── auth/               <span class="comment"># Xác thực, token management</span>
+│   ├── poi/                <span class="comment"># Points of Interest</span>
+│   ├── shop/               <span class="comment"># Thông tin quán ăn</span>
+│   ├── audio/              <span class="comment"># Quản lý audio TTS</span>
+│   ├── analytics/          <span class="comment"># Dashboard thống kê</span>
+│   ├── location/           <span class="comment"># Phiên du lịch, WebSocket</span>
+│   └── ...                 <span class="comment"># admin, content, file, moderation, notification, search, user, vendor</span>
+│
+└── <span class="highlight">shared/</span>                <span class="comment"># Thành phần dùng chung</span>
+    ├── components/         <span class="comment"># UI components tái sử dụng</span>
+    ├── hooks/              <span class="comment"># Custom React hooks</span>
+    ├── i18n/               <span class="comment"># Đa ngôn ngữ giao diện — externalize mọi string</span>
+    └── utils/              <span class="comment"># Tiện ích</span>
+  </div>
+
+  <h3>📚 Các thư viện chính</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Thư viện</th><th>Phiên bản</th><th>Mục đích</th></tr></thead>
+      <tbody>
+        <tr><td><code>react-leaflet</code> + <code>leaflet</code></td><td>5.0.0 / 1.9.4</td><td>Bản đồ tương tác, hiển thị POI</td></tr>
+        <tr><td><code>leaflet.markercluster</code></td><td>1.5.3</td><td>Gom nhóm POI khi zoom out</td></tr>
+        <tr><td><code>recharts</code></td><td>3.8.1</td><td>Biểu đồ analytics dashboard</td></tr>
+        <tr><td><code>@stomp/stompjs</code> + <code>sockjs-client</code></td><td>7.3.0 / 1.6.1</td><td>WebSocket real-time theo dõi khách</td></tr>
+        <tr><td><code>qrcode</code></td><td>1.5.4</td><td>Tạo QR code chia sẻ POI</td></tr>
+        <tr><td><code>@ducanh2912/next-pwa</code></td><td>—</td><td>Progressive Web App</td></tr>
+        <tr><td><code>vitest</code> + <code>@testing-library/react</code></td><td>4.1.1 / 16.3.2</td><td>Unit &amp; component testing</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>🔒 Bảo vệ Route (Middleware)</h3>
+  <p>Next.js Middleware kiểm tra JWT cookie phía server trước khi render trang:</p>
+  <div class="arch-diagram">
+Request → <span class="highlight">middleware.ts</span>
+      │
+      ├── /vendor/** → kiểm tra cookie <span class="highlight-orange">access_token</span>
+      │       └── Thiếu token → redirect /auth/vendor/login?from=<original_url>
+      │
+      └── /admin/**  → kiểm tra cookie <span class="highlight-orange">admin_access_token</span>
+              └── Thiếu token → redirect /auth/admin/login?from=<original_url>
+  </div>
+
+  <h3>🖼️ Tối ưu hình ảnh (Next.js Image)</h3>
+  <p>Cấu hình <code>next.config.ts</code> chấp nhận URL từ các domain tin cậy:</p>
+  <div class="arch-diagram">
+remotePatterns:
+  - <span class="highlight-green">*.r2.cloudflarestorage.com</span>   <span class="comment"># R2 private bucket</span>
+  - <span class="highlight-green">pub-*.r2.dev</span>                  <span class="comment"># R2 public dev URL</span>
+  - <span class="highlight-green">cdn.flavortales.site</span>          <span class="comment"># Cloudflare CDN (production)</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 4. BACKEND ═══════════════════════════ -->
+<section class="section" id="backend">
+  <div class="section-header">
+    <div class="section-icon">🌿</div>
+    <div>
+      <div class="section-title">4. Backend — Spring Boot</div>
+      <div class="section-subtitle">Modular Monolith, Java 21, 13 Maven modules</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Thuộc tính</th><th>Giá trị</th></tr></thead>
+      <tbody>
+        <tr><td>Framework</td><td>Spring Boot 3.5.x</td></tr>
+        <tr><td>Ngôn ngữ</td><td>Java 21 (LTS)</td></tr>
+        <tr><td>Build Tool</td><td>Maven (multi-module)</td></tr>
+        <tr><td>Kiến trúc</td><td>Modular Monolith</td></tr>
+        <tr><td>Port</td><td>8080</td></tr>
+        <tr><td>Auth</td><td>JWT Stateless (JJWT 0.12.6, HMAC-SHA-256)</td></tr>
+        <tr><td>ORM</td><td>JPA/Hibernate (DDL: none — schema quản lý thủ công)</td></tr>
+        <tr><td>Mapping</td><td>MapStruct 1.6.3 — bắt buộc, không map thủ công trong service</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>📦 Bản đồ module backend</h3>
+  <div class="module-grid">
+    <div class="module-badge"><span class="module-badge-icon">🚀</span><div><div class="module-badge-name">flavortales-app</div><div class="module-badge-desc">Entry point Spring Boot, tổng hợp tất cả module</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">🔧</span><div><div class="module-badge-name">flavortales-common</div><div class="module-badge-desc">DTO dùng chung, ApiResponse&lt;T&gt;, exceptions, AOP, config</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">🔑</span><div><div class="module-badge-name">flavortales-auth</div><div class="module-badge-desc">Đăng ký, đăng nhập, OTP, đặt lại mật khẩu, rate limiting</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">👤</span><div><div class="module-badge-name">flavortales-user</div><div class="module-badge-desc">Hồ sơ người dùng, phân quyền role</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">📍</span><div><div class="module-badge-name">flavortales-poi</div><div class="module-badge-desc">Quản lý POI, geofencing, dịch thuật, like</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">🏪</span><div><div class="module-badge-name">flavortales-content</div><div class="module-badge-desc">Quản lý Shop, Menu, phê duyệt admin</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">📁</span><div><div class="module-badge-name">flavortales-file</div><div class="module-badge-desc">Upload/quản lý file lên Cloudflare R2 (S3-compatible)</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">🎵</span><div><div class="module-badge-name">flavortales-audio</div><div class="module-badge-desc">Tổng hợp TTS đa ngôn ngữ, upload audio</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">📡</span><div><div class="module-badge-name">flavortales-location</div><div class="module-badge-desc">Tourist session (MongoDB), WebSocket active visitors</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">📊</span><div><div class="module-badge-name">flavortales-analytics</div><div class="module-badge-desc">Thống kê lượt truy cập từ MongoDB</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">🔔</span><div><div class="module-badge-name">flavortales-notification</div><div class="module-badge-desc">Gửi email bất đồng bộ theo sự kiện</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">🔍</span><div><div class="module-badge-name">flavortales-search</div><div class="module-badge-desc">Full-text search (stub — chưa triển khai)</div></div></div>
+    <div class="module-badge"><span class="module-badge-icon">⚠️</span><div><div class="module-badge-name">flavortales-moderation</div><div class="module-badge-desc">Kiểm duyệt nội dung (stub — chưa triển khai)</div></div></div>
+  </div>
+
+  <h3>📋 Response Format chuẩn</h3>
+  <p>Mọi endpoint đều trả về <code>ResponseEntity&lt;ApiResponse&lt;T&gt;&gt;</code>:</p>
+  <div class="arch-diagram">
+{
+  <span class="highlight-green">"success"</span>:   true,
+  <span class="highlight-green">"message"</span>:   <span class="highlight-orange">"Thành công"</span>,
+  <span class="highlight-green">"data"</span>:      { <span class="comment">/* T — payload cụ thể */</span> },
+  <span class="highlight-green">"timestamp"</span>: <span class="highlight-orange">"2026-04-07T10:30:00"</span>
+}
+  </div>
+
+  <h3>⚡ Định tuyến đọc/ghi Database (AOP)</h3>
+  <div class="flow">
+    <div class="flow-step">HTTP Request đến Spring Controller</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step highlight">JwtAuthenticationFilter (validate JWT token)</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step">Controller → Service → Repository</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step highlight">AOP Aspect kiểm tra annotation <code>@ReadOnly</code></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-split">
+      <div class="flow-branch">
+        <div class="flow-arrow">↙</div>
+        <div class="flow-step highlight-green">@ReadOnly = true<br/>→ DataSource SLAVE<br/>(MySQL Replica :3309)</div>
+      </div>
+      <div class="flow-branch">
+        <div class="flow-arrow">↘</div>
+        <div class="flow-step" style="border-color:#ff7b72;background:#1a0000;color:#ff7b72">@ReadOnly = false<br/>→ DataSource MASTER<br/>(MySQL Primary :3308)</div>
+      </div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step">ApplicationEvent Publisher</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step highlight-green">@Async Listeners: Notification · Translation · TTS</div>
+  </div>
+
+  <h3>🔄 Xử lý bất đồng bộ</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Tác vụ</th><th>Module</th><th>Chi tiết</th></tr></thead>
+      <tbody>
+        <tr><td>Gửi email xác thực, phê duyệt, từ chối</td><td><code>flavortales-notification</code></td><td>Gmail SMTP TLS 587, template Thymeleaf HTML</td></tr>
+        <tr><td>Dịch thuật POI/Shop sang 5 ngôn ngữ</td><td><code>flavortales-poi</code>, <code>flavortales-content</code></td><td>Google Translate API → EN, KO, ZH, JA, RU</td></tr>
+        <tr><td>Tổng hợp TTS âm thanh</td><td><code>flavortales-audio</code></td><td>Google TTS Wavenet, 6 luồng song song</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="info-box warning">
+    <strong>⚠️ Lưu ý:</strong> Hai module <code>flavortales-search</code> và <code>flavortales-moderation</code> là stub — không có service đã triển khai. Không assume chúng có logic sẵn.
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 5. DATABASE ═══════════════════════════ -->
+<section class="section" id="database">
+  <div class="section-header">
+    <div class="section-icon">🗄️</div>
+    <div>
+      <div class="section-title">5. Cơ sở dữ liệu</div>
+      <div class="section-subtitle">MySQL 8 · Redis 7.2 · MongoDB 7.0</div>
+    </div>
+  </div>
+
+  <h3>🐬 MySQL 8.0 — Dữ liệu nghiệp vụ chính</h3>
+  <div class="component-grid">
+    <div class="component-card">
+      <span class="component-card-icon">🔵</span>
+      <div class="component-card-name">MySQL Primary (Master)</div>
+      <span class="component-card-port">Port 3308 → 3306</span>
+      <div class="component-card-desc">Nhận toàn bộ INSERT, UPDATE, DELETE. Nguồn dữ liệu thực tế. GTID replication chủ động sang Replica.</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">🟡</span>
+      <div class="component-card-name">MySQL Replica (Slave)</div>
+      <span class="component-card-port">Port 3309 → 3306</span>
+      <div class="component-card-desc">Chỉ đọc (<code>read_only=ON</code>). Xử lý SELECT queries. GTID Auto-position. Bootstrap tự động qua <code>replica-setup.sh</code>.</div>
+    </div>
+  </div>
+
+  <h3>📊 20 Bảng dữ liệu</h3>
+  <div class="db-group">
+    <div class="db-group-title">👤 Người dùng &amp; Xác thực</div>
+    <div class="db-tables">
+      <span class="db-table-tag">user</span>
+      <span class="db-table-tag">email_verification</span>
+      <span class="db-table-tag">login_attempt</span>
+      <span class="db-table-tag">password_reset_token</span>
+    </div>
+  </div>
+  <div class="db-group">
+    <div class="db-group-title">📍 POI &amp; Đa ngôn ngữ</div>
+    <div class="db-tables">
+      <span class="db-table-tag">poi</span>
+      <span class="db-table-tag">poi_english</span>
+      <span class="db-table-tag">poi_korean</span>
+      <span class="db-table-tag">poi_chinese</span>
+      <span class="db-table-tag">poi_russian</span>
+      <span class="db-table-tag">poi_japanese</span>
+      <span class="db-table-tag">poi_likes</span>
+    </div>
+  </div>
+  <div class="db-group">
+    <div class="db-group-title">🏪 Shop, Menu &amp; Đa ngôn ngữ</div>
+    <div class="db-tables">
+      <span class="db-table-tag">shop</span>
+      <span class="db-table-tag">shop_english</span>
+      <span class="db-table-tag">shop_korean</span>
+      <span class="db-table-tag">shop_chinese</span>
+      <span class="db-table-tag">shop_russian</span>
+      <span class="db-table-tag">shop_japanese</span>
+      <span class="db-table-tag">menu_item</span>
+      <span class="db-table-tag">shop_image</span>
+    </div>
+  </div>
+  <div class="db-group">
+    <div class="db-group-title">📁 File &amp; Audio</div>
+    <div class="db-tables">
+      <span class="db-table-tag">file_asset</span>
+      <span class="db-table-tag">audio</span>
+    </div>
+  </div>
+
+  <h3>⚡ Redis 7.2 — Cache &amp; Rate Limiting</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Dữ liệu được cache</th><th>Mục đích</th></tr></thead>
+      <tbody>
+        <tr><td>Danh sách POI active</td><td>Tăng tốc API bản đồ, tránh query DB lặp lại</td></tr>
+        <tr><td>Chi tiết từng POI (theo <code>poiId</code>)</td><td>Cache per-item</td></tr>
+        <tr><td>Audio của từng Shop (theo <code>shopId</code>)</td><td>Cache file audio metadata</td></tr>
+        <tr><td>Token blacklist</td><td>Lưu JWT đã đăng xuất để vô hiệu hoá</td></tr>
+        <tr><td>Rate limiting counter</td><td>Đếm số lần đăng nhập thất bại theo IP/user</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>🍃 MongoDB 7.0 — Dữ liệu phi cấu trúc &amp; Thời gian thực</h3>
+  <div class="component-grid">
+    <div class="component-card">
+      <span class="component-card-icon">🕐</span>
+      <div class="component-card-name">tourist_sessions</div>
+      <span class="component-card-port">TTL Index: 1 giờ</span>
+      <div class="component-card-desc">Phiên du lịch ẩn danh: sessionId ngẫu nhiên, ngôn ngữ ưa thích, POI đã xem, audio đã nghe. Tự động xóa sau 1 giờ.</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">📈</span>
+      <div class="component-card-name">visitor_events</div>
+      <span class="component-card-port">Analytics Store</span>
+      <div class="component-card-desc">Lượt ghé thăm: timestamp, sessionId. Dùng cho báo cáo analytics theo giờ/ngày/tháng/năm.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 6. EXTERNAL SERVICES ═══════════════════════════ -->
+<section class="section" id="external">
+  <div class="section-header">
+    <div class="section-icon">🌐</div>
+    <div>
+      <div class="section-title">6. Dịch vụ bên ngoài</div>
+      <div class="section-subtitle">Cloudflare R2, Google APIs, Gmail, CDN</div>
+    </div>
+  </div>
+
+  <div class="ext-grid">
+    <div class="ext-card">
+      <div class="ext-card-header">
+        <span class="ext-card-icon">☁️</span>
+        <div><div class="ext-card-name">Cloudflare R2</div><div class="ext-card-provider">File Storage (S3-compatible)</div></div>
+      </div>
+      <div class="ext-card-desc">Lưu trữ ảnh (JPEG/PNG) và file audio (MP3) của shop &amp; POI. Phục vụ qua CDN Cloudflare.</div>
+      <div class="ext-card-constraints">📏 Ảnh ≤20MB/file, request ≤25MB · Audio ≤10MB · Naming: <code>{email_username}/images/{filename}</code> · Pre-signed URL để upload · Public CDN để đọc</div>
+    </div>
+    <div class="ext-card">
+      <div class="ext-card-header">
+        <span class="ext-card-icon">🗣️</span>
+        <div><div class="ext-card-name">Text-to-Speech</div><div class="ext-card-provider">Google Cloud TTS API</div></div>
+      </div>
+      <div class="ext-card-desc">Tổng hợp giọng đọc từ văn bản tiếng Việt cho 6 ngôn ngữ: vi, en, zh, ko, ru, ja.</div>
+      <div class="ext-card-constraints">🎵 Wavenet voice models · 6 luồng song song · Thất bại một ngôn ngữ không ảnh hưởng ngôn ngữ khác</div>
+    </div>
+    <div class="ext-card">
+      <div class="ext-card-header">
+        <span class="ext-card-icon">🌍</span>
+        <div><div class="ext-card-name">Translation API</div><div class="ext-card-provider">Google Cloud Translate</div></div>
+      </div>
+      <div class="ext-card-desc">Dịch nội dung POI và Shop từ tiếng Việt sang 5 ngôn ngữ.</div>
+      <div class="ext-card-constraints">🌐 EN, KO, ZH, JA, RU · Kích hoạt tự động khi tạo/cập nhật · Chạy @Async</div>
+    </div>
+    <div class="ext-card">
+      <div class="ext-card-header">
+        <span class="ext-card-icon">📧</span>
+        <div><div class="ext-card-name">Gmail SMTP</div><div class="ext-card-provider">Email Service</div></div>
+      </div>
+      <div class="ext-card-desc">Gửi email xác thực, thông báo phê duyệt, OTP đặt lại mật khẩu.</div>
+      <div class="ext-card-constraints">🔒 SMTP TLS port 587 · Template HTML Thymeleaf · Gửi @Async</div>
+    </div>
+    <div class="ext-card">
+      <div class="ext-card-header">
+        <span class="ext-card-icon">🔶</span>
+        <div><div class="ext-card-name">Cloudflare CDN &amp; Tunnel</div><div class="ext-card-provider">Networking &amp; Security</div></div>
+      </div>
+      <div class="ext-card-desc">Phân phối tài nguyên tĩnh qua R2 CDN + expose ứng dụng ra internet.</div>
+      <div class="ext-card-constraints">🌐 flavortales.site (Frontend) · api.flavortales.site (Backend) · HTTPS bắt buộc trên production</div>
+    </div>
+    <div class="ext-card">
+      <div class="ext-card-header">
+        <span class="ext-card-icon">📡</span>
+        <div><div class="ext-card-name">WebSocket STOMP</div><div class="ext-card-provider">STOMP over WebSocket + SockJS</div></div>
+      </div>
+      <div class="ext-card-desc">Hiển thị số lượng khách trực tuyến theo thời gian thực trên Admin Dashboard.</div>
+      <div class="ext-card-constraints">🔗 Endpoint /ws · Subscribe /topic/active-visitors · Reconnect tự động sau 5s · Không lưu PII</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 7. COMMUNICATION ═══════════════════════════ -->
+<section class="section" id="communication">
+  <div class="section-header">
+    <div class="section-icon">🔗</div>
+    <div>
+      <div class="section-title">7. Giao tiếp giữa các thành phần</div>
+      <div class="section-subtitle">REST API, WebSocket, Cookie, phân quyền endpoint</div>
+    </div>
+  </div>
+
+  <h3>Frontend ↔ Backend</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Phương thức</th><th>Mô tả</th><th>Ví dụ</th></tr></thead>
+      <tbody>
+        <tr><td>REST API (HTTP/HTTPS)</td><td>Giao thức chính cho mọi tác vụ CRUD</td><td><code>GET /api/poi</code> · <code>POST /api/auth/login</code></td></tr>
+        <tr><td>WebSocket (STOMP)</td><td>Kênh thời gian thực cho admin dashboard</td><td>Subscribe <code>/topic/active-visitors</code></td></tr>
+        <tr><td>HTTP-only Cookie</td><td>Truyền JWT token an toàn (ngăn XSS)</td><td><code>access_token</code> · <code>admin_access_token</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>🔐 Phân quyền API</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Nhóm endpoint</th><th>Quyền truy cập</th></tr></thead>
+      <tbody>
+        <tr><td><code>POST /api/auth/**</code></td><td>🌐 Công khai (đăng ký, đăng nhập, OTP)</td></tr>
+        <tr><td><code>GET /api/poi</code> · <code>/api/poi/*/like</code></td><td>🌐 Công khai (khách du lịch ẩn danh)</td></tr>
+        <tr><td><code>GET /api/tourist/**</code></td><td>🌐 Công khai (phiên du lịch ẩn danh)</td></tr>
+        <tr><td><code>GET /ws/**</code></td><td>🌐 Công khai (WebSocket handshake)</td></tr>
+        <tr><td><code>GET /api/analytics/admin/**</code></td><td>🛡️ Chỉ <code>ROLE_admin</code></td></tr>
+        <tr><td>Tất cả route còn lại</td><td>🔑 Yêu cầu JWT hợp lệ trong cookie</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>📊 Luồng xử lý request nội bộ Backend</h3>
+  <div class="arch-diagram">
+HTTP Request đến :8080
+       ↓
+<span class="highlight">JwtAuthenticationFilter</span>      <span class="comment"># Validate JWT cookie, set SecurityContext</span>
+       ↓
+<span class="highlight-green">Controller</span> → <span class="highlight-green">Service</span> → <span class="highlight-green">Repository</span>
+       ↓
+<span class="highlight-orange">AOP DataSource Routing</span>       <span class="comment"># @ReadOnly → Slave / else → Master</span>
+       ↓
+<span class="highlight-purple">ApplicationEvent Publisher</span>   <span class="comment"># Tách decoupled events</span>
+       ↓
+<span class="highlight">@Async Event Listeners</span>
+   ├── <span class="highlight-red">NotificationService</span>    <span class="comment"># Email qua Gmail SMTP</span>
+   ├── <span class="highlight-green">TranslationService</span>     <span class="comment"># Google Translate API</span>
+   └── <span class="highlight-orange">AudioService</span>           <span class="comment"># Google TTS API</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 8. SECURITY ═══════════════════════════ -->
+<section class="section" id="security">
+  <div class="section-header">
+    <div class="section-icon">🔒</div>
+    <div>
+      <div class="section-title">8. Bảo mật</div>
+      <div class="section-subtitle">JWT, Rate limiting, BCrypt, CORS, File validation</div>
+    </div>
+  </div>
+
+  <div class="security-grid">
+    <div class="security-card">
+      <span class="security-card-icon">🔑</span>
+      <div class="security-card-title">JWT Authentication</div>
+      <ul class="security-card-items">
+        <li>Algorithm: HMAC-SHA-256</li>
+        <li>Access token: 24h (7d nếu Remember Me)</li>
+        <li>Refresh token: 30 ngày</li>
+        <li>Lưu trong HTTP-only cookie</li>
+        <li>Blacklist JWT đã đăng xuất (Redis)</li>
+        <li>Vô hiệu sau đổi mật khẩu (passwordChangedAt)</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <span class="security-card-icon">🛡️</span>
+      <div class="security-card-title">Login Protection</div>
+      <ul class="security-card-items">
+        <li>Rate limit: 5 lần / 15 phút / IP</li>
+        <li>Lockout: 10 lần thất bại → khoá 30 phút</li>
+        <li>Enumeration protection: thông báo chung</li>
+        <li>BCrypt cost factor 12</li>
+        <li>Reset password: tối đa 3 yêu cầu/giờ/IP</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <span class="security-card-icon">🌐</span>
+      <div class="security-card-title">Network Security</div>
+      <ul class="security-card-items">
+        <li>CORS: cấu hình qua env APP_CORS_ALLOWED_ORIGINS</li>
+        <li>HTTPS bắt buộc (Cloudflare Tunnel)</li>
+        <li>Session policy: STATELESS</li>
+        <li>SecurityConfig: /api/auth/** public</li>
+        <li>Mọi route khác yêu cầu JWT hợp lệ</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <span class="security-card-icon">📁</span>
+      <div class="security-card-title">File Upload Security</div>
+      <ul class="security-card-items">
+        <li>Chỉ chấp nhận JPEG/PNG</li>
+        <li>Giới hạn 20MB/file, 25MB/request</li>
+        <li>Audio tối đa 10MB</li>
+        <li>Pre-signed URL để upload trực tiếp lên R2</li>
+        <li>Naming convention đảm bảo cô lập theo user</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <span class="security-card-icon">🔍</span>
+      <div class="security-card-title">Privacy</div>
+      <ul class="security-card-items">
+        <li>Tourist session không lưu PII</li>
+        <li>Chỉ dùng UUID ngẫu nhiên cho tourist</li>
+        <li>HTTP-only cookie ngăn XSS truy cập token</li>
+        <li>Bí mật lưu trong env vars, không hardcode</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <span class="security-card-icon">⚠️</span>
+      <div class="security-card-title">Exception Handling</div>
+      <ul class="security-card-items">
+        <li>40+ custom exception types</li>
+        <li>Global @ControllerAdvice maps to HTTP codes</li>
+        <li>Không dùng RuntimeException cho business errors</li>
+        <li>Ví dụ: TooManyLoginAttemptsException, AccountSuspendedException</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 9. INFRASTRUCTURE ═══════════════════════════ -->
+<section class="section" id="infrastructure">
+  <div class="section-header">
+    <div class="section-icon">🐳</div>
+    <div>
+      <div class="section-title">9. Hạ tầng &amp; Triển khai</div>
+      <div class="section-subtitle">Docker Compose, 8 services, persistent volumes</div>
+    </div>
+  </div>
+
+  <h3>🐳 Docker Compose Services</h3>
+  <div class="component-grid">
+    <div class="component-card">
+      <span class="component-card-icon">⚛️</span>
+      <div class="component-card-name">frontend</div>
+      <span class="component-card-port">3000:3000</span>
+      <div class="component-card-desc">Next.js standalone server — không cần Node server riêng</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">🌿</span>
+      <div class="component-card-name">backend</div>
+      <span class="component-card-port">8080:8080</span>
+      <div class="component-card-desc">Spring Boot JAR — Java 21, all Maven modules bundled</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">🔵</span>
+      <div class="component-card-name">mysql-primary</div>
+      <span class="component-card-port">3308:3306</span>
+      <div class="component-card-desc">MySQL 8.0 Master — nhận ghi, GTID replication sang replica</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">🟡</span>
+      <div class="component-card-name">mysql-replicate</div>
+      <span class="component-card-port">3309:3306</span>
+      <div class="component-card-desc">MySQL 8.0 Replica — chỉ đọc, read_only=ON</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">⚙️</span>
+      <div class="component-card-name">replication-setup</div>
+      <span class="component-card-port">— (one-shot)</span>
+      <div class="component-card-desc">Bootstrap GTID replication, chạy một lần khi khởi tạo</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">⚡</span>
+      <div class="component-card-name">redis</div>
+      <span class="component-card-port">6379:6379</span>
+      <div class="component-card-desc">Redis 7.2 Alpine — cache, rate limit, token blacklist</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">🍃</span>
+      <div class="component-card-name">mongodb</div>
+      <span class="component-card-port">27017:27017</span>
+      <div class="component-card-desc">MongoDB 7.0 — tourist sessions, visitor events</div>
+    </div>
+    <div class="component-card">
+      <span class="component-card-icon">🔶</span>
+      <div class="component-card-name">cloudflared</div>
+      <span class="component-card-port">— (tunnel)</span>
+      <div class="component-card-desc">Cloudflare Tunnel — expose ra internet với HTTPS tự động</div>
+    </div>
+  </div>
+
+  <h3>💾 Persistent Volumes</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Volume</th><th>Dữ liệu</th></tr></thead>
+      <tbody>
+        <tr><td><code>flavortales-primary-data</code></td><td>MySQL Primary data files</td></tr>
+        <tr><td><code>flavortales-replicate-data</code></td><td>MySQL Replica data files</td></tr>
+        <tr><td><code>flavortales-redis-data</code></td><td>Redis persistence (AOF/RDB)</td></tr>
+        <tr><td><code>flavortales-mongodb-data</code></td><td>MongoDB collections &amp; indexes</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>🔧 Biến môi trường quan trọng</h3>
+  <div class="env-grid">
+    <div class="env-row"><div class="env-key">APP_JWT_SECRET</div><div class="env-desc">Khoá bí mật ký JWT (HMAC-SHA-256)</div></div>
+    <div class="env-row"><div class="env-key">APP_CORS_ALLOWED_ORIGINS</div><div class="env-desc">Origin được phép CORS</div></div>
+    <div class="env-row"><div class="env-key">REDIS_HOST / REDIS_PORT</div><div class="env-desc">Kết nối Redis (default: redis:6379)</div></div>
+    <div class="env-row"><div class="env-key">MONGODB_URI</div><div class="env-desc">MongoDB connection string</div></div>
+    <div class="env-row"><div class="env-key">R2_ACCOUNT_ID</div><div class="env-desc">Cloudflare R2 account ID</div></div>
+    <div class="env-row"><div class="env-key">R2_ACCESS_KEY / R2_SECRET_KEY</div><div class="env-desc">Cloudflare R2 credentials</div></div>
+    <div class="env-row"><div class="env-key">R2_PUBLIC_URL</div><div class="env-desc">CDN URL công khai (cdn.flavortales.site)</div></div>
+    <div class="env-row"><div class="env-key">GOOGLE_TTS_API_KEY</div><div class="env-desc">Google Cloud API key (TTS + Translation)</div></div>
+    <div class="env-row"><div class="env-key">SPRING_MAIL_USERNAME</div><div class="env-desc">Gmail SMTP username</div></div>
+    <div class="env-row"><div class="env-key">SPRING_MAIL_PASSWORD</div><div class="env-desc">Gmail App Password (SMTP)</div></div>
+    <div class="env-row"><div class="env-key">NEXT_PUBLIC_API_BASE_URL</div><div class="env-desc">URL backend phía client (browser)</div></div>
+    <div class="env-row"><div class="env-key">INTERNAL_API_BASE_URL</div><div class="env-desc">URL backend từ Next.js server (SSR)</div></div>
+  </div>
+
+  <div class="info-box tip">
+    <strong>✅ Lưu ý triển khai:</strong> Chạy <code>docker compose up -d</code> từ thư mục <code>infrastructure/</code>. JAVA_HOME phải trỏ tới JDK 21 khi chạy Maven. Không bao giờ merge feature branch trực tiếp vào <code>main</code> — luôn phải qua <code>infrastructure</code>.
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 10. DB DESIGN ═══════════════════════════ -->
+<section class="section" id="dbdesign">
+  <div class="section-header">
+    <div class="section-icon">📐</div>
+    <div>
+      <div class="section-title">10. Thiết kế cơ sở dữ liệu</div>
+      <div class="section-subtitle">ER Diagram, đa ngôn ngữ, trạng thái nghiệp vụ</div>
+    </div>
+  </div>
+
+  <h3>🔗 Sơ đồ quan hệ (Entity Relationship)</h3>
+  <div class="diagram-container">
+    <svg viewBox="0 0 860 520" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, sans-serif" font-size="11">
+      <defs>
+        <marker id="er-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#58a6ff"/>
+        </marker>
+      </defs>
+      <rect width="860" height="520" fill="#0d1117" rx="12"/>
+
+      <!-- USER -->
+      <rect x="30" y="30" width="160" height="220" rx="8" fill="#1c2128" stroke="#3fb950" stroke-width="2"/>
+      <rect x="30" y="30" width="160" height="30" rx="8" fill="#1a3d2b"/>
+      <rect x="30" y="52" width="160" height="8" fill="#1a3d2b"/>
+      <text x="110" y="50" text-anchor="middle" fill="#3fb950" font-weight="bold">👤 user</text>
+      <text x="44" y="82" fill="#8b949e">🔑 id (PK)</text>
+      <text x="44" y="98" fill="#c9d1d9">email</text>
+      <text x="44" y="114" fill="#c9d1d9">password_hash</text>
+      <text x="44" y="130" fill="#c9d1d9">role</text>
+      <text x="44" y="146" fill="#c9d1d9">status</text>
+      <text x="44" y="162" fill="#c9d1d9">full_name</text>
+      <text x="44" y="178" fill="#c9d1d9">phone</text>
+      <text x="44" y="194" fill="#c9d1d9">avatar_url</text>
+      <text x="44" y="210" fill="#c9d1d9">created_at</text>
+      <text x="44" y="226" fill="#c9d1d9">updated_at</text>
+      <text x="44" y="242" fill="#6e7681">passwordChangedAt</text>
+
+      <!-- AUTH TABLES -->
+      <rect x="220" y="30" width="170" height="100" rx="6" fill="#1c2128" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="305" y="50" text-anchor="middle" fill="#58a6ff" font-weight="bold">📧 email_verification</text>
+      <text x="234" y="70" fill="#8b949e">🔑 id · 🔗 user_id</text>
+      <text x="234" y="86" fill="#8b949e">token · expires_at</text>
+      <text x="234" y="102" fill="#8b949e">verified · created_at</text>
+      <text x="234" y="118" fill="#6e7681">type (email/phone)</text>
+      <line x1="190" y1="80" x2="220" y2="80" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+
+      <rect x="220" y="152" width="170" height="84" rx="6" fill="#1c2128" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="305" y="172" text-anchor="middle" fill="#58a6ff" font-weight="bold">🔒 login_attempt</text>
+      <text x="234" y="192" fill="#8b949e">🔑 id · 🔗 user_id</text>
+      <text x="234" y="208" fill="#8b949e">ip_address · attempts</text>
+      <text x="234" y="224" fill="#8b949e">locked_until · created_at</text>
+      <line x1="190" y1="180" x2="220" y2="180" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+
+      <rect x="220" y="258" width="170" height="68" rx="6" fill="#1c2128" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="305" y="278" text-anchor="middle" fill="#58a6ff" font-weight="bold">🔑 password_reset_token</text>
+      <text x="234" y="298" fill="#8b949e">🔑 id · 🔗 user_id</text>
+      <text x="234" y="314" fill="#8b949e">token · expires_at · used</text>
+      <line x1="190" y1="268" x2="220" y2="268" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+
+      <!-- POI -->
+      <rect x="420" y="30" width="175" height="170" rx="8" fill="#1c2128" stroke="#ffa657" stroke-width="2"/>
+      <rect x="420" y="30" width="175" height="30" rx="8" fill="#3d2806"/>
+      <rect x="420" y="52" width="175" height="8" fill="#3d2806"/>
+      <text x="508" y="50" text-anchor="middle" fill="#ffa657" font-weight="bold">📍 poi</text>
+      <text x="434" y="82" fill="#8b949e">🔑 id (PK)</text>
+      <text x="434" y="98" fill="#c9d1d9">🔗 vendor_id → user</text>
+      <text x="434" y="114" fill="#c9d1d9">name · address</text>
+      <text x="434" y="130" fill="#c9d1d9">description</text>
+      <text x="434" y="146" fill="#c9d1d9">latitude · longitude</text>
+      <text x="434" y="162" fill="#c9d1d9">radius_meters</text>
+      <text x="434" y="178" fill="#c9d1d9">status · created_at</text>
+      <line x1="190" y1="120" x2="420" y2="120" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#er-arrow)"/>
+
+      <!-- POI translations -->
+      <rect x="620" y="30" width="220" height="80" rx="6" fill="#1c2128" stroke="#ffa657" stroke-width="1"/>
+      <text x="730" y="50" text-anchor="middle" fill="#ffa657" font-size="10">poi_english · poi_korean · poi_chinese</text>
+      <text x="730" y="66" text-anchor="middle" fill="#8b949e" font-size="10">poi_russian · poi_japanese</text>
+      <text x="730" y="82" text-anchor="middle" fill="#6e7681" font-size="9">🔗 poi_id (1:1) · name · description · translated_at</text>
+      <line x1="595" y1="95" x2="620" y2="65" stroke="#ffa657" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+
+      <!-- POI LIKES -->
+      <rect x="620" y="128" width="220" height="60" rx="6" fill="#1c2128" stroke="#ff7b72" stroke-width="1"/>
+      <text x="730" y="148" text-anchor="middle" fill="#ff7b72" font-size="10">❤️ poi_likes</text>
+      <text x="730" y="164" text-anchor="middle" fill="#8b949e" font-size="9">🔗 poi_id · session_id (anonymous)</text>
+      <text x="730" y="178" text-anchor="middle" fill="#6e7681" font-size="9">created_at</text>
+      <line x1="595" y1="155" x2="620" y2="155" stroke="#ff7b72" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+
+      <!-- SHOP -->
+      <rect x="420" y="230" width="175" height="160" rx="8" fill="#1c2128" stroke="#d2a8ff" stroke-width="2"/>
+      <rect x="420" y="230" width="175" height="30" rx="8" fill="#2d1a4b"/>
+      <rect x="420" y="252" width="175" height="8" fill="#2d1a4b"/>
+      <text x="508" y="250" text-anchor="middle" fill="#d2a8ff" font-weight="bold">🏪 shop</text>
+      <text x="434" y="280" fill="#8b949e">🔑 id (PK)</text>
+      <text x="434" y="296" fill="#c9d1d9">🔗 poi_id → poi</text>
+      <text x="434" y="312" fill="#c9d1d9">🔗 vendor_id → user</text>
+      <text x="434" y="328" fill="#c9d1d9">name · description</text>
+      <text x="434" y="344" fill="#c9d1d9">address · phone</text>
+      <text x="434" y="360" fill="#c9d1d9">status · created_at</text>
+      <line x1="508" y1="200" x2="508" y2="230" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+
+      <!-- SHOP translations -->
+      <rect x="620" y="210" width="220" height="80" rx="6" fill="#1c2128" stroke="#d2a8ff" stroke-width="1"/>
+      <text x="730" y="230" text-anchor="middle" fill="#d2a8ff" font-size="10">shop_english · shop_korean · shop_chinese</text>
+      <text x="730" y="246" text-anchor="middle" fill="#8b949e" font-size="10">shop_russian · shop_japanese</text>
+      <text x="730" y="262" text-anchor="middle" fill="#6e7681" font-size="9">🔗 shop_id (1:1) · name · description · translated_at</text>
+      <line x1="595" y1="293" x2="620" y2="250" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+
+      <!-- MENU ITEM -->
+      <rect x="30" y="380" width="170" height="80" rx="6" fill="#1c2128" stroke="#79c0ff" stroke-width="1.5"/>
+      <text x="115" y="400" text-anchor="middle" fill="#79c0ff" font-weight="bold">🍽️ menu_item</text>
+      <text x="44" y="420" fill="#8b949e">🔗 shop_id · name</text>
+      <text x="44" y="436" fill="#8b949e">price · description</text>
+      <text x="44" y="452" fill="#8b949e">image_url · is_available</text>
+      <line x1="420" y1="340" x2="200" y2="400" stroke="#79c0ff" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+
+      <!-- SHOP IMAGE -->
+      <rect x="220" y="380" width="170" height="80" rx="6" fill="#1c2128" stroke="#79c0ff" stroke-width="1.5"/>
+      <text x="305" y="400" text-anchor="middle" fill="#79c0ff" font-weight="bold">🖼️ shop_image</text>
+      <text x="234" y="420" fill="#8b949e">🔗 shop_id · 🔗 file_asset_id</text>
+      <text x="234" y="436" fill="#8b949e">sort_order · is_primary</text>
+      <text x="234" y="452" fill="#8b949e">created_at</text>
+      <line x1="420" y1="360" x2="390" y2="400" stroke="#79c0ff" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+
+      <!-- AUDIO -->
+      <rect x="420" y="415" width="175" height="90" rx="6" fill="#1c2128" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="508" y="435" text-anchor="middle" fill="#3fb950" font-weight="bold">🎵 audio</text>
+      <text x="434" y="455" fill="#8b949e">🔗 shop_id · 🔗 file_asset_id</text>
+      <text x="434" y="471" fill="#8b949e">language_code (unique/shop)</text>
+      <text x="434" y="487" fill="#8b949e">processing_status · duration</text>
+      <text x="434" y="496" fill="#6e7681">UNIQUE(shop_id, language_code)</text>
+      <line x1="508" y1="390" x2="508" y2="415" stroke="#3fb950" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+
+      <!-- FILE ASSET -->
+      <rect x="620" y="310" width="220" height="90" rx="6" fill="#1c2128" stroke="#ffa657" stroke-width="1.5"/>
+      <text x="730" y="330" text-anchor="middle" fill="#ffa657" font-weight="bold">📁 file_asset</text>
+      <text x="634" y="350" fill="#8b949e">🔑 id · filename · file_type</text>
+      <text x="634" y="366" fill="#8b949e">size_bytes · r2_key</text>
+      <text x="634" y="382" fill="#8b949e">public_url · uploader_id</text>
+      <text x="634" y="398" fill="#8b949e">created_at</text>
+      <line x1="595" y1="430" x2="620" y2="360" stroke="#ffa657" stroke-width="1.5" marker-end="url(#er-arrow)"/>
+      <line x1="390" y1="415" x2="620" y2="350" stroke="#ffa657" stroke-width="1" stroke-dasharray="4,2" marker-end="url(#er-arrow)"/>
+    </svg>
+  </div>
+
+  <h3>🌍 Thiết kế đa ngôn ngữ</h3>
+  <p>Mỗi entity có thể dịch được (POI, Shop) có bảng translation riêng theo ngôn ngữ, quan hệ 1:1 với bảng cha:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Bảng chính</th><th>Bảng dịch (1:1)</th><th>Nội dung lưu trữ</th></tr></thead>
+      <tbody>
+        <tr><td><code>poi</code></td><td><code>poi_english</code>, <code>poi_korean</code>, <code>poi_chinese</code>, <code>poi_russian</code>, <code>poi_japanese</code></td><td>name, address, description, translated_at, status dịch</td></tr>
+        <tr><td><code>shop</code></td><td><code>shop_english</code>, <code>shop_korean</code>, <code>shop_chinese</code>, <code>shop_russian</code>, <code>shop_japanese</code></td><td>name, description, address, translated_at, status dịch</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>🔄 Trạng thái nghiệp vụ</h3>
+
+  <h4>👤 user.status</h4>
+  <div class="status-flow">
+    <span class="status-badge status-inactive">inactive</span>
+    <span class="status-arrow">→</span>
+    <span class="status-badge status-active">active</span>
+    <span class="status-arrow">→</span>
+    <span class="status-badge status-suspended">suspended</span>
+    <span class="status-arrow">/</span>
+    <span class="status-badge status-disabled">disabled</span>
+    <span class="status-arrow">/</span>
+    <span class="status-badge status-rejected">rejected</span>
+  </div>
+
+  <h4>📍 poi.status</h4>
+  <div class="status-flow">
+    <span class="status-badge status-pending">pending</span>
+    <span class="status-arrow">→</span>
+    <span class="status-badge status-active">active</span>
+    <span class="status-arrow">/</span>
+    <span class="status-badge status-rejected">rejected</span>
+    <span class="status-arrow">/</span>
+    <span class="status-badge status-inactive">inactive</span>
+    <span class="status-arrow">/</span>
+    <span class="status-badge status-disabled">deleted</span>
+  </div>
+
+  <h4>🏪 shop.status</h4>
+  <div class="status-flow">
+    <span class="status-badge status-pending">pending</span>
+    <span class="status-arrow">→</span>
+    <span class="status-badge status-active">active</span>
+    <span class="status-arrow">/</span>
+    <span class="status-badge status-rejected">rejected</span>
+    <span class="status-arrow">/</span>
+    <span class="status-badge status-disabled">disabled</span>
+  </div>
+
+  <h4>🎵 audio.processing_status</h4>
+  <div class="status-flow">
+    <span class="status-badge status-pending">processing</span>
+    <span class="status-arrow">→</span>
+    <span class="status-badge status-active">completed</span>
+    <span class="status-arrow">/</span>
+    <span class="status-badge status-rejected">failed</span>
+  </div>
+
+  <div class="info-box note" style="margin-top:20px">
+    <strong>📌 Quy tắc nghiệp vụ quan trọng:</strong> Phê duyệt/từ chối Shop <em>không</em> tự động thay đổi trạng thái POI. Hai luồng phê duyệt hoàn toàn độc lập. Admin endpoint shop: <code>PATCH /api/shop/admin/{shopId}/approve|reject</code>.
+  </div>
+</section>
+
+</div><!-- end page-body -->
+
+<!-- FOOTER -->
+<footer class="footer">
+  <p>
+    <strong>FlavorTales</strong> — Nền tảng du lịch ẩm thực &nbsp;|&nbsp;
+    Kiến trúc hệ thống v1.0 &nbsp;|&nbsp;
+    07/04/2026 &nbsp;|&nbsp;
+    ☕ Java 21 · ⚛️ Next.js 15 · 🐳 Docker Compose
+  </p>
+</footer>
+
+</body>
+</html>

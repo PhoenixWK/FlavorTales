@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlavorTales – Hướng dẫn cài đặt môi trường</title>
+  <style>
+    :root {
+      --primary: #e67e22;
+      --primary-dark: #ca6f1e;
+      --secondary: #2c3e50;
+      --accent: #27ae60;
+      --danger: #e74c3c;
+      --warn: #f39c12;
+      --bg: #f9f9f9;
+      --card: #ffffff;
+      --border: #dde3ea;
+      --code-bg: #1e2430;
+      --code-fg: #e8eaf0;
+      --muted: #6c757d;
+      --radius: 8px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--secondary);
+      line-height: 1.7;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: #fff;
+      padding: 2.5rem 3rem;
+    }
+    header .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      padding: .25rem .75rem;
+      border-radius: 20px;
+      font-size: .8rem;
+      margin-bottom: .75rem;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    header h1 { font-size: 2rem; font-weight: 700; margin-bottom: .4rem; }
+    header p  { font-size: 1rem; opacity: .85; }
+    header .meta { margin-top: 1rem; font-size: .85rem; opacity: .7; }
+
+    /* ── Layout ── */
+    .wrapper { max-width: 1050px; margin: 0 auto; padding: 2.5rem 2rem; }
+
+    /* ── TOC ── */
+    nav.toc {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 2rem;
+      margin-bottom: 2.5rem;
+    }
+    nav.toc h2 { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; color: var(--primary); }
+    nav.toc ol { padding-left: 1.4rem; }
+    nav.toc li { margin: .35rem 0; }
+    nav.toc a  { color: var(--secondary); text-decoration: none; }
+    nav.toc a:hover { color: var(--primary); text-decoration: underline; }
+
+    /* ── Sections ── */
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    section h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--primary);
+      border-bottom: 2px solid var(--border);
+      padding-bottom: .6rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    section h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--secondary);
+      margin: 1.5rem 0 .6rem;
+    }
+    section h4 {
+      font-size: .95rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin: 1.25rem 0 .5rem;
+    }
+    p { margin-bottom: .8rem; }
+
+    /* ── Code blocks ── */
+    pre {
+      background: var(--code-bg);
+      color: var(--code-fg);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.3rem;
+      overflow-x: auto;
+      font-size: .875rem;
+      margin: .75rem 0 1.25rem;
+      line-height: 1.6;
+    }
+    code {
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    p code, li code, td code {
+      background: #eef0f4;
+      color: #c0392b;
+      padding: .15em .4em;
+      border-radius: 4px;
+      font-size: .875em;
+    }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; margin: .75rem 0 1.25rem; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th {
+      background: var(--secondary);
+      color: #fff;
+      padding: .6rem 1rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    td { padding: .55rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #f6f8fa; }
+
+    /* ── Callouts ── */
+    .callout {
+      border-left: 4px solid var(--primary);
+      background: #fdf3e7;
+      padding: .9rem 1.1rem;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      margin: 1rem 0;
+      font-size: .9rem;
+    }
+    .callout.info  { border-color: #3498db; background: #eaf4fd; }
+    .callout.warn  { border-color: var(--warn); background: #fef9e7; }
+    .callout.danger{ border-color: var(--danger); background: #fbeaea; }
+    .callout.tip   { border-color: var(--accent); background: #e8f8f0; }
+    .callout strong { display: block; margin-bottom: .2rem; }
+
+    /* ── Steps ── */
+    .steps { counter-reset: step; padding: 0; list-style: none; }
+    .steps > li {
+      counter-increment: step;
+      position: relative;
+      padding: .7rem 1rem .7rem 3.2rem;
+      margin-bottom: .5rem;
+      background: #f6f8fa;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .steps > li::before {
+      content: counter(step);
+      position: absolute;
+      left: .9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--primary);
+      color: #fff;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .8rem;
+      font-weight: 700;
+    }
+
+    /* ── Env var list ── */
+    .env-list { list-style: none; padding: 0; }
+    .env-list li {
+      display: flex;
+      gap: .5rem;
+      padding: .45rem 0;
+      border-bottom: 1px dashed var(--border);
+      font-size: .9rem;
+      flex-wrap: wrap;
+    }
+    .env-list li:last-child { border-bottom: none; }
+    .env-key {
+      font-family: 'Cascadia Code', monospace;
+      font-weight: 600;
+      color: #8e44ad;
+      min-width: 300px;
+    }
+    .env-desc { color: var(--muted); flex: 1; }
+    .env-required {
+      font-size: .75rem;
+      background: #fbeaea;
+      color: var(--danger);
+      padding: .1em .5em;
+      border-radius: 10px;
+      font-weight: 600;
+      align-self: center;
+    }
+    .env-optional {
+      font-size: .75rem;
+      background: #eef8f0;
+      color: var(--accent);
+      padding: .1em .5em;
+      border-radius: 10px;
+      font-weight: 600;
+      align-self: center;
+    }
+
+    /* ── Badge chips ── */
+    .chip {
+      display: inline-block;
+      padding: .2em .65em;
+      border-radius: 12px;
+      font-size: .78rem;
+      font-weight: 600;
+      margin-right: .25rem;
+    }
+    .chip-dev   { background: #daf0fb; color: #1a6fa8; }
+    .chip-test  { background: #e0fbe0; color: #1e7e34; }
+    .chip-stage { background: #fef3cd; color: #856404; }
+    .chip-prod  { background: #f8d7da; color: #721c24; }
+
+    /* ── Port table chips ── */
+    .port { font-family: monospace; font-weight: 700; color: var(--primary); }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">FlavorTales Documentation</div>
+  <h1>🌶️ Hướng Dẫn Cài Đặt Môi Trường</h1>
+  <p>Environment Setup Guide – Dev · Test · Staging · Production</p>
+  <div class="meta">Cập nhật: Tháng 4, 2026 &nbsp;|&nbsp; Stack: Java 21 · Spring Boot 3.5 · Next.js 16 · MySQL 8 · Redis 7.2 · MongoDB 7 · Docker</div>
+</header>
+
+<div class="wrapper">
+
+  <!-- ── TOC ── -->
+  <nav class="toc">
+    <h2>📋 Nội dung</h2>
+    <ol>
+      <li><a href="#overview">Tổng quan môi trường</a></li>
+      <li><a href="#prerequisites">Yêu cầu phần mềm</a></li>
+      <li><a href="#env-dev">Môi trường Development (Local)</a></li>
+      <li><a href="#env-test">Môi trường Test</a></li>
+      <li><a href="#env-staging">Môi trường Staging</a></li>
+      <li><a href="#env-prod">Môi trường Production</a></li>
+      <li><a href="#env-vars">Biến môi trường &amp; Cấu hình</a></li>
+      <li><a href="#ports">Bảng cổng dịch vụ</a></li>
+      <li><a href="#tailscale">Remote Access qua Tailscale</a></li>
+      <li><a href="#troubleshooting">Xử lý sự cố thường gặp</a></li>
+    </ol>
+  </nav>
+
+  <!-- ── 1. Overview ── -->
+  <section id="overview">
+    <h2>1. Tổng quan môi trường</h2>
+    <p>FlavorTales là nền tảng food-tourism với kiến trúc monorepo gồm bốn thành phần chính: <strong>Backend</strong> (Spring Boot), <strong>Frontend</strong> (Next.js), <strong>Database</strong> (MySQL + Redis + MongoDB) và <strong>Infrastructure</strong> (Docker Compose). Dự án hỗ trợ bốn môi trường:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Môi trường</th><th>Mục đích</th><th>Cách chạy</th><th>URL mặc định</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="chip chip-dev">Dev</span></td>
+            <td>Phát triển local cho lập trình viên</td>
+            <td>Chạy trực tiếp (Maven + npm)</td>
+            <td><code>http://localhost:3000</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-test">Test</span></td>
+            <td>Chạy unit test &amp; integration test tự động</td>
+            <td>Maven Surefire / Vitest</td>
+            <td>–</td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-stage">Staging</span></td>
+            <td>Kiểm thử trước khi release, gần giống prod</td>
+            <td>Docker Compose (infra docker-compose)</td>
+            <td>Port ánh xạ local</td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-prod">Prod</span></td>
+            <td>Triển khai thật, expose qua Cloudflare Tunnel</td>
+            <td>Docker Compose (infra docker-compose) + Cloudflare</td>
+            <td><code>https://flavortales.site</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <strong>Lưu ý về branch</strong>
+      Dự án có 4 nhánh làm việc độc lập, không theo thứ tự phụ thuộc lẫn nhau:
+      <ul style="margin-top:.5rem;padding-left:1.4rem">
+        <li><code>backend</code> – phát triển Spring Boot API</li>
+        <li><code>frontend</code> – phát triển Next.js UI</li>
+        <li><code>infrastructure</code> – cấu hình Docker, CI/CD</li>
+        <li><code>database</code> – schema, migration, seed data</li>
+      </ul>
+      <span style="display:block;margin-top:.5rem">Sau khi commit đầy đủ trên từng nhánh, mới merge tất cả vào <code>main</code>. Không được merge trực tiếp feature branch vào <code>main</code> khi chưa hoàn thiện.</span>
+    </div>
+  </section>
+
+  <!-- ── 2. Prerequisites ── -->
+  <section id="prerequisites">
+    <h2>2. Yêu cầu phần mềm</h2>
+
+    <h3>2.1 Phần mềm bắt buộc (tất cả môi trường)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Phần mềm</th><th>Phiên bản yêu cầu</th><th>Ghi chú</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Git</td><td>&ge; 2.40</td><td>Quản lý mã nguồn</td></tr>
+          <tr><td>Docker Desktop</td><td>&ge; 24 (Engine &ge; 24)</td><td>Bắt buộc để chạy database stack</td></tr>
+          <tr><td>Docker Compose</td><td>v2 (tích hợp sẵn Docker Desktop)</td><td><code>docker compose</code> (không dùng <code>docker-compose</code> v1)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>2.2 Backend</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Phần mềm</th><th>Phiên bản</th><th>Cài đặt</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>JDK (Eclipse Adoptium Temurin)</td>
+            <td><strong>21</strong> LTS</td>
+            <td>
+              Tải tại <a href="https://adoptium.net" target="_blank">adoptium.net</a><br>
+              Đường dẫn mặc định trên Windows:<br>
+              <code>C:\Program Files\Eclipse Adoptium\jdk-21.0.x-hotspot</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Maven</td>
+            <td>&ge; 3.9 (wrapper đi kèm)</td>
+            <td>Dùng <code>mvnw.cmd</code> trong thư mục <code>backend/</code>, không cần cài thêm</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <strong>⚠️ JAVA_HOME</strong>
+      Biến môi trường <code>JAVA_HOME</code> phải trỏ đúng JDK 21 trước khi chạy Maven. VS Code task sẽ set tự động; khi chạy terminal thủ công cần set tay.
+    </div>
+
+    <h3>2.3 Frontend</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Phần mềm</th><th>Phiên bản</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Node.js</td><td><strong>20</strong> LTS (Alpine trong Docker)</td></tr>
+          <tr><td>npm</td><td>Đi kèm Node.js (dùng <code>npm ci</code> để install)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>2.4 Kiểm tra môi trường</h3>
+    <pre><code># Kiểm tra Java
+java -version
+# Kết quả mong đợi: openjdk version "21.x.x" ...
+
+# Kiểm tra Maven wrapper
+cd backend
+./mvnw.cmd --version
+
+# Kiểm tra Node
+node -v   # v20.x.x
+
+# Kiểm tra Docker
+docker --version
+docker compose version</code></pre>
+  </section>
+
+  <!-- ── 3. Dev Environment ── -->
+  <section id="env-dev">
+    <h2>3. Môi trường Development (Local)</h2>
+    <p>Phù hợp cho quá trình phát triển hàng ngày. Backend &amp; Frontend chạy trực tiếp trên máy; Database stack chạy qua Docker Compose.</p>
+
+    <h3>3.1 Khởi động Database Stack</h3>
+    <p>Các dịch vụ cơ sở dữ liệu (MySQL primary + replica, Redis, MongoDB) được quản lý bằng Docker Compose trong thư mục <code>infrastructure/</code>.</p>
+
+    <ol class="steps">
+      <li>Mở terminal và di chuyển vào thư mục <code>infrastructure/</code>
+        <pre><code>cd "d:\Codes\Seminar\Source Code\infrastructure"</code></pre>
+      </li>
+      <li>Khởi động các dịch vụ (chỉ cần khởi động database, không build image app):
+        <pre><code>docker compose up -d mysql-primary mysql-replicate replication-setup redis mongodb</code></pre>
+      </li>
+      <li>Kiểm tra trạng thái các container:
+        <pre><code>docker compose ps</code></pre>
+        Tất cả container phải có trạng thái <code>healthy</code> trước khi chạy backend.
+      </li>
+      <li>Xem log nếu cần debug:
+        <pre><code>docker compose logs -f mysql-primary
+docker compose logs -f replication-setup</code></pre>
+      </li>
+    </ol>
+
+    <div class="callout tip">
+      <strong>💡 MySQL Replication</strong>
+      Container <code>replication-setup</code> sẽ tự động cấu hình GTID replication giữa primary (port <code>3308</code>) và replica (port <code>3309</code>). Đây là one-time setup, container có thể ở trạng thái <code>Exited (0)</code> sau khi hoàn thành.
+    </div>
+
+    <h3>3.2 Khởi động Backend</h3>
+    <ol class="steps">
+      <li>Mở terminal và di chuyển vào thư mục <code>backend/</code>:
+        <pre><code>cd "d:\Codes\Seminar\Source Code\backend"</code></pre>
+      </li>
+      <li>Set <code>JAVA_HOME</code> (nếu chưa set trong hệ thống):
+        <pre><code># Windows PowerShell
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.10.7-hotspot"</code></pre>
+      </li>
+      <li>Chạy Spring Boot application:
+        <pre><code>./mvnw.cmd spring-boot:run -pl flavortales-app</code></pre>
+        Backend sẽ start tại <code>http://localhost:8080</code>
+      </li>
+      <li><strong>(Tùy chọn)</strong> Chạy qua VS Code Task:<br>
+        Nhấn <code>Ctrl+Shift+P</code> → <em>Tasks: Run Task</em> → <em>Run FlavorTalesApplication</em>
+      </li>
+    </ol>
+
+    <div class="callout info">
+      <strong>Cấu hình mặc định Development</strong>
+      File <code>backend/flavortales-app/src/main/resources/database-dev.yml</code> dùng kết nối:<br>
+      MySQL Primary: <code>localhost:3308</code> | MySQL Replica: <code>localhost:3309</code> | Redis: <code>localhost:6379</code> | MongoDB: <code>localhost:27017</code>
+    </div>
+
+    <h3>3.3 Khởi động Frontend</h3>
+    <ol class="steps">
+      <li>Di chuyển vào thư mục <code>frontend/</code>:
+        <pre><code>cd "d:\Codes\Seminar\Source Code\frontend"</code></pre>
+      </li>
+      <li>Cài đặt dependencies (chỉ cần lần đầu hoặc khi <code>package.json</code> thay đổi):
+        <pre><code>npm ci</code></pre>
+      </li>
+      <li>Chạy development server:
+        <pre><code>npm run dev</code></pre>
+        Frontend sẽ chạy tại <code>http://localhost:3000</code>
+      </li>
+    </ol>
+
+    <h3>3.4 Tóm tắt các URL Dev</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dịch vụ</th><th>URL / Host</th><th>Ghi chú</th></tr></thead>
+        <tbody>
+          <tr><td>Frontend</td><td><code>http://localhost:3000</code></td><td>Next.js dev server</td></tr>
+          <tr><td>Backend API</td><td><code>http://localhost:8080</code></td><td>Spring Boot</td></tr>
+          <tr><td>MySQL Primary (R/W)</td><td><code>localhost:3308</code></td><td>User: <code>root</code> / Pass: <code>root</code></td></tr>
+          <tr><td>MySQL Replica (RO)</td><td><code>localhost:3309</code></td><td>Read-only replica</td></tr>
+          <tr><td>Redis</td><td><code>localhost:6379</code></td><td>Cache &amp; session</td></tr>
+          <tr><td>MongoDB</td><td><code>localhost:27017</code></td><td>DB: <code>flavortales</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 4. Test Environment ── -->
+  <section id="env-test">
+    <h2>4. Môi trường Test</h2>
+
+    <h3>4.1 Backend Tests (JUnit 5)</h3>
+    <p>Chạy toàn bộ test suite:</p>
+    <pre><code>cd backend
+./mvnw.cmd test</code></pre>
+
+    <p>Chạy test cho một module cụ thể:</p>
+    <pre><code>./mvnw.cmd test -pl flavortales-auth
+./mvnw.cmd test -pl flavortales-user
+./mvnw.cmd test -pl flavortales-poi</code></pre>
+
+    <p>Chạy một test class hoặc method cụ thể:</p>
+    <pre><code>./mvnw.cmd test -pl flavortales-auth -Dtest=AuthServiceTest
+./mvnw.cmd test -pl flavortales-auth -Dtest=AuthServiceTest#testLogin</code></pre>
+
+    <div class="callout tip">
+      <strong>💡 Cấu trúc test</strong>
+      Unit test dùng <code>@ExtendWith(MockitoExtension.class)</code>, Integration test dùng <code>@SpringBootTest</code>. Test files đặt trong <code>src/test/java/</code> theo cùng package structure với <code>src/main/java/</code>.
+    </div>
+
+    <h3>4.2 Frontend Tests (Vitest)</h3>
+    <p>Chạy test ở chế độ watch (phát triển):</p>
+    <pre><code>cd frontend
+npm run test</code></pre>
+
+    <p>Chạy test một lần (CI/CD):</p>
+    <pre><code>npm run test:run</code></pre>
+
+    <div class="callout info">
+      <strong>Vị trí test files</strong>
+      Co-locate với component source: <code>*.test.ts(x)</code> hoặc trong thư mục <code>__tests__/</code>. Dùng <code>@testing-library/react</code> cho component tests.
+    </div>
+
+    <h3>4.3 Load Test (Locust)</h3>
+    <p>Kịch bản load test nằm tại <code>test/locustfile.py</code>:</p>
+    <pre><code># Cài Locust
+pip install locust
+
+# Chạy load test (backend phải đang chạy)
+cd test
+locust -f locustfile.py --host=http://localhost:8080</code></pre>
+  </section>
+
+  <!-- ── 5. Staging Environment ── -->
+  <section id="env-staging">
+    <h2>5. Môi trường Staging</h2>
+    <p>Staging sử dụng toàn bộ Docker Compose stack (bao gồm cả backend &amp; frontend được build thành image), mô phỏng gần đúng môi trường production nhưng chạy local.</p>
+
+    <h3>5.1 Chuẩn bị file <code>.env</code></h3>
+    <p>Tạo file <code>.env</code> trong thư mục <code>infrastructure/</code> dựa theo mẫu:</p>
+    <pre><code># infrastructure/.env
+
+# ── Database ──────────────────────────────────────────────────────
+DB_USERNAME=root
+DB_PASSWORD=root
+
+# ── JWT ───────────────────────────────────────────────────────────
+# Tạo secret: openssl rand -base64 32
+APP_JWT_SECRET=your-256-bit-secret-key-here
+
+# ── Email (Gmail SMTP) ───────────────────────────────────────────
+SPRING_MAIL_USERNAME=your-email@gmail.com
+SPRING_MAIL_PASSWORD=your-app-password
+
+# ── Cloudflare R2 ─────────────────────────────────────────────────
+R2_ACCOUNT_ID=your-account-id
+R2_ACCESS_KEY=your-r2-access-key
+R2_SECRET_KEY=your-r2-secret-key
+R2_PUBLIC_URL=https://cdn.flavortales.site
+
+# ── Frontend ──────────────────────────────────────────────────────
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+NEXT_PUBLIC_R2_PUBLIC_URL=https://cdn.flavortales.site
+
+# ── CORS ──────────────────────────────────────────────────────────
+APP_CORS_ALLOWED_ORIGINS=http://localhost:3000
+
+# ── Cloudflare Tunnel (chỉ dùng cho staging/prod) ────────────────
+# CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token</code></pre>
+
+    <div class="callout danger">
+      <strong>🔒 Bảo mật</strong>
+      Không commit file <code>.env</code> lên Git. Đảm bảo <code>.env</code> có trong <code>.gitignore</code>.
+    </div>
+
+    <h3>5.2 Build &amp; Chạy toàn bộ Stack</h3>
+    <ol class="steps">
+      <li>Di chuyển vào thư mục <code>infrastructure/</code>:
+        <pre><code>cd "d:\Codes\Seminar\Source Code\infrastructure"</code></pre>
+      </li>
+      <li>Build images và khởi động toàn bộ stack:
+        <pre><code>docker compose up -d --build</code></pre>
+      </li>
+      <li>Theo dõi quá trình khởi động (đặc biệt là database health check):
+        <pre><code>docker compose logs -f</code></pre>
+      </li>
+      <li>Kiểm tra trạng thái:
+        <pre><code>docker compose ps</code></pre>
+      </li>
+    </ol>
+
+    <h3>5.3 Quản lý Stack</h3>
+    <pre><code># Dừng tất cả container
+docker compose stop
+
+# Dừng và xoá container (giữ volume)
+docker compose down
+
+# Dừng và xoá container + volume (reset hoàn toàn dữ liệu)
+docker compose down -v
+
+# Restart một service cụ thể
+docker compose restart backend
+
+# Xem log của một service
+docker compose logs -f frontend</code></pre>
+
+    <div class="callout warn">
+      <strong>⚠️ Thứ tự khởi động</strong>
+      Backend phụ thuộc vào <code>mysql-primary</code>, <code>mysql-replicate</code>, <code>replication-setup</code>, <code>redis</code>, <code>mongodb</code> đều phải <code>healthy</code> trước. Nếu backend fail, kiểm tra health check của database containers.
+    </div>
+  </section>
+
+  <!-- ── 6. Production ── -->
+  <section id="env-prod">
+    <h2>6. Môi trường Production</h2>
+    <p>Production triển khai trên máy chủ thông qua Docker Compose kết hợp với Cloudflare Tunnel để expose dịch vụ mà không cần mở inbound port.</p>
+
+    <h3>6.1 Cấu trúc hạ tầng Production</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dịch vụ</th><th>Domain</th><th>Routing</th></tr></thead>
+        <tbody>
+          <tr><td>Frontend</td><td><code>https://flavortales.site</code></td><td>Cloudflare Tunnel → <code>frontend:3000</code></td></tr>
+          <tr><td>Backend API</td><td><code>https://api.flavortales.site</code></td><td>Cloudflare Tunnel → <code>backend:8080</code></td></tr>
+          <tr><td>CDN / File Storage</td><td><code>https://cdn.flavortales.site</code></td><td>Cloudflare R2 (S3-compatible)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>6.2 Cài đặt Cloudflare Tunnel</h3>
+    <ol class="steps">
+      <li>Tạo tunnel trong Cloudflare Zero Trust Dashboard (<a href="https://one.dash.cloudflare.com" target="_blank">one.dash.cloudflare.com</a>)</li>
+      <li>Cấu hình 2 Public Hostname:
+        <ul style="margin-left:1.5rem;margin-top:.4rem">
+          <li><code>flavortales.site</code> → <code>http://frontend:3000</code></li>
+          <li><code>api.flavortales.site</code> → <code>http://backend:8080</code></li>
+        </ul>
+      </li>
+      <li>Sao chép Tunnel Token và thêm vào file <code>.env</code>:
+        <pre><code>CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoixxxxxxxxxxxxxxxx...</code></pre>
+      </li>
+      <li>Uncomment dịch vụ <code>cloudflared</code> trong <code>docker-compose.yml</code> hoặc thêm vào file override.</li>
+    </ol>
+
+    <h3>6.3 Biến môi trường Production (bổ sung)</h3>
+    <pre><code># infrastructure/.env (production additions)
+
+# ── Cloudflare Tunnel ────────────────────────────────────────────
+CLOUDFLARE_TUNNEL_TOKEN=your-production-tunnel-token
+
+# ── Frontend URLs ─────────────────────────────────────────────────
+NEXT_PUBLIC_API_BASE_URL=https://api.flavortales.site
+NEXT_PUBLIC_R2_PUBLIC_URL=https://cdn.flavortales.site
+
+# ── CORS ──────────────────────────────────────────────────────────
+APP_CORS_ALLOWED_ORIGINS=https://flavortales.site
+
+# ── Cookie bảo mật (HTTPS) ────────────────────────────────────────
+# Trong security.yml: cookie-secure: true</code></pre>
+
+    <h3>6.4 Triển khai Production</h3>
+    <pre><code>cd infrastructure
+
+# Pull image mới nhất và rebuild nếu có thay đổi code
+docker compose pull
+docker compose up -d --build
+
+# Kiểm tra tất cả services healthy
+docker compose ps</code></pre>
+
+    <h3>6.5 Backup Database</h3>
+    <pre><code># Backup MySQL (chạy trên máy chủ hoặc trong container)
+docker exec flavortales-primary \
+  mysqldump -uroot -p"${DB_PASSWORD}" flavortales \
+  > flavortales_backup_$(date +%Y%m%d).sql
+
+# Restore từ backup
+docker exec -i flavortales-primary \
+  mysql -uroot -p"${DB_PASSWORD}" flavortales \
+  < flavortales_backup.sql</code></pre>
+
+    <div class="callout danger">
+      <strong>🔒 Checklist bảo mật Production</strong>
+      <ul style="margin-top:.5rem;padding-left:1.4rem">
+        <li><code>APP_JWT_SECRET</code> phải là chuỗi ngẫu nhiên 256-bit (không dùng giá trị dev)</li>
+        <li><code>cookie-secure: true</code> trong <code>security.yml</code> (chỉ dùng HTTPS)</li>
+        <li>Đổi password MySQL mặc định (<code>root/root</code>)</li>
+        <li>Không expose port MySQL/Redis/MongoDB ra ngoài container network</li>
+        <li>File <code>.env</code> không được commit lên Git</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── 7. Environment Variables ── -->
+  <section id="env-vars">
+    <h2>7. Biến môi trường &amp; Cấu hình</h2>
+    <p>Tất cả biến môi trường được đọc bởi Spring Boot qua cú pháp <code>${VAR_NAME:default-value}</code>. Khi chạy Docker Compose, các biến được cung cấp qua file <code>infrastructure/.env</code>.</p>
+
+    <h3>7.1 Database</h3>
+    <ul class="env-list">
+      <li>
+        <span class="env-key">DB_USERNAME</span>
+        <span class="env-desc">Username MySQL (master &amp; slave)</span>
+        <span class="env-optional">default: root</span>
+      </li>
+      <li>
+        <span class="env-key">DB_PASSWORD</span>
+        <span class="env-desc">Password MySQL</span>
+        <span class="env-optional">default: root</span>
+      </li>
+      <li>
+        <span class="env-key">SPRING_DATASOURCE_MASTER_JDBC_URL</span>
+        <span class="env-desc">JDBC URL cho MySQL primary (override trong Docker)</span>
+        <span class="env-optional">default: jdbc:mysql://localhost:3308/flavortales</span>
+      </li>
+      <li>
+        <span class="env-key">SPRING_DATASOURCE_SLAVE_JDBC_URL</span>
+        <span class="env-desc">JDBC URL cho MySQL replica (override trong Docker)</span>
+        <span class="env-optional">default: jdbc:mysql://localhost:3309/flavortales</span>
+      </li>
+      <li>
+        <span class="env-key">REDIS_HOST</span>
+        <span class="env-desc">Hostname Redis server</span>
+        <span class="env-optional">default: localhost</span>
+      </li>
+      <li>
+        <span class="env-key">REDIS_PORT</span>
+        <span class="env-desc">Port Redis server</span>
+        <span class="env-optional">default: 6379</span>
+      </li>
+      <li>
+        <span class="env-key">MONGODB_URI</span>
+        <span class="env-desc">MongoDB connection URI</span>
+        <span class="env-optional">default: mongodb://localhost:27017/flavortales</span>
+      </li>
+    </ul>
+
+    <h3>7.2 Bảo mật &amp; JWT</h3>
+    <ul class="env-list">
+      <li>
+        <span class="env-key">APP_JWT_SECRET</span>
+        <span class="env-desc">Secret key để ký JWT token. Tạo bằng: <code>openssl rand -base64 32</code></span>
+        <span class="env-required">Required (Prod)</span>
+      </li>
+      <li>
+        <span class="env-key">APP_CORS_ALLOWED_ORIGINS</span>
+        <span class="env-desc">Danh sách origin được phép CORS (phân cách bằng dấu phẩy)</span>
+        <span class="env-optional">default: http://localhost:3000</span>
+      </li>
+    </ul>
+
+    <h3>7.3 Email (Gmail SMTP)</h3>
+    <ul class="env-list">
+      <li>
+        <span class="env-key">SPRING_MAIL_USERNAME</span>
+        <span class="env-desc">Gmail address dùng để gửi email xác thực &amp; thông báo</span>
+        <span class="env-required">Required</span>
+      </li>
+      <li>
+        <span class="env-key">SPRING_MAIL_PASSWORD</span>
+        <span class="env-desc">Gmail App Password (không phải mật khẩu Gmail thường). Tạo tại Google Account → Security → App Passwords</span>
+        <span class="env-required">Required</span>
+      </li>
+    </ul>
+
+    <h3>7.4 Cloudflare R2 (File Storage)</h3>
+    <ul class="env-list">
+      <li>
+        <span class="env-key">R2_ACCOUNT_ID</span>
+        <span class="env-desc">Cloudflare Account ID (lấy từ Cloudflare Dashboard)</span>
+        <span class="env-required">Required</span>
+      </li>
+      <li>
+        <span class="env-key">R2_ACCESS_KEY</span>
+        <span class="env-desc">R2 API Token Access Key</span>
+        <span class="env-required">Required</span>
+      </li>
+      <li>
+        <span class="env-key">R2_SECRET_KEY</span>
+        <span class="env-desc">R2 API Token Secret Key</span>
+        <span class="env-required">Required</span>
+      </li>
+      <li>
+        <span class="env-key">R2_PUBLIC_URL</span>
+        <span class="env-desc">Public URL cho R2 bucket (custom domain)</span>
+        <span class="env-optional">default: https://cdn.flavortales.site</span>
+      </li>
+    </ul>
+
+    <h3>7.5 Frontend</h3>
+    <ul class="env-list">
+      <li>
+        <span class="env-key">NEXT_PUBLIC_API_BASE_URL</span>
+        <span class="env-desc">URL gốc của Backend API (client-side). Được inject lúc build.</span>
+        <span class="env-optional">default: http://localhost:8080</span>
+      </li>
+      <li>
+        <span class="env-key">NEXT_PUBLIC_R2_PUBLIC_URL</span>
+        <span class="env-desc">Public CDN URL để load ảnh/file. Được inject lúc build.</span>
+        <span class="env-optional">default: https://cdn.flavortales.site</span>
+      </li>
+      <li>
+        <span class="env-key">INTERNAL_API_BASE_URL</span>
+        <span class="env-desc">URL Backend dùng cho Server-Side BFF routing (server-to-server, không qua browser). Trong Docker dùng service hostname.</span>
+        <span class="env-optional">default: http://backend:8080</span>
+      </li>
+    </ul>
+
+    <h3>7.6 Cloudflare Tunnel</h3>
+    <ul class="env-list">
+      <li>
+        <span class="env-key">CLOUDFLARE_TUNNEL_TOKEN</span>
+        <span class="env-desc">Token để authenticate cloudflared với Cloudflare (chỉ cần cho staging/prod)</span>
+        <span class="env-optional">Staging/Prod only</span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ── 8. Ports ── -->
+  <section id="ports">
+    <h2>8. Bảng cổng dịch vụ</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Dịch vụ</th><th>Container Name</th><th>Host Port</th><th>Container Port</th><th>Môi trường</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Frontend (Next.js)</td>
+            <td><code>–</code></td>
+            <td><span class="port">3000</span></td>
+            <td>3000</td>
+            <td><span class="chip chip-dev">Dev</span><span class="chip chip-stage">Staging</span><span class="chip chip-prod">Prod</span></td>
+          </tr>
+          <tr>
+            <td>Backend (Spring Boot)</td>
+            <td><code>–</code></td>
+            <td><span class="port">8080</span></td>
+            <td>8080</td>
+            <td><span class="chip chip-dev">Dev</span><span class="chip chip-stage">Staging</span><span class="chip chip-prod">Prod</span></td>
+          </tr>
+          <tr>
+            <td>MySQL Primary (R/W)</td>
+            <td><code>flavortales-primary</code></td>
+            <td><span class="port">3308</span></td>
+            <td>3306</td>
+            <td><span class="chip chip-dev">Dev</span><span class="chip chip-stage">Staging</span><span class="chip chip-prod">Prod</span></td>
+          </tr>
+          <tr>
+            <td>MySQL Replica (RO)</td>
+            <td><code>flavortales-replicate</code></td>
+            <td><span class="port">3309</span></td>
+            <td>3306</td>
+            <td><span class="chip chip-dev">Dev</span><span class="chip chip-stage">Staging</span><span class="chip chip-prod">Prod</span></td>
+          </tr>
+          <tr>
+            <td>Redis</td>
+            <td><code>flavortales-redis</code></td>
+            <td><span class="port">6379</span></td>
+            <td>6379</td>
+            <td><span class="chip chip-dev">Dev</span><span class="chip chip-stage">Staging</span><span class="chip chip-prod">Prod</span></td>
+          </tr>
+          <tr>
+            <td>MongoDB</td>
+            <td><code>flavortales-mongodb</code></td>
+            <td><span class="port">27017</span></td>
+            <td>27017</td>
+            <td><span class="chip chip-dev">Dev</span><span class="chip chip-stage">Staging</span><span class="chip chip-prod">Prod</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <strong>⚠️ Production</strong>
+      Trong môi trường production, chỉ port <code>3000</code> (frontend) và <code>8080</code> (backend) được expose ra ngoài qua Cloudflare Tunnel. Các port database không bao giờ được expose ra internet.
+    </div>
+  </section>
+
+  <!-- ── 9. Tailscale ── -->
+  <section id="tailscale">
+    <h2>9. Remote Access qua Tailscale</h2>
+    <p>Tailscale tạo mạng VPN mesh (dựa trên WireGuard), cho phép kết nối trực tiếp từ laptop vào Mini PC chạy server mà không cần mở port router hay cấu hình firewall phức tạp.</p>
+
+    <div class="callout tip">
+      <strong>💡 Use case</strong>
+      Mini PC đặt ở nhà/phòng trọ chạy Docker stack 24/7. Laptop ở trường dùng WiFi trường hoặc 4G để SSH, kết nối MySQL Workbench, MongoDB Compass vào Mini PC qua Tailscale IP.
+    </div>
+
+    <h3>9.1 Cài đặt Tailscale trên Mini PC (Ubuntu Server)</h3>
+    <ol class="steps">
+      <li>Cài Tailscale:
+        <pre><code>curl -fsSL https://tailscale.com/install.sh | sh</code></pre>
+      </li>
+      <li>Khởi động và đăng nhập (dùng Google hoặc GitHub account):
+        <pre><code>sudo tailscale up</code></pre>
+        Trình duyệt sẽ mở link xác thực. Đăng nhập và xác nhận.
+      </li>
+      <li>Lấy IP Tailscale của Mini PC:
+        <pre><code>tailscale ip -4
+# Ví dụ: 100.64.x.x</code></pre>
+      </li>
+      <li>Bật tự động khởi động cùng hệ thống:
+        <pre><code>sudo systemctl enable --now tailscaled</code></pre>
+      </li>
+    </ol>
+
+    <h3>9.2 Cài đặt Tailscale trên Laptop (Windows)</h3>
+    <ol class="steps">
+      <li>Tải và cài Tailscale tại <a href="https://tailscale.com/download" target="_blank">tailscale.com/download</a></li>
+      <li>Đăng nhập <strong>cùng account</strong> với Mini PC</li>
+      <li>Kiểm tra kết nối:
+        <pre><code>ping 100.64.x.x</code></pre>
+      </li>
+    </ol>
+
+    <h3>9.3 Kết nối các dịch vụ qua Tailscale IP</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Dịch vụ</th><th>Công cụ</th><th>Connection String</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>SSH</td><td>Terminal</td><td><code>ssh user@100.64.x.x</code></td></tr>
+          <tr><td>MySQL Primary</td><td>MySQL Workbench</td><td>Host: <code>100.64.x.x</code>, Port: <code>3308</code>, Method: Standard TCP/IP</td></tr>
+          <tr><td>MySQL Replica</td><td>MySQL Workbench</td><td>Host: <code>100.64.x.x</code>, Port: <code>3309</code></td></tr>
+          <tr><td>MongoDB</td><td>Compass / Studio 3T</td><td><code>mongodb://100.64.x.x:27017</code></td></tr>
+          <tr><td>Redis</td><td>RedisInsight</td><td>Host: <code>100.64.x.x</code>, Port: <code>6379</code></td></tr>
+          <tr><td>Backend API</td><td>Browser / Postman</td><td><code>http://100.64.x.x:8080</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <strong>Không cần SSH Tunnel</strong>
+      Khi dùng Tailscale, kết nối MySQL Workbench dùng <strong>Standard TCP/IP</strong> (không phải "Standard TCP/IP over SSH") vì Tailscale đã tạo kênh mạng riêng giữa 2 máy.
+    </div>
+
+    <h3>9.4 Bảo mật: Chặn SSH từ internet public</h3>
+    <p>Sau khi cấu hình Tailscale, nên chặn SSH từ internet để tránh port scanning:</p>
+    <pre><code># Xóa rule allow SSH public
+sudo ufw delete allow 22/tcp
+
+# Chỉ cho phép SSH từ interface Tailscale
+sudo ufw allow in on tailscale0 to any port 22
+
+sudo ufw reload
+sudo ufw status</code></pre>
+
+    <h3>9.5 Quản lý Tailscale</h3>
+    <pre><code># Dừng kết nối Tailscale
+sudo tailscale down
+
+# Dừng service hoàn toàn
+sudo systemctl stop tailscaled
+
+# Tắt tự khởi động
+sudo systemctl disable tailscaled
+
+# Bật lại
+sudo systemctl enable --now tailscaled
+sudo tailscale up</code></pre>
+
+    <div class="callout warn">
+      <strong>⚠️ Yêu cầu kết nối internet</strong>
+      Tailscale cần internet để duy trì kết nối qua coordination server. Mini PC phải có internet (WiFi nhà/phòng trọ, LAN, hoặc USB tethering 4G) thì laptop mới kết nối được từ bên ngoài.
+    </div>
+  </section>
+
+  <!-- ── 10. Troubleshooting ── -->
+  <section id="troubleshooting">
+    <h2>10. Xử lý sự cố thường gặp</h2>
+
+    <h3>🔴 Backend không khởi động được</h3>
+    <div class="callout">
+      <strong>Lỗi: <code>JAVA_HOME</code> không đúng hoặc JDK không phải version 21</strong>
+      <pre><code># Kiểm tra version
+java -version
+# Nếu không phải JDK 21, set lại:
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.10.7-hotspot"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"</code></pre>
+    </div>
+
+    <div class="callout">
+      <strong>Lỗi: <code>Connection refused</code> khi kết nối MySQL</strong>
+      Chắc chắn Docker containers đang chạy và <code>healthy</code>:
+      <pre><code>docker compose ps
+# mysql-primary và mysql-replicate phải ở trạng thái healthy
+# Nếu không, xem log:
+docker compose logs mysql-primary</code></pre>
+    </div>
+
+    <h3>🔴 Frontend lỗi build hoặc module not found</h3>
+    <div class="callout">
+      <strong>Xoá <code>node_modules</code> và cài lại</strong>
+      <pre><code>cd frontend
+Remove-Item -Recurse -Force node_modules
+npm ci</code></pre>
+    </div>
+
+    <h3>🔴 MySQL Replication bị lỗi</h3>
+    <div class="callout">
+      <strong>Reset và sync lại replica từ backup</strong>
+      <pre><code>docker compose down -v
+docker compose up -d mysql-primary mysql-replicate replication-setup redis mongodb
+# Chờ replication-setup hoàn thành, sau đó kiểm tra:
+docker exec flavortales-replicate mysql -uroot -proot \
+  -e "SHOW REPLICA STATUS\G" | grep -E "Running|Error"</code></pre>
+    </div>
+
+    <h3>🔴 Docker Compose build thất bại (backend)</h3>
+    <div class="callout">
+      <strong>Maven download lỗi do mạng không ổn định</strong>
+      Dockerfile đã có retry logic tự động. Nếu vẫn lỗi:
+      <pre><code># Build lại không dùng cache
+docker compose build --no-cache backend</code></pre>
+    </div>
+
+    <h3>🔴 Port đã được sử dụng</h3>
+    <div class="callout">
+      <strong>Kiểm tra và giải phóng port</strong>
+      <pre><code># Kiểm tra process đang dùng port (ví dụ: 3308)
+netstat -ano | findstr :3308
+
+# Kill process theo PID
+Stop-Process -Id &lt;PID&gt; -Force</code></pre>
+    </div>
+
+    <h3>🔴 JWT Token bị reject</h3>
+    <div class="callout tip">
+      <strong>Trong môi trường Dev</strong>
+      Biến mặc định là <code>dev-local-secret-key-for-development-only-use</code>. Nếu backend khởi động lại và secret thay đổi (ví dụ trong Docker với ENV khác), các token cũ sẽ không còn hợp lệ. Xoá cookie và đăng nhập lại.
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  FlavorTales &copy; 2026 &nbsp;|&nbsp; Tài liệu nội bộ – Environment Setup Guide &nbsp;|&nbsp; Version 1.0
+</footer>
+
+</body>
+</html>

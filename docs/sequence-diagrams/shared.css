@@ -1,0 +1,120 @@
+/* FlavorTales Sequence Diagrams - Shared Styles */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #f8fafc;
+  color: #1e293b;
+  min-height: 100vh;
+}
+header {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: white;
+  padding: 20px 32px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+header p { font-size: 0.875rem; opacity: 0.9; margin-top: 4px; }
+nav {
+  background: white;
+  border-bottom: 2px solid #f97316;
+  padding: 0 32px;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+}
+nav a {
+  display: inline-block;
+  padding: 12px 18px;
+  text-decoration: none;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+nav a:hover { color: #f97316; border-bottom-color: #fed7aa; }
+nav a.active { color: #f97316; border-bottom-color: #f97316; font-weight: 700; }
+.container {
+  max-width: 1400px;
+  margin: 32px auto;
+  padding: 0 32px;
+}
+.diagram-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.05);
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+.diagram-card-header {
+  background: #fff7ed;
+  border-bottom: 1px solid #fed7aa;
+  padding: 20px 28px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.diagram-card-header h2 { font-size: 1.2rem; font-weight: 700; color: #9a3412; }
+.diagram-card-header p { font-size: 0.875rem; color: #7c3aed; margin-top: 4px; font-family: 'Consolas', monospace; }
+.btn-group { display: flex; gap: 8px; flex-shrink: 0; }
+.btn {
+  padding: 8px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; border: none; transition: all 0.15s;
+}
+.btn-primary { background: #f97316; color: white; }
+.btn-primary:hover { background: #ea580c; }
+.btn-secondary { background: #e2e8f0; color: #475569; }
+.btn-secondary:hover { background: #cbd5e1; }
+.btn-info { background: #dbeafe; color: #1d4ed8; }
+.btn-info:hover { background: #bfdbfe; }
+.diagram-body {
+  padding: 28px;
+  overflow-x: auto;
+}
+.diagram-body .mermaid {
+  display: flex;
+  justify-content: center;
+}
+.diagram-body .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+.actors-legend {
+  background: #f1f5f9;
+  border-left: 4px solid #f97316;
+  border-radius: 0 8px 8px 0;
+  padding: 16px 20px;
+  margin: 0 28px 28px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.actors-legend h3 { width: 100%; font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.actor-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: white; border: 1px solid #e2e8f0;
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 0.78rem; color: #374151;
+}
+.actor-badge .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.note-box {
+  background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px;
+  padding: 12px 16px; margin: 0 28px 28px;
+  font-size: 0.85rem; color: #92400e;
+}
+.note-box strong { color: #78350f; }
+footer {
+  text-align: center; padding: 32px;
+  font-size: 0.8rem; color: #94a3b8;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 32px;
+}
+@media print {
+  nav, .btn-group, footer { display: none !important; }
+  body { background: white; }
+  .diagram-card { box-shadow: none; border: 1px solid #e2e8f0; break-inside: avoid; }
+  header { background: #f97316 !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}

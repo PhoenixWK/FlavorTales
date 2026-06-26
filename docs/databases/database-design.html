@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlavorTales – Database Design Document</title>
+  <style>
+    /* ============================================================
+       Base & Reset
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --mysql:   #005c83;
+      --mysql-light: #e8f4fb;
+      --mongo:   #00684A;
+      --mongo-light: #e6f4f1;
+      --redis:   #c0392b;
+      --redis-light: #fdf2f1;
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --border: #dde3ec;
+      --text: #1a202c;
+      --muted: #64748b;
+      --accent: #3b82f6;
+      --radius: 10px;
+      --shadow: 0 2px 12px rgba(0,0,0,.08);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ============================================================
+       Layout helpers
+    ============================================================ */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 56px 0; }
+    section:nth-child(even) { background: #fff; }
+
+    /* ============================================================
+       Hero / Header
+    ============================================================ */
+    .hero {
+      background: linear-gradient(135deg, #0f2850 0%, #1a4a7a 50%, #005c83 100%);
+      color: #fff;
+      padding: 72px 0 64px;
+      text-align: center;
+    }
+    .hero .badge {
+      display: inline-block;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 999px;
+      padding: 4px 16px;
+      font-size: 13px;
+      letter-spacing: .5px;
+      margin-bottom: 20px;
+    }
+    .hero h1 { font-size: 2.6rem; font-weight: 700; letter-spacing: -.5px; line-height: 1.2; }
+    .hero .subtitle { margin-top: 12px; font-size: 1.1rem; opacity: .8; max-width: 580px; margin-left: auto; margin-right: auto; }
+    .hero .meta { margin-top: 28px; display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+    .hero .meta span {
+      background: rgba(255,255,255,.12);
+      border-radius: 8px;
+      padding: 6px 16px;
+      font-size: 13px;
+    }
+
+    /* ============================================================
+       TOC / Navigation
+    ============================================================ */
+    .toc {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .toc-inner {
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+    }
+    .toc a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 20px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: all .2s;
+    }
+    .toc a:hover { color: var(--text); border-color: var(--accent); }
+    .toc a.mysql:hover  { border-color: var(--mysql); color: var(--mysql); }
+    .toc a.mongo:hover  { border-color: var(--mongo); color: var(--mongo); }
+    .toc a.redis:hover  { border-color: var(--redis); color: var(--redis); }
+    .toc-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-mysql  { background: var(--mysql); }
+    .dot-mongo  { background: var(--mongo); }
+    .dot-redis  { background: var(--redis); }
+
+    /* ============================================================
+       Section headers
+    ============================================================ */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+    .section-icon {
+      width: 52px; height: 52px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .icon-mysql  { background: var(--mysql-light); color: var(--mysql); }
+    .icon-mongo  { background: var(--mongo-light); color: var(--mongo); }
+    .icon-redis  { background: var(--redis-light); color: var(--redis); }
+    .section-header .text h2 { font-size: 1.8rem; font-weight: 700; }
+    .section-header .text p  { color: var(--muted); font-size: .95rem; margin-top: 4px; }
+
+    /* ============================================================
+       Cards
+    ============================================================ */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+    .card-header {
+      padding: 16px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-header h3 { font-size: 1rem; font-weight: 600; }
+    .tag {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+    .tag-mysql  { background: var(--mysql-light); color: var(--mysql); }
+    .tag-mongo  { background: var(--mongo-light); color: var(--mongo); }
+    .tag-redis  { background: var(--redis-light); color: var(--redis); }
+    .tag-core   { background: #fffbeb; color: #92400e; }
+    .tag-l10n   { background: #f0fdf4; color: #166534; }
+    .tag-join   { background: #f5f3ff; color: #5b21b6; }
+
+    /* ============================================================
+       Tables
+    ============================================================ */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+    thead th {
+      background: #f8fafc;
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+    }
+    tbody td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #f8fafc; }
+    code {
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      background: #f1f5f9;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 12.5px;
+      color: #334155;
+    }
+    .pk  { color: #d97706; font-weight: 700; }
+    .fk  { color: #7c3aed; font-weight: 600; }
+    .idx { color: #059669; font-weight: 600; }
+
+    /* ============================================================
+       ERD Image
+    ============================================================ */
+    .erd-container {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      margin-bottom: 40px;
+    }
+    .erd-header {
+      background: linear-gradient(90deg, var(--mysql), #1a6fa0);
+      color: #fff;
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .erd-header h3 { font-size: 1rem; font-weight: 600; }
+    .erd-header small { opacity: .8; font-size: 12px; }
+    .erd-img {
+      width: 100%;
+      display: block;
+      cursor: zoom-in;
+      transition: transform .3s;
+    }
+    .erd-img:active { transform: scale(1.5); transform-origin: var(--ox, 50%) var(--oy, 50%); cursor: zoom-out; }
+    .erd-caption {
+      padding: 10px 22px;
+      font-size: 12px;
+      color: var(--muted);
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ============================================================
+       Redis key blocks
+    ============================================================ */
+    .redis-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    .redis-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+    .redis-card-head {
+      padding: 12px 16px;
+      background: linear-gradient(90deg, var(--redis-light), #fff);
+      border-bottom: 1px solid var(--border);
+    }
+    .redis-key {
+      font-family: 'Cascadia Code', monospace;
+      font-size: 13px;
+      color: var(--redis);
+      font-weight: 700;
+    }
+    .redis-module { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .redis-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+    .redis-row { display: flex; gap: 8px; font-size: 13px; }
+    .redis-label { color: var(--muted); font-weight: 500; min-width: 80px; }
+    .redis-val { color: var(--text); }
+
+    /* ============================================================
+       MongoDB doc block
+    ============================================================ */
+    .mongo-doc {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      margin-bottom: 28px;
+    }
+    .mongo-doc-head {
+      background: linear-gradient(90deg, var(--mongo-light), #fff);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .mongo-coll { font-family: monospace; font-size: 15px; font-weight: 700; color: var(--mongo); }
+
+    /* ============================================================
+       Arch overview
+    ============================================================ */
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 48px;
+    }
+    @media (max-width: 768px) {
+      .arch-grid { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 1.8rem; }
+    }
+    .arch-card {
+      border-radius: var(--radius);
+      padding: 24px;
+      color: #fff;
+    }
+    .arch-mysql  { background: linear-gradient(135deg, #005c83, #0080b3); }
+    .arch-mongo  { background: linear-gradient(135deg, #00684A, #008a62); }
+    .arch-redis  { background: linear-gradient(135deg, #c0392b, #e74c3c); }
+    .arch-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+    .arch-card .ac-sub { font-size: 12px; opacity: .8; margin-bottom: 14px; }
+    .arch-card ul { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+    .arch-card ul li { font-size: 13px; opacity: .9; padding-left: 16px; position: relative; }
+    .arch-card ul li::before { content: '→'; position: absolute; left: 0; opacity: .6; }
+    .arch-card .stat {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255,255,255,.2);
+      display: flex;
+      gap: 16px;
+    }
+    .stat-item { text-align: center; }
+    .stat-item .num { font-size: 1.4rem; font-weight: 700; }
+    .stat-item .lbl { font-size: 11px; opacity: .75; }
+
+    /* ============================================================
+       Relationship diagram (pure CSS)
+    ============================================================ */
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .flow-node {
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .flow-arrow { color: var(--muted); font-size: 18px; }
+    .n-mysql  { background: var(--mysql-light); color: var(--mysql); border: 1.5px solid var(--mysql); }
+    .n-mongo  { background: var(--mongo-light); color: var(--mongo); border: 1.5px solid var(--mongo); }
+    .n-redis  { background: var(--redis-light); color: var(--redis); border: 1.5px solid var(--redis); }
+
+    /* ============================================================
+       Footer
+    ============================================================ */
+    footer {
+      background: #0f2850;
+      color: rgba(255,255,255,.7);
+      text-align: center;
+      padding: 28px;
+      font-size: 13px;
+    }
+    footer strong { color: #fff; }
+  </style>
+</head>
+<body>
+
+<!-- ================================================================
+     HERO
+================================================================ -->
+<div class="hero">
+  <div class="container">
+    <div class="badge">Database Design Document</div>
+    <h1>FlavorTales</h1>
+    <p class="subtitle">Tài liệu thiết kế cơ sở dữ liệu – MySQL, MongoDB &amp; Redis</p>
+    <div class="meta">
+      <span>📅 Version 1.0 – April 2026</span>
+      <span>🗄 MySQL 8.0 (Primary + Replica)</span>
+      <span>🍃 MongoDB 7</span>
+      <span>⚡ Redis 7.2</span>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     TOC
+================================================================ -->
+<nav class="toc">
+  <div class="container">
+    <div class="toc-inner">
+      <a href="#overview"><span class="toc-dot" style="background:#3b82f6"></span>Tổng quan</a>
+      <a href="#mysql" class="mysql"><span class="toc-dot dot-mysql"></span>MySQL</a>
+      <a href="#mongodb" class="mongo"><span class="toc-dot dot-mongo"></span>MongoDB</a>
+      <a href="#redis" class="redis"><span class="toc-dot dot-redis"></span>Redis</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ================================================================
+     OVERVIEW
+================================================================ -->
+<section id="overview">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-icon" style="background:#eff6ff;color:#3b82f6;font-size:26px;">🏗</div>
+      <div class="text">
+        <h2>Tổng quan kiến trúc</h2>
+        <p>FlavorTales sử dụng mô hình đa cơ sở dữ liệu, mỗi loại phục vụ một mục đích chuyên biệt.</p>
+      </div>
+    </div>
+
+    <div class="arch-grid">
+      <div class="arch-card arch-mysql">
+        <h3>🗄 MySQL 8.0</h3>
+        <p class="ac-sub">Relational · Primary + Read Replica · GTID Replication</p>
+        <ul>
+          <li>Dữ liệu nghiệp vụ cốt lõi (user, POI, shop)</li>
+          <li>Giao dịch ACID, quan hệ FK chặt chẽ</li>
+          <li>Đa ngôn ngữ qua bảng dịch (EN/KO/ZH/RU/JA)</li>
+          <li>File asset metadata (R2/S3)</li>
+          <li>Audit trail login, email verification</li>
+        </ul>
+        <div class="stat">
+          <div class="stat-item"><div class="num">24</div><div class="lbl">Bảng</div></div>
+          <div class="stat-item"><div class="num">6</div><div class="lbl">Module</div></div>
+          <div class="stat-item"><div class="num">5</div><div class="lbl">Ngôn ngữ</div></div>
+        </div>
+      </div>
+      <div class="arch-card arch-mongo">
+        <h3>🍃 MongoDB 7</h3>
+        <p class="ac-sub">Document Store · Auto TTL Index · Event-Driven</p>
+        <ul>
+          <li>Tourist session tracking (ẩn danh, 24h TTL)</li>
+          <li>Visitor analytics events (lưu vĩnh viễn)</li>
+          <li>Schema linh hoạt, lưu viewed/played history</li>
+          <li>Auto-cleanup qua MongoDB TTL index</li>
+          <li>Driven bởi Spring ApplicationEvent</li>
+        </ul>
+        <div class="stat">
+          <div class="stat-item"><div class="num">2</div><div class="lbl">Collection</div></div>
+          <div class="stat-item"><div class="num">24h</div><div class="lbl">Session TTL</div></div>
+          <div class="stat-item"><div class="num">∞</div><div class="lbl">Events</div></div>
+        </div>
+      </div>
+      <div class="arch-card arch-redis">
+        <h3>⚡ Redis 7.2</h3>
+        <p class="ac-sub">Cache Layer · Graceful Degradation · Jedis Pool</p>
+        <ul>
+          <li>POI list &amp; detail cache (1h TTL)</li>
+          <li>Audio list theo shop/POI (15min TTL)</li>
+          <li>CDN URL cache cho R2 objects (7 ngày)</li>
+          <li>TTS processing status polling (30s TTL)</li>
+          <li>Tự động fallback về DB khi Redis lỗi</li>
+        </ul>
+        <div class="stat">
+          <div class="stat-item"><div class="num">9</div><div class="lbl">Key Patterns</div></div>
+          <div class="stat-item"><div class="num">2</div><div class="lbl">Modules</div></div>
+          <div class="stat-item"><div class="num">8</div><div class="lbl">Max Conn</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data flow -->
+    <div class="card">
+      <div class="card-header"><h3>Luồng dữ liệu giữa các database</h3></div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:10px;">
+        <div class="flow-row">
+          <span class="flow-node n-mysql">user (MySQL)</span>
+          <span class="flow-arrow">→</span>
+          <span style="font-size:13px;color:var(--muted)">tạo session visitor</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node n-mongo">tourist_sessions (MongoDB)</span>
+          <span class="flow-arrow">→</span>
+          <span style="font-size:13px;color:var(--muted)">event listener</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node n-mongo">visitor_events (MongoDB)</span>
+        </div>
+        <div class="flow-row">
+          <span class="flow-node n-mysql">poi (MySQL)</span>
+          <span class="flow-arrow">→</span>
+          <span style="font-size:13px;color:var(--muted)">read-through cache</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node n-redis">poi:{id} (Redis)</span>
+        </div>
+        <div class="flow-row">
+          <span class="flow-node n-mysql">audio (MySQL)</span>
+          <span class="flow-arrow">→</span>
+          <span style="font-size:13px;color:var(--muted)">cache list + URL</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node n-redis">audio:shop:{id} / audio:url:{id} (Redis)</span>
+        </div>
+        <div class="flow-row">
+          <span class="flow-node n-mysql">file_asset (MySQL)</span>
+          <span class="flow-arrow">→</span>
+          <span style="font-size:13px;color:var(--muted)">metadata; binary object lưu tại</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node" style="background:#fff7ed;color:#c2410c;border:1.5px solid #c2410c;">Cloudflare R2</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================
+     MYSQL
+================================================================ -->
+<section id="mysql">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-icon icon-mysql">🗄</div>
+      <div class="text">
+        <h2>MySQL – Relational Database</h2>
+        <p>Primary source of truth cho toàn bộ dữ liệu nghiệp vụ. Replica read-only với GTID replication.</p>
+      </div>
+    </div>
+
+    <!-- Interactive ERD -->
+    <style>
+    .erd-wrap{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:40px;}
+    .erd-topbar{background:linear-gradient(90deg,var(--mysql),#1a6fa0);color:#fff;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+    .erd-topbar-title h3{font-size:.95rem;font-weight:600;}
+    .erd-topbar-title small{opacity:.75;font-size:11.5px;}
+    .erd-tb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+    .erd-tb button{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;transition:.15s;white-space:nowrap;}
+    .erd-tb button:hover{background:rgba(255,255,255,.3);}
+    .erd-zp{font-size:13px;min-width:44px;text-align:center;opacity:.9;color:#fff;font-weight:600;}
+    .erd-vp{position:relative;height:600px;overflow:hidden;cursor:grab;background:#1b2637;background-image:radial-gradient(circle,rgba(255,255,255,.055) 1px,transparent 1px);background-size:22px 22px;}
+    .erd-vp.grabbing{cursor:grabbing;}
+    .erd-stage{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;}
+    .erd-svg-layer{position:absolute;top:0;left:0;pointer-events:none;transform-origin:0 0;overflow:visible;will-change:transform;}
+    .erd-tbl{position:absolute;border-radius:8px;box-shadow:0 3px 14px rgba(0,0,0,.55);cursor:move;user-select:none;width:200px;transition:box-shadow .15s;}
+    .erd-tbl:hover{box-shadow:0 5px 22px rgba(0,0,0,.75);}
+    .erd-tbl.dragging-tbl{box-shadow:0 8px 30px rgba(0,0,0,.9);z-index:99!important;}
+    .erd-th{padding:7px 10px;border-radius:8px 8px 0 0;font-size:12px;font-weight:700;color:#fff;letter-spacing:.2px;display:flex;align-items:center;gap:6px;}
+    .erd-th-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.35);flex-shrink:0;}
+    .erd-tbody{background:#fff;border-radius:0 0 8px 8px;overflow:hidden;}
+    .erd-cr{display:flex;align-items:center;gap:5px;padding:0 8px;height:26px;font-size:11px;border-bottom:1px solid #f1f5f9;}
+    .erd-cr:last-child{border:none;}
+    .erd-cr:hover{background:#f0f9ff;}
+    .erd-ci{font-size:10px;min-width:13px;text-align:center;line-height:1;}
+    .erd-cn{flex:1;font-family:'Cascadia Code','Fira Code',monospace;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1e293b;}
+    .erd-cn.pk{color:#d97706;font-weight:700;}
+    .erd-cn.fk{color:#7c3aed;}
+    .erd-cn.uk{color:#0891b2;}
+    .erd-ct{font-size:9.5px;color:#94a3b8;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
+    .erd-foot{padding:9px 16px;background:#253347;display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+    .erd-li{display:flex;align-items:center;gap:5px;font-size:11.5px;color:#94a3b8;}
+    .erd-ld{width:10px;height:10px;border-radius:2px;}
+    .erd-hint{margin-left:auto;font-size:11px;color:#64748b;}
+    </style>
+    <div class="erd-wrap">
+      <div class="erd-topbar">
+        <div class="erd-topbar-title">
+          <h3>Entity Relationship Diagram – FlavorTales v1</h3>
+          <small>Drag bảng để di chuyển &nbsp;·&nbsp; Scroll để zoom &nbsp;·&nbsp; Drag nền để pan &nbsp;·&nbsp; Pinch zoom (mobile)</small>
+        </div>
+        <div class="erd-tb">
+          <button onclick="window.erd&&erd.zoomIn()">＋</button>
+          <span class="erd-zp" id="erdZoomPct">72%</span>
+          <button onclick="window.erd&&erd.zoomOut()">－</button>
+          <button onclick="window.erd&&erd.reset()">↺ Reset</button>
+          <button onclick="window.erd&&erd.fit()">⊡ Fit all</button>
+        </div>
+      </div>
+      <div class="erd-vp" id="erdVp">
+        <svg class="erd-svg-layer" id="erdSvg" width="4000" height="2200"></svg>
+        <div class="erd-stage" id="erdStage"></div>
+      </div>
+      <div class="erd-foot">
+        <div class="erd-li"><div class="erd-ld" style="background:#2e7d32"></div>Auth / User</div>
+        <div class="erd-li"><div class="erd-ld" style="background:#0277bd"></div>POI</div>
+        <div class="erd-li"><div class="erd-ld" style="background:#6a1b9a"></div>Shop / Content</div>
+        <div class="erd-li"><div class="erd-ld" style="background:#e65100"></div>File Asset</div>
+        <div class="erd-li"><div class="erd-ld" style="background:#00695c"></div>Audio</div>
+        <div class="erd-li"><div class="erd-ld" style="background:#455a64"></div>Shop Image</div>
+        <div class="erd-hint">🔑 PK &nbsp;|&nbsp; 🔗 FK &nbsp;|&nbsp; ◆ Unique &nbsp;|&nbsp; ── Relationship (crow's foot notation)</div>
+      </div>
+    </div>
+
+    <!-- Module: Users -->
+    <h3 style="font-size:1.1rem;font-weight:700;margin:32px 0 14px;color:var(--mysql);display:flex;align-items:center;gap:8px;">
+      <span style="background:var(--mysql-light);padding:4px 12px;border-radius:6px;">👤 Module: Users &amp; Authentication</span>
+    </h3>
+
+    <!-- user -->
+    <div class="card">
+      <div class="card-header">
+        <h3><code>user</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span><span class="tag tag-core">core</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Key</th><th>Default</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">user_id</code></td><td><code>INT AUTO_INCREMENT</code></td><td>PK</td><td>—</td><td>Primary key</td></tr>
+            <tr><td><code>email</code></td><td><code>VARCHAR(255)</code></td><td>UNIQUE</td><td>—</td><td>Email đăng nhập, dùng làm identifier</td></tr>
+            <tr><td><code>password_hash</code></td><td><code>VARCHAR(255)</code></td><td>—</td><td>—</td><td>BCrypt hash; không lưu plain text</td></tr>
+            <tr><td><code>role</code></td><td><code>ENUM('vendor','admin')</code></td><td>—</td><td>—</td><td>Phân quyền hệ thống</td></tr>
+            <tr><td><code>full_name</code></td><td><code>VARCHAR(100)</code></td><td>—</td><td>—</td><td>Tên hiển thị</td></tr>
+            <tr><td><code>phone</code></td><td><code>VARCHAR(20)</code></td><td>—</td><td>NULL</td><td>Số điện thoại (tuỳ chọn)</td></tr>
+            <tr><td><code>status</code></td><td><code>ENUM('active','inactive','pending','rejected','suspended','disabled')</code></td><td>—</td><td><code>'inactive'</code></td><td>Trạng thái tài khoản; chuyển sang <code>active</code> sau xác thực email</td></tr>
+            <tr><td><code>password_changed_at</code></td><td><code>TIMESTAMP NULL</code></td><td>—</td><td>NULL</td><td>Set khi đổi mật khẩu qua recovery; dùng để invalidate JWT cũ</td></tr>
+            <tr><td><code>created_at</code></td><td><code>TIMESTAMP</code></td><td>IDX</td><td><code>CURRENT_TIMESTAMP</code></td><td></td></tr>
+            <tr><td><code>updated_at</code></td><td><code>TIMESTAMP</code></td><td>—</td><td><code>ON UPDATE</code></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 14px;background:#f8fafc;font-size:12px;color:var(--muted);border-top:1px solid var(--border);">
+        Indexes: <code>idx_email</code>, <code>idx_role_status</code>, <code>idx_created_at</code>
+      </div>
+    </div>
+
+    <!-- email_verification -->
+    <div class="card">
+      <div class="card-header">
+        <h3><code>email_verification</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Key</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">verification_id</code></td><td><code>INT AUTO_INCREMENT</code></td><td>PK</td><td>Primary key</td></tr>
+            <tr><td><code class="fk">user_id</code></td><td><code>INT</code></td><td>FK → user</td><td>ON DELETE CASCADE</td></tr>
+            <tr><td><code>verification_code</code></td><td><code>VARCHAR(6)</code></td><td>IDX</td><td>6-digit OTP gửi qua email</td></tr>
+            <tr><td><code>expires_at</code></td><td><code>TIMESTAMP</code></td><td>IDX</td><td>Thời hạn hiệu lực OTP</td></tr>
+            <tr><td><code>is_verified</code></td><td><code>BOOLEAN</code></td><td>—</td><td>Đánh dấu đã xác thực</td></tr>
+            <tr><td><code>created_at</code></td><td><code>TIMESTAMP</code></td><td>—</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- login_attempt -->
+    <div class="card">
+      <div class="card-header">
+        <h3><code>login_attempt</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">id</code></td><td><code>BIGINT AUTO_INCREMENT</code></td><td>Primary key</td></tr>
+            <tr><td><code>identifier</code></td><td><code>VARCHAR(255)</code></td><td>Email dùng khi login (normalised)</td></tr>
+            <tr><td><code>success</code></td><td><code>BOOLEAN</code></td><td><code>FALSE</code> = thất bại</td></tr>
+            <tr><td><code>locked_until</code></td><td><code>TIMESTAMP NULL</code></td><td>Non-null trên lockout sentinel rows; dùng để rate-limit</td></tr>
+            <tr><td><code>attempted_at</code></td><td><code>TIMESTAMP</code></td><td>Thời điểm thử đăng nhập</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- password_reset_token -->
+    <div class="card">
+      <div class="card-header">
+        <h3><code>password_reset_token</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Key</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">id</code></td><td><code>BIGINT AUTO_INCREMENT</code></td><td>PK</td><td></td></tr>
+            <tr><td><code class="fk">user_id</code></td><td><code>INT</code></td><td>FK → user</td><td>ON DELETE CASCADE</td></tr>
+            <tr><td><code>token</code></td><td><code>CHAR(6)</code></td><td>UNIQUE</td><td>Cryptographically random 6-digit numeric code</td></tr>
+            <tr><td><code>expires_at</code></td><td><code>TIMESTAMP</code></td><td>IDX</td><td>Hết hạn sau 30 phút</td></tr>
+            <tr><td><code>is_used</code></td><td><code>BOOLEAN</code></td><td>—</td><td>TRUE sau khi đã sử dụng</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Module: POI -->
+    <h3 style="font-size:1.1rem;font-weight:700;margin:32px 0 14px;color:var(--mysql);display:flex;align-items:center;gap:8px;">
+      <span style="background:var(--mysql-light);padding:4px 12px;border-radius:6px;">📍 Module: POI Management</span>
+    </h3>
+
+    <div class="card">
+      <div class="card-header">
+        <h3><code>poi</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span><span class="tag tag-core">core</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Key</th><th>Default</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">poi_id</code></td><td><code>INT AUTO_INCREMENT</code></td><td>PK</td><td>—</td><td></td></tr>
+            <tr><td><code class="fk">vendor_id</code></td><td><code>INT</code></td><td>FK → user</td><td>—</td><td>Vendor sở hữu POI này</td></tr>
+            <tr><td><code>name</code></td><td><code>VARCHAR(255)</code></td><td>—</td><td>—</td><td>Tên POI (tiếng Việt gốc)</td></tr>
+            <tr><td><code>latitude</code></td><td><code>DECIMAL(10,8)</code></td><td>IDX</td><td>—</td><td>Vĩ độ địa lý</td></tr>
+            <tr><td><code>longitude</code></td><td><code>DECIMAL(11,8)</code></td><td>IDX</td><td>—</td><td>Kinh độ địa lý</td></tr>
+            <tr><td><code>radius</code></td><td><code>DECIMAL(8,2)</code></td><td>—</td><td>—</td><td>Bán kính geofence (mét)</td></tr>
+            <tr><td><code>address</code></td><td><code>VARCHAR(500)</code></td><td>—</td><td>NULL</td><td>Địa chỉ dạng text</td></tr>
+            <tr><td><code>status</code></td><td><code>ENUM('pending','active','inactive','rejected','deleted')</code></td><td>IDX</td><td><code>'pending'</code></td><td>Workflow phê duyệt admin</td></tr>
+            <tr><td><code>likes_count</code></td><td><code>INT UNSIGNED</code></td><td>—</td><td><code>0</code></td><td>Denormalized counter từ poi_likes</td></tr>
+            <tr><td><code>deleted_at</code></td><td><code>TIMESTAMP NULL</code></td><td>—</td><td>NULL</td><td>Soft delete; 30 ngày recovery window</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 14px;background:#f8fafc;font-size:12px;color:var(--muted);border-top:1px solid var(--border);">
+        Indexes: <code>idx_status</code>, <code>idx_vendor</code>, <code>idx_location (latitude, longitude)</code>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3><code>poi_english</code> / <code>poi_korean</code> / <code>poi_chinese</code> / <code>poi_russian</code> / <code>poi_japanese</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span><span class="tag tag-l10n">i18n</span></div>
+      </div>
+      <div style="padding:14px 20px;font-size:13.5px;color:var(--muted);">
+        <p>5 bảng dịch theo mô hình <strong>1:1 per language</strong>. Mỗi bảng có <code>poi_id</code> vừa là PK vừa là FK → <code>poi(poi_id) ON DELETE CASCADE</code>.</p>
+        <p style="margin-top:8px;">Các trường dịch: <code>name</code>, <code>address</code>. Các trường không dịch (<code>latitude</code>, <code>longitude</code>, <code>radius</code> …) được denormalise để truy vấn thuận tiện.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3><code>poi_likes</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Key</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">poi_id</code></td><td><code>INT</code></td><td>PK (composite)</td><td>FK → poi</td></tr>
+            <tr><td><code class="pk">session_id</code></td><td><code>VARCHAR(36)</code></td><td>PK (composite)</td><td>Anonymous tourist session UUID – không lưu PII</td></tr>
+            <tr><td><code>created_at</code></td><td><code>TIMESTAMP</code></td><td>—</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Module: Content -->
+    <h3 style="font-size:1.1rem;font-weight:700;margin:32px 0 14px;color:var(--mysql);display:flex;align-items:center;gap:8px;">
+      <span style="background:var(--mysql-light);padding:4px 12px;border-radius:6px;">🏪 Module: Content (Shop &amp; Menu)</span>
+    </h3>
+
+    <div class="card">
+      <div class="card-header">
+        <h3><code>shop</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span><span class="tag tag-core">core</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Key</th><th>Default</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">shop_id</code></td><td><code>INT AUTO_INCREMENT</code></td><td>PK</td><td>—</td><td></td></tr>
+            <tr><td><code class="fk">vendor_id</code></td><td><code>INT</code></td><td>FK → user</td><td>—</td><td>ON DELETE RESTRICT</td></tr>
+            <tr><td><code class="fk">poi_id</code></td><td><code>INT</code></td><td>FK → poi</td><td>NULL</td><td>ON DELETE SET NULL; shop có thể tồn tại không có POI</td></tr>
+            <tr><td><code class="fk">avatar_file_id</code></td><td><code>INT</code></td><td>FK → file_asset</td><td>NULL</td><td>ON DELETE SET NULL</td></tr>
+            <tr><td><code>name</code></td><td><code>VARCHAR(255)</code></td><td>—</td><td>—</td><td>Tên gian hàng</td></tr>
+            <tr><td><code>description</code></td><td><code>TEXT</code></td><td>—</td><td>NULL</td><td></td></tr>
+            <tr><td><code>cuisine_style</code></td><td><code>VARCHAR(100)</code></td><td>—</td><td>NULL</td><td>Phong cách ẩm thực</td></tr>
+            <tr><td><code>featured_dish</code></td><td><code>VARCHAR(255)</code></td><td>—</td><td>NULL</td><td>Món đặc trưng</td></tr>
+            <tr><td><code>status</code></td><td><code>ENUM('pending','active','rejected','disabled')</code></td><td>IDX</td><td><code>'pending'</code></td><td>Workflow phê duyệt admin</td></tr>
+            <tr><td><code>tags</code></td><td><code>JSON</code></td><td>—</td><td>NULL</td><td>Array tag strings, tối đa 5</td></tr>
+            <tr><td><code>opening_hours</code></td><td><code>JSON</code></td><td>—</td><td>NULL</td><td>Array <code>{day, open, close, closed}</code></td></tr>
+            <tr><td><code>draft_data</code></td><td><code>JSON</code></td><td>—</td><td>NULL</td><td>Auto-save draft payload (frontend form state)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 14px;background:#f8fafc;font-size:12px;color:var(--muted);border-top:1px solid var(--border);">
+        Indexes: <code>idx_vendor_id</code>, <code>idx_poi_id</code>, <code>idx_status</code>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3><code>shop_english</code> / <code>shop_korean</code> / <code>shop_chinese</code> / <code>shop_russian</code> / <code>shop_japanese</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span><span class="tag tag-l10n">i18n</span></div>
+      </div>
+      <div style="padding:14px 20px;font-size:13.5px;color:var(--muted);">
+        <p>5 bảng dịch 1:1-per-language. FK <code>shop_id → shop(shop_id) ON DELETE CASCADE</code>.</p>
+        <p style="margin-top:8px;">Các trường dịch: <code>name</code>, <code>description</code>, <code>cuisine_style</code>, <code>featured_dish</code>. Bổ sung thêm: <code>tags</code> (JSON), <code>opening_hours</code> (JSON) riêng per-language.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3><code>menu_item</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Key</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">item_id</code></td><td><code>INT AUTO_INCREMENT</code></td><td>PK</td><td></td></tr>
+            <tr><td><code class="fk">shop_id</code></td><td><code>INT</code></td><td>FK → shop</td><td>ON DELETE CASCADE</td></tr>
+            <tr><td><code class="fk">image_file_id</code></td><td><code>INT</code></td><td>FK → file_asset</td><td>ON DELETE SET NULL</td></tr>
+            <tr><td><code>name</code></td><td><code>VARCHAR(255)</code></td><td>—</td><td>Tên món ăn</td></tr>
+            <tr><td><code>description</code></td><td><code>TEXT</code></td><td>—</td><td></td></tr>
+            <tr><td><code>status</code></td><td><code>ENUM('pending','active','rejected','disabled')</code></td><td>IDX</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3><code>shop_image</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">id</code></td><td><code>INT AUTO_INCREMENT</code></td><td>PK</td></tr>
+            <tr><td><code class="fk">shop_id</code></td><td><code>INT</code></td><td>FK → shop, ON DELETE CASCADE</td></tr>
+            <tr><td><code class="fk">file_id</code></td><td><code>INT</code></td><td>FK → file_asset, ON DELETE CASCADE</td></tr>
+            <tr><td><code>sort_order</code></td><td><code>INT</code></td><td>Thứ tự hiển thị gallery; drag-to-reorder cập nhật field này</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Module: Audio -->
+    <h3 style="font-size:1.1rem;font-weight:700;margin:32px 0 14px;color:var(--mysql);display:flex;align-items:center;gap:8px;">
+      <span style="background:var(--mysql-light);padding:4px 12px;border-radius:6px;">🎵 Module: Audio Guide</span>
+    </h3>
+
+    <div class="card">
+      <div class="card-header">
+        <h3><code>audio</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Key</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">audio_id</code></td><td><code>INT AUTO_INCREMENT</code></td><td>PK</td><td></td></tr>
+            <tr><td><code class="fk">shop_id</code></td><td><code>INT</code></td><td>FK → shop</td><td>ON DELETE CASCADE. Mỗi shop có tối đa 1 audio/ngôn ngữ</td></tr>
+            <tr><td><code class="fk">poi_id</code></td><td><code>INT NULL</code></td><td>FK → poi</td><td>ON DELETE SET NULL; nullable</td></tr>
+            <tr><td><code class="fk">file_id</code></td><td><code>INT</code></td><td>FK → file_asset</td><td>ON DELETE RESTRICT</td></tr>
+            <tr><td><code class="fk">uploaded_by</code></td><td><code>INT</code></td><td>FK → user</td><td>vendor user_id</td></tr>
+            <tr><td><code>language_code</code></td><td><code>VARCHAR(10)</code></td><td>UNIQUE(shop,lang)</td><td><code>vi</code> | <code>en</code> | <code>zh</code></td></tr>
+            <tr><td><code>duration_seconds</code></td><td><code>DECIMAL(8,2) NULL</code></td><td>—</td><td>Thời lượng audio (giây); NULL khi chưa xác định</td></tr>
+            <tr><td><code>tts_provider</code></td><td><code>VARCHAR(50) NULL</code></td><td>—</td><td><code>fpt_ai</code> | <code>google_tts</code> | <code>upload</code></td></tr>
+            <tr><td><code>processing_status</code></td><td><code>ENUM('processing','completed','failed')</code></td><td>IDX</td><td>Trạng thái TTS async job</td></tr>
+            <tr><td><code>status</code></td><td><code>ENUM('pending','active','rejected','disabled')</code></td><td>IDX</td><td>Admin approval workflow</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 14px;background:#f8fafc;font-size:12px;color:var(--muted);border-top:1px solid var(--border);">
+        Unique constraint: <code>uq_shop_language (shop_id, language_code)</code> – mỗi shop chỉ có 1 audio per ngôn ngữ
+      </div>
+    </div>
+
+    <!-- Module: File -->
+    <h3 style="font-size:1.1rem;font-weight:700;margin:32px 0 14px;color:var(--mysql);display:flex;align-items:center;gap:8px;">
+      <span style="background:var(--mysql-light);padding:4px 12px;border-radius:6px;">📁 Module: File Asset</span>
+    </h3>
+
+    <div class="card">
+      <div class="card-header">
+        <h3><code>file_asset</code></h3>
+        <div style="display:flex;gap:6px;"><span class="tag tag-mysql">MySQL</span><span class="tag tag-core">core</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Key</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">file_id</code></td><td><code>INT AUTO_INCREMENT</code></td><td>PK</td><td></td></tr>
+            <tr><td><code class="fk">owner_id</code></td><td><code>INT</code></td><td>FK → user</td><td>ON DELETE RESTRICT</td></tr>
+            <tr><td><code>bucket</code></td><td><code>VARCHAR(100)</code></td><td>IDX</td><td>Cloudflare R2 bucket name</td></tr>
+            <tr><td><code>object_key</code></td><td><code>VARCHAR(1000)</code></td><td>IDX</td><td>R2 object key/path</td></tr>
+            <tr><td><code>file_url</code></td><td><code>VARCHAR(1000)</code></td><td>—</td><td>Public hoặc pre-signed URL gốc</td></tr>
+            <tr><td><code>file_type</code></td><td><code>ENUM('image','audio','document','other')</code></td><td>IDX</td><td></td></tr>
+            <tr><td><code>mime_type</code></td><td><code>VARCHAR(100)</code></td><td>—</td><td></td></tr>
+            <tr><td><code>size_bytes</code></td><td><code>BIGINT UNSIGNED</code></td><td>—</td><td>Kích thước file (bytes)</td></tr>
+            <tr><td><code>checksum</code></td><td><code>VARCHAR(64)</code></td><td>—</td><td>SHA-256 checksum để verify integrity</td></tr>
+            <tr><td><code>version</code></td><td><code>INT UNSIGNED</code></td><td>—</td><td>1=default; tăng khi replace file</td></tr>
+            <tr><td><code>status</code></td><td><code>ENUM('active','deleted')</code></td><td>IDX</td><td>Soft delete</td></tr>
+            <tr><td><code>deleted_at</code></td><td><code>TIMESTAMP NULL</code></td><td>—</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 14px;background:#f8fafc;font-size:12px;color:var(--muted);border-top:1px solid var(--border);">
+        Binary object được lưu tại <strong>Cloudflare R2</strong>; bảng này chỉ lưu metadata. Indexes: <code>idx_owner</code>, <code>idx_file_type</code>, <code>idx_bucket_key</code>, <code>idx_status</code>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================================================================
+     MONGODB
+================================================================ -->
+<section id="mongodb">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-icon icon-mongo">🍃</div>
+      <div class="text">
+        <h2>MongoDB – Document Store</h2>
+        <p>Lưu trữ dữ liệu không cấu trúc, schema linh hoạt: tourist sessions &amp; visitor analytics.</p>
+      </div>
+    </div>
+
+    <!-- Overview diagram -->
+    <div class="card" style="margin-bottom:32px;">
+      <div class="card-header" style="background:linear-gradient(90deg,var(--mongo-light),#fff);">
+        <h3>Tổng quan MongoDB Architecture</h3>
+        <span class="tag tag-mongo">MongoDB 7</span>
+      </div>
+      <div style="padding:20px 24px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:16px;">
+            <p style="font-weight:700;color:var(--mongo);margin-bottom:8px;">📦 tourist_sessions</p>
+            <p style="font-size:13px;color:var(--muted);">Ephemeral – auto-deleted sau 24h</p>
+            <p style="font-size:13px;margin-top:8px;">→ Tracking ẩn danh (UUID, không PII)</p>
+            <p style="font-size:13px;">→ Lưu viewed POIs, played audio</p>
+            <p style="font-size:13px;">→ Language preference BCP-47</p>
+            <p style="font-size:12px;margin-top:8px;color:#7c3aed;font-weight:600;">TTL Index: expires_at (expireAfterSeconds=0)</p>
+          </div>
+          <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:16px;">
+            <p style="font-weight:700;color:var(--mongo);margin-bottom:8px;">📊 visitor_events</p>
+            <p style="font-size:13px;color:var(--muted);">Permanent – lưu vĩnh viễn cho analytics</p>
+            <p style="font-size:13px;margin-top:8px;">→ 1 event per session (auto via Spring Event)</p>
+            <p style="font-size:13px;">→ Index timestamp cho time-range queries</p>
+            <p style="font-size:13px;">→ Dùng MongoTemplate aggregation</p>
+            <p style="font-size:12px;margin-top:8px;color:#c2410c;font-weight:600;">Không có TTL – retained indefinitely</p>
+          </div>
+        </div>
+        <!-- Event flow -->
+        <div style="margin-top:20px;padding:14px;background:#f8fafc;border-radius:8px;border:1px solid var(--border);">
+          <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">EVENT FLOW</p>
+          <div class="flow-row">
+            <span class="flow-node" style="background:#eff6ff;color:#2563eb;border:1.5px solid #2563eb;font-size:12px;">Tourist API Request</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-node" style="background:#eff6ff;color:#2563eb;border:1.5px solid #2563eb;font-size:12px;">LocationService</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-node n-mongo" style="font-size:12px;">new TouristSession</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-node" style="background:#fafafa;color:#374151;border:1.5px solid #9ca3af;font-size:12px;">ApplicationEvent</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-node n-mongo" style="font-size:12px;">new VisitorEvent</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Collection: tourist_sessions -->
+    <div class="mongo-doc">
+      <div class="mongo-doc-head">
+        <span class="mongo-coll">db.tourist_sessions</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span class="tag tag-mongo">24h TTL</span>
+          <span style="font-size:12px;color:var(--muted);">flavortales-location module</span>
+        </div>
+      </div>
+      <div style="padding:16px 20px;font-size:13px;color:var(--muted);background:#f0fdf4;border-bottom:1px solid var(--border);">
+        Lưu session ẩn danh của tourist. Tự động xoá sau 24h qua MongoDB TTL index. Không lưu PII.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>BSON Type</th><th>Index</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">_id</code> <small>(sessionId)</small></td><td><code>String</code></td><td>PK</td><td>Random UUID – unpredictable, non-sequential (bảo mật)</td></tr>
+            <tr><td><code>language_preference</code></td><td><code>String</code></td><td>—</td><td>BCP-47 tag (e.g. <code>"vi"</code>, <code>"en"</code>). Default: <code>"vi"</code></td></tr>
+            <tr><td><code>viewed_poi_ids</code></td><td><code>Array&lt;Int32&gt;</code></td><td>—</td><td>Danh sách poi_id đã xem trong session; ref tới MySQL <code>poi.poi_id</code></td></tr>
+            <tr><td><code>played_audio_ids</code></td><td><code>Array&lt;Int32&gt;</code></td><td>—</td><td>Danh sách audio_id đã phát; ref tới MySQL <code>audio.audio_id</code></td></tr>
+            <tr><td><code>created_at</code></td><td><code>Date</code></td><td>—</td><td>Thời điểm tạo session</td></tr>
+            <tr><td><code>expires_at</code></td><td><code>Date</code></td><td><strong>TTL (expireAfterSeconds=0)</strong></td><td>Hết hạn sau 24h; MongoDB tự xoá document khi expires_at &lt; now</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 20px;background:#f8fafc;font-size:12px;color:var(--muted);border-top:1px solid var(--border);">
+        <strong>Index:</strong> TTL index trên <code>expires_at</code> với <code>expireAfterSeconds: 0</code> — MongoDB background job chạy mỗi ~60s để cleanup.
+      </div>
+    </div>
+
+    <!-- JSON sample -->
+    <div class="card" style="margin-bottom:28px;">
+      <div class="card-header"><h3>Sample Document – <code>tourist_sessions</code></h3></div>
+      <pre style="padding:16px 20px;background:#0f2850;color:#e2e8f0;font-size:13px;font-family:'Cascadia Code',monospace;overflow-x:auto;border-radius:0 0 8px 8px;line-height:1.7;">{
+  "_id": <span style="color:#68d391">"f47ac10b-58cc-4372-a567-0e02b2c3d479"</span>,
+  <span style="color:#90cdf4">"language_preference"</span>: <span style="color:#68d391">"en"</span>,
+  <span style="color:#90cdf4">"viewed_poi_ids"</span>: [<span style="color:#fbd38d">12</span>, <span style="color:#fbd38d">34</span>, <span style="color:#fbd38d">56</span>],
+  <span style="color:#90cdf4">"played_audio_ids"</span>: [<span style="color:#fbd38d">7</span>, <span style="color:#fbd38d">22</span>],
+  <span style="color:#90cdf4">"created_at"</span>: <span style="color:#68d391">ISODate("2026-04-08T09:00:00Z")</span>,
+  <span style="color:#90cdf4">"expires_at"</span>: <span style="color:#68d391">ISODate("2026-04-09T09:00:00Z")</span>  <span style="color:#718096">// auto-deleted by TTL index</span>
+}</pre>
+    </div>
+
+    <!-- Collection: visitor_events -->
+    <div class="mongo-doc">
+      <div class="mongo-doc-head">
+        <span class="mongo-coll">db.visitor_events</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span class="tag" style="background:#fef9c3;color:#92400e;">Permanent</span>
+          <span style="font-size:12px;color:var(--muted);">flavortales-analytics module</span>
+        </div>
+      </div>
+      <div style="padding:16px 20px;font-size:13px;color:var(--muted);background:#f0fdf4;border-bottom:1px solid var(--border);">
+        Analytics event records. 1 document per tourist session. Không có TTL – lưu lại để phân tích lịch sử.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>BSON Type</th><th>Index</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code class="pk">_id</code> <small>(id)</small></td><td><code>String</code></td><td>PK</td><td>UUID auto-generated</td></tr>
+            <tr><td><code>timestamp</code></td><td><code>Date</code></td><td><strong>Index</strong> (<code>@Indexed</code>)</td><td>Thời điểm visit; dùng cho time-range aggregation queries</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 20px;background:#f8fafc;font-size:12px;color:var(--muted);border-top:1px solid var(--border);">
+        <strong>Aggregation dùng MongoTemplate</strong>: group by date, count visitors per day/week/month cho dashboard analytics.
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-header"><h3>Sample Document – <code>visitor_events</code></h3></div>
+      <pre style="padding:16px 20px;background:#0f2850;color:#e2e8f0;font-size:13px;font-family:'Cascadia Code',monospace;overflow-x:auto;border-radius:0 0 8px 8px;line-height:1.7;">{
+  "_id": <span style="color:#68d391">"a1b2c3d4-e5f6-7890-abcd-ef1234567890"</span>,
+  <span style="color:#90cdf4">"timestamp"</span>: <span style="color:#68d391">ISODate("2026-04-08T09:00:05Z")</span>  <span style="color:#718096">// indexed for analytics queries</span>
+}</pre>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================================================================
+     REDIS
+================================================================ -->
+<section id="redis">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-icon icon-redis">⚡</div>
+      <div class="text">
+        <h2>Redis – Cache Layer</h2>
+        <p>Read-through cache cho POI và Audio module. Graceful degradation – Redis failure không ảnh hưởng tới service.</p>
+      </div>
+    </div>
+
+    <!-- Config overview -->
+    <div class="card" style="margin-bottom:32px;">
+      <div class="card-header" style="background:linear-gradient(90deg,var(--redis-light),#fff);">
+        <h3>Configuration</h3>
+        <span class="tag tag-redis">Redis 7.2</span>
+      </div>
+      <div style="padding:0;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);">
+          <div style="padding:16px 20px;border-right:1px solid var(--border);">
+            <p style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;">CONNECTION</p>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+              <div><span style="color:var(--muted);">Host:</span> <code>localhost</code> (env: <code>REDIS_HOST</code>)</div>
+              <div><span style="color:var(--muted);">Port:</span> <code>6379</code> (env: <code>REDIS_PORT</code>)</div>
+              <div><span style="color:var(--muted);">Serialization:</span> <code>Jackson JSON + JavaTimeModule</code></div>
+              <div><span style="color:var(--muted);">Type info:</span> <code>PROPERTY polymorphic</code></div>
+            </div>
+          </div>
+          <div style="padding:16px 20px;">
+            <p style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;">JEDIS POOL (redis.yml)</p>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+              <div><span style="color:var(--muted);">max-active:</span> <code>8</code></div>
+              <div><span style="color:var(--muted);">max-idle:</span> <code>8</code></div>
+              <div><span style="color:var(--muted);">max-wait:</span> <code>1000ms</code></div>
+              <div><span style="color:var(--muted);">RedisTemplate beans:</span> <code>poiRedisTemplate</code> (@Primary) + <code>audioRedisTemplate</code></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:14px 20px;background:#f8fafc;font-size:13px;color:var(--muted);">
+          ⚠️ <strong>Graceful Degradation</strong>: Cả POI và Audio cache service đều catch mọi Redis exception và fallback về MySQL query. Lỗi Redis không bao giờ propagate lên caller.
+        </div>
+      </div>
+    </div>
+
+    <!-- POI Cache -->
+    <h3 style="font-size:1rem;font-weight:700;margin:0 0 14px;color:var(--redis);display:flex;align-items:center;gap:8px;">
+      <span style="background:var(--redis-light);padding:4px 12px;border-radius:6px;">📍 POI Cache Module (<code>PoiCacheService</code>)</span>
+    </h3>
+    <div class="redis-grid">
+      <div class="redis-card">
+        <div class="redis-card-head">
+          <div class="redis-key">poi:{poiId}</div>
+          <div class="redis-module">PoiCacheService · poiRedisTemplate (@Primary)</div>
+        </div>
+        <div class="redis-body">
+          <div class="redis-row"><span class="redis-label">Value type</span><span class="redis-val"><code>PoiResponse</code> (JSON Object)</span></div>
+          <div class="redis-row"><span class="redis-label">TTL</span><span class="redis-val"><strong>1 hour</strong></span></div>
+          <div class="redis-row"><span class="redis-label">Purpose</span><span class="redis-val">Cache chi tiết 1 POI để giảm DB query khi tourist xem detail</span></div>
+          <div class="redis-row"><span class="redis-label">Invalidate</span><span class="redis-val">Khi POI được update hoặc status thay đổi</span></div>
+        </div>
+      </div>
+      <div class="redis-card">
+        <div class="redis-card-head">
+          <div class="redis-key">poi:list:active</div>
+          <div class="redis-module">PoiCacheService · poiRedisTemplate (@Primary)</div>
+        </div>
+        <div class="redis-body">
+          <div class="redis-row"><span class="redis-label">Value type</span><span class="redis-val"><code>List&lt;PoiResponse&gt;</code> (JSON Array)</span></div>
+          <div class="redis-row"><span class="redis-label">TTL</span><span class="redis-val"><strong>1 hour</strong></span></div>
+          <div class="redis-row"><span class="redis-label">Purpose</span><span class="redis-val">Danh sách tất cả active POIs cho feature browse discovery</span></div>
+          <div class="redis-row"><span class="redis-label">Invalidate</span><span class="redis-val">Khi có POI mới được approve hoặc deactivated</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audio Cache -->
+    <h3 style="font-size:1rem;font-weight:700;margin:24px 0 14px;color:var(--redis);display:flex;align-items:center;gap:8px;">
+      <span style="background:var(--redis-light);padding:4px 12px;border-radius:6px;">🎵 Audio Cache Module (<code>AudioCacheService</code>)</span>
+    </h3>
+    <div class="redis-grid">
+      <div class="redis-card">
+        <div class="redis-card-head">
+          <div class="redis-key">audio:shop:{shopId}</div>
+          <div class="redis-module">AudioCacheService · audioRedisTemplate</div>
+        </div>
+        <div class="redis-body">
+          <div class="redis-row"><span class="redis-label">Value type</span><span class="redis-val"><code>List&lt;AudioResponse&gt;</code></span></div>
+          <div class="redis-row"><span class="redis-label">TTL</span><span class="redis-val"><strong>15 phút</strong></span></div>
+          <div class="redis-row"><span class="redis-label">Purpose</span><span class="redis-val">Vendor-facing: danh sách audio của shop (list/manage)</span></div>
+          <div class="redis-row"><span class="redis-label">Invalidate</span><span class="redis-val">Khi upload, update hoặc delete audio của shop</span></div>
+        </div>
+      </div>
+      <div class="redis-card">
+        <div class="redis-card-head">
+          <div class="redis-key">audio:poi:{poiId}</div>
+          <div class="redis-module">AudioCacheService · audioRedisTemplate</div>
+        </div>
+        <div class="redis-body">
+          <div class="redis-row"><span class="redis-label">Value type</span><span class="redis-val"><code>List&lt;AudioResponse&gt;</code></span></div>
+          <div class="redis-row"><span class="redis-label">TTL</span><span class="redis-val"><strong>15 phút</strong></span></div>
+          <div class="redis-row"><span class="redis-label">Purpose</span><span class="redis-val">Tourist-facing: audio guide cho các shop trong 1 POI</span></div>
+          <div class="redis-row"><span class="redis-label">Invalidate</span><span class="redis-val">Khi audio liên kết với POI thay đổi; evict cả poi lẫn shop</span></div>
+        </div>
+      </div>
+      <div class="redis-card">
+        <div class="redis-card-head">
+          <div class="redis-key">audio:url:{audioId}</div>
+          <div class="redis-module">AudioCacheService · audioRedisTemplate</div>
+        </div>
+        <div class="redis-body">
+          <div class="redis-row"><span class="redis-label">Value type</span><span class="redis-val"><code>String</code> (CDN URL)</span></div>
+          <div class="redis-row"><span class="redis-label">TTL</span><span class="redis-val"><strong>7 ngày</strong></span></div>
+          <div class="redis-row"><span class="redis-label">Purpose</span><span class="redis-val">Cache Cloudflare R2 pre-signed/public URL (immutable sau khi upload)</span></div>
+          <div class="redis-row"><span class="redis-label">Invalidate</span><span class="redis-val">Khi audio bị delete/replace; evict cùng url, duration, status</span></div>
+        </div>
+      </div>
+      <div class="redis-card">
+        <div class="redis-card-head">
+          <div class="redis-key">audio:duration:{audioId}</div>
+          <div class="redis-module">AudioCacheService · audioRedisTemplate</div>
+        </div>
+        <div class="redis-body">
+          <div class="redis-row"><span class="redis-label">Value type</span><span class="redis-val"><code>Double</code> (seconds)</span></div>
+          <div class="redis-row"><span class="redis-label">TTL</span><span class="redis-val"><strong>24 giờ</strong></span></div>
+          <div class="redis-row"><span class="redis-label">Purpose</span><span class="redis-val">Metadata thời lượng audio; không đổi sau khi upload hoàn tất</span></div>
+          <div class="redis-row"><span class="redis-label">Invalidate</span><span class="redis-val">Khi audio bị delete</span></div>
+        </div>
+      </div>
+      <div class="redis-card">
+        <div class="redis-card-head">
+          <div class="redis-key">audio:status:{audioId}</div>
+          <div class="redis-module">AudioCacheService · audioRedisTemplate</div>
+        </div>
+        <div class="redis-body">
+          <div class="redis-row"><span class="redis-label">Value type</span><span class="redis-val"><code>String</code> enum status</span></div>
+          <div class="redis-row"><span class="redis-label">TTL</span><span class="redis-val"><strong>30 giây</strong> (processing) / <strong>24 giờ</strong> (completed/failed)</span></div>
+          <div class="redis-row"><span class="redis-label">Purpose</span><span class="redis-val">Polling TTS async job status; TTL ngắn khi đang processing để client poll thường xuyên</span></div>
+          <div class="redis-row"><span class="redis-label">Invalidate</span><span class="redis-val">Auto-expire hoặc khi audio bị delete</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TTL Summary Table -->
+    <div class="card" style="margin-top:12px;">
+      <div class="card-header"><h3>Tổng hợp TTL &amp; Data Types</h3></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Key Pattern</th><th>Redis Type</th><th>TTL</th><th>Module</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr><td><code>poi:{poiId}</code></td><td>String (JSON)</td><td>1 hour</td><td>POI</td><td>Single POI detail</td></tr>
+            <tr><td><code>poi:list:active</code></td><td>String (JSON)</td><td>1 hour</td><td>POI</td><td>All active POIs list</td></tr>
+            <tr><td><code>audio:shop:{shopId}</code></td><td>String (JSON)</td><td>15 min</td><td>Audio</td><td>Audio list per shop</td></tr>
+            <tr><td><code>audio:poi:{poiId}</code></td><td>String (JSON)</td><td>15 min</td><td>Audio</td><td>Audio list per POI</td></tr>
+            <tr><td><code>audio:url:{audioId}</code></td><td>String</td><td>7 days</td><td>Audio</td><td>R2 CDN URL (immutable)</td></tr>
+            <tr><td><code>audio:duration:{audioId}</code></td><td>String</td><td>24 hours</td><td>Audio</td><td>Duration seconds</td></tr>
+            <tr><td><code>audio:status:{audioId}</code></td><td>String</td><td>30s / 24h</td><td>Audio</td><td>TTS job status; adaptive TTL</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================================================================
+     FOOTER
+================================================================ -->
+<footer>
+  <strong>FlavorTales</strong> – Database Design Document v1.0 &nbsp;|&nbsp; MySQL 8.0 · MongoDB 7 · Redis 7.2 &nbsp;|&nbsp; April 2026
+</footer>
+
+<script>
+(function(){
+'use strict';
+var CH=26,HH=35,TW=200;
+var scale=0.72,tx=30,ty=30;
+var drag=null,pinch=null;
+var TBLS=[
+{id:'user',x:50,y:230,color:'#2e7d32',name:'user',cols:[
+  {n:'user_id',t:'INT',pk:1},{n:'email',t:'VARCHAR(255)',uk:1},{n:'password_hash',t:'VARCHAR(255)'},
+  {n:'role',t:'ENUM'},{n:'full_name',t:'VARCHAR(100)'},{n:'phone',t:'VARCHAR(20)'},
+  {n:'status',t:'ENUM'},{n:'password_changed_at',t:'TIMESTAMP'},{n:'created_at',t:'TIMESTAMP'},{n:'updated_at',t:'TIMESTAMP'}
+]},
+{id:'email_verification',x:280,y:75,color:'#00838f',name:'email_verification',cols:[
+  {n:'verification_id',t:'INT',pk:1},{n:'user_id',t:'INT',fk:1},{n:'verification_code',t:'VARCHAR(6)'},
+  {n:'expires_at',t:'TIMESTAMP'},{n:'is_verified',t:'BOOLEAN'},{n:'created_at',t:'TIMESTAMP'}
+]},
+{id:'login_attempt',x:280,y:370,color:'#006064',name:'login_attempt',cols:[
+  {n:'id',t:'BIGINT',pk:1},{n:'identifier',t:'VARCHAR(255)'},{n:'success',t:'BOOLEAN'},
+  {n:'locked_until',t:'TIMESTAMP'},{n:'attempted_at',t:'TIMESTAMP'}
+]},
+{id:'password_reset_token',x:50,y:540,color:'#6a1b9a',name:'password_reset_token',cols:[
+  {n:'id',t:'BIGINT',pk:1},{n:'user_id',t:'INT',fk:1},{n:'token',t:'CHAR(6)',uk:1},
+  {n:'expires_at',t:'TIMESTAMP'},{n:'is_used',t:'BOOLEAN'},{n:'created_at',t:'TIMESTAMP'}
+]},
+{id:'poi',x:630,y:40,color:'#0277bd',name:'poi',cols:[
+  {n:'poi_id',t:'INT',pk:1},{n:'vendor_id',t:'INT',fk:1},{n:'name',t:'VARCHAR(255)'},
+  {n:'latitude',t:'DECIMAL(10,8)'},{n:'longitude',t:'DECIMAL(11,8)'},{n:'radius',t:'DECIMAL(8,2)'},
+  {n:'address',t:'VARCHAR(500)'},{n:'status',t:'ENUM'},{n:'likes_count',t:'INT UNSIGNED'},
+  {n:'deleted_at',t:'TIMESTAMP'},{n:'created_at',t:'TIMESTAMP'},{n:'updated_at',t:'TIMESTAMP'}
+]},
+{id:'poi_likes',x:910,y:40,color:'#c62828',name:'poi_likes',cols:[
+  {n:'poi_id',t:'INT',pk:1,fk:1},{n:'session_id',t:'VARCHAR(36)',pk:1},{n:'created_at',t:'TIMESTAMP'}
+]},
+{id:'poi_english',x:555,y:380,color:'#0288d1',name:'poi_english',cols:[
+  {n:'poi_id',t:'INT',pk:1,fk:1},{n:'vendor_id',t:'INT'},{n:'name',t:'VARCHAR(255)'},
+  {n:'latitude',t:'DECIMAL(10,8)'},{n:'longitude',t:'DECIMAL(11,8)'},{n:'radius',t:'DECIMAL(8,2)'},
+  {n:'address',t:'VARCHAR(500)'},{n:'status',t:'ENUM'}
+]},
+{id:'poi_korean',x:775,y:380,color:'#0288d1',name:'poi_korean',cols:[
+  {n:'poi_id',t:'INT',pk:1,fk:1},{n:'vendor_id',t:'INT'},{n:'name',t:'VARCHAR(255)'},
+  {n:'latitude',t:'DECIMAL(10,8)'},{n:'longitude',t:'DECIMAL(11,8)'},{n:'radius',t:'DECIMAL(8,2)'},
+  {n:'address',t:'VARCHAR(500)'},{n:'status',t:'ENUM'}
+]},
+{id:'poi_chinese',x:995,y:380,color:'#0288d1',name:'poi_chinese',cols:[
+  {n:'poi_id',t:'INT',pk:1,fk:1},{n:'vendor_id',t:'INT'},{n:'name',t:'VARCHAR(255)'},
+  {n:'latitude',t:'DECIMAL(10,8)'},{n:'longitude',t:'DECIMAL(11,8)'},{n:'radius',t:'DECIMAL(8,2)'},
+  {n:'address',t:'VARCHAR(500)'},{n:'status',t:'ENUM'}
+]},
+{id:'poi_russian',x:1210,y:40,color:'#0288d1',name:'poi_russian',cols:[
+  {n:'poi_id',t:'INT',pk:1,fk:1},{n:'vendor_id',t:'INT'},{n:'name',t:'VARCHAR(255)'},
+  {n:'latitude',t:'DECIMAL(10,8)'},{n:'longitude',t:'DECIMAL(11,8)'},{n:'radius',t:'DECIMAL(8,2)'},
+  {n:'address',t:'VARCHAR(500)'},{n:'status',t:'ENUM'}
+]},
+{id:'poi_japanese',x:1430,y:40,color:'#0288d1',name:'poi_japanese',cols:[
+  {n:'poi_id',t:'INT',pk:1,fk:1},{n:'vendor_id',t:'INT'},{n:'name',t:'VARCHAR(255)'},
+  {n:'latitude',t:'DECIMAL(10,8)'},{n:'longitude',t:'DECIMAL(11,8)'},{n:'radius',t:'DECIMAL(8,2)'},
+  {n:'address',t:'VARCHAR(500)'},{n:'status',t:'ENUM'}
+]},
+{id:'file_asset',x:1655,y:450,color:'#e65100',name:'file_asset',cols:[
+  {n:'file_id',t:'INT',pk:1},{n:'owner_id',t:'INT',fk:1},{n:'bucket',t:'VARCHAR(100)'},
+  {n:'object_key',t:'VARCHAR(1000)'},{n:'file_url',t:'VARCHAR(1000)'},{n:'file_type',t:'ENUM'},
+  {n:'mime_type',t:'VARCHAR(100)'},{n:'size_bytes',t:'BIGINT'},{n:'checksum',t:'VARCHAR(64)'},
+  {n:'version',t:'INT'},{n:'status',t:'ENUM'},{n:'uploaded_at',t:'TIMESTAMP'},{n:'deleted_at',t:'TIMESTAMP'}
+]},
+{id:'shop',x:1400,y:450,color:'#6a1b9a',name:'shop',cols:[
+  {n:'shop_id',t:'INT',pk:1},{n:'vendor_id',t:'INT',fk:1},{n:'poi_id',t:'INT',fk:1},
+  {n:'avatar_file_id',t:'INT',fk:1},{n:'name',t:'VARCHAR(255)'},{n:'description',t:'TEXT'},
+  {n:'cuisine_style',t:'VARCHAR(100)'},{n:'featured_dish',t:'VARCHAR(255)'},{n:'status',t:'ENUM'},
+  {n:'tags',t:'JSON'},{n:'opening_hours',t:'JSON'},{n:'draft_data',t:'JSON'},
+  {n:'created_at',t:'TIMESTAMP'},{n:'updated_at',t:'TIMESTAMP'}
+]},
+{id:'shop_english',x:1070,y:715,color:'#7b1fa2',name:'shop_english',cols:[
+  {n:'shop_id',t:'INT',pk:1,fk:1},{n:'vendor_id',t:'INT'},{n:'poi_id',t:'INT'},
+  {n:'avatar_file_id',t:'INT'},{n:'name',t:'VARCHAR(255)'},{n:'description',t:'TEXT'},
+  {n:'cuisine_style',t:'VARCHAR(100)'},{n:'featured_dish',t:'VARCHAR(255)'},{n:'status',t:'ENUM'},
+  {n:'tags',t:'JSON'},{n:'opening_hours',t:'JSON'}
+]},
+{id:'shop_korean',x:850,y:715,color:'#7b1fa2',name:'shop_korean',cols:[
+  {n:'shop_id',t:'INT',pk:1,fk:1},{n:'vendor_id',t:'INT'},{n:'poi_id',t:'INT'},
+  {n:'avatar_file_id',t:'INT'},{n:'name',t:'VARCHAR(255)'},{n:'description',t:'TEXT'},
+  {n:'cuisine_style',t:'VARCHAR(100)'},{n:'featured_dish',t:'VARCHAR(255)'},{n:'status',t:'ENUM'},
+  {n:'tags',t:'JSON'},{n:'opening_hours',t:'JSON'}
+]},
+{id:'shop_chinese',x:630,y:715,color:'#7b1fa2',name:'shop_chinese',cols:[
+  {n:'shop_id',t:'INT',pk:1,fk:1},{n:'vendor_id',t:'INT'},{n:'poi_id',t:'INT'},
+  {n:'avatar_file_id',t:'INT'},{n:'name',t:'VARCHAR(255)'},{n:'description',t:'TEXT'},
+  {n:'cuisine_style',t:'VARCHAR(100)'},{n:'featured_dish',t:'VARCHAR(255)'},{n:'status',t:'ENUM'},
+  {n:'tags',t:'JSON'},{n:'opening_hours',t:'JSON'}
+]},
+{id:'shop_russian',x:410,y:715,color:'#7b1fa2',name:'shop_russian',cols:[
+  {n:'shop_id',t:'INT',pk:1,fk:1},{n:'vendor_id',t:'INT'},{n:'poi_id',t:'INT'},
+  {n:'avatar_file_id',t:'INT'},{n:'name',t:'VARCHAR(255)'},{n:'description',t:'TEXT'},
+  {n:'cuisine_style',t:'VARCHAR(100)'},{n:'featured_dish',t:'VARCHAR(255)'},{n:'status',t:'ENUM'},
+  {n:'tags',t:'JSON'},{n:'opening_hours',t:'JSON'}
+]},
+{id:'shop_japanese',x:190,y:715,color:'#7b1fa2',name:'shop_japanese',cols:[
+  {n:'shop_id',t:'INT',pk:1,fk:1},{n:'vendor_id',t:'INT'},{n:'poi_id',t:'INT'},
+  {n:'avatar_file_id',t:'INT'},{n:'name',t:'VARCHAR(255)'},{n:'description',t:'TEXT'},
+  {n:'cuisine_style',t:'VARCHAR(100)'},{n:'featured_dish',t:'VARCHAR(255)'},{n:'status',t:'ENUM'},
+  {n:'tags',t:'JSON'},{n:'opening_hours',t:'JSON'}
+]},
+{id:'menu_item',x:1190,y:450,color:'#558b2f',name:'menu_item',cols:[
+  {n:'item_id',t:'INT',pk:1},{n:'shop_id',t:'INT',fk:1},{n:'image_file_id',t:'INT',fk:1},
+  {n:'name',t:'VARCHAR(255)'},{n:'description',t:'TEXT'},{n:'status',t:'ENUM'},
+  {n:'created_at',t:'TIMESTAMP'},{n:'updated_at',t:'TIMESTAMP'}
+]},
+{id:'audio',x:970,y:450,color:'#00695c',name:'audio',cols:[
+  {n:'audio_id',t:'INT',pk:1},{n:'shop_id',t:'INT',fk:1},{n:'poi_id',t:'INT',fk:1},
+  {n:'file_id',t:'INT',fk:1},{n:'language_code',t:'VARCHAR(10)'},{n:'duration_seconds',t:'DECIMAL(8,2)'},
+  {n:'tts_provider',t:'VARCHAR(50)'},{n:'processing_status',t:'ENUM'},{n:'status',t:'ENUM'},
+  {n:'uploaded_by',t:'INT',fk:1},{n:'created_at',t:'TIMESTAMP'},{n:'updated_at',t:'TIMESTAMP'}
+]},
+{id:'shop_image',x:750,y:450,color:'#455a64',name:'shop_image',cols:[
+  {n:'id',t:'INT',pk:1},{n:'shop_id',t:'INT',fk:1},{n:'file_id',t:'INT',fk:1},
+  {n:'sort_order',t:'INT'},{n:'created_at',t:'TIMESTAMP'}
+]}
+];
+// rel type: '1N' = one-to-many (crow's foot at source), '11' = one-to-one (single bar both ends)
+var RELS=[
+  {s:'email_verification',sc:'user_id',d:'user',dc:'user_id',t:'1N'},
+  {s:'password_reset_token',sc:'user_id',d:'user',dc:'user_id',t:'1N'},
+  {s:'poi',sc:'vendor_id',d:'user',dc:'user_id',t:'1N'},
+  {s:'poi_likes',sc:'poi_id',d:'poi',dc:'poi_id',t:'1N'},
+  {s:'poi_english',sc:'poi_id',d:'poi',dc:'poi_id',t:'11'},
+  {s:'poi_korean',sc:'poi_id',d:'poi',dc:'poi_id',t:'11'},
+  {s:'poi_chinese',sc:'poi_id',d:'poi',dc:'poi_id',t:'11'},
+  {s:'poi_russian',sc:'poi_id',d:'poi',dc:'poi_id',t:'11'},
+  {s:'poi_japanese',sc:'poi_id',d:'poi',dc:'poi_id',t:'11'},
+  {s:'file_asset',sc:'owner_id',d:'user',dc:'user_id',t:'1N'},
+  {s:'shop',sc:'vendor_id',d:'user',dc:'user_id',t:'1N'},
+  {s:'shop',sc:'poi_id',d:'poi',dc:'poi_id',t:'1N'},
+  {s:'shop',sc:'avatar_file_id',d:'file_asset',dc:'file_id',t:'11'},
+  {s:'shop_english',sc:'shop_id',d:'shop',dc:'shop_id',t:'11'},
+  {s:'shop_korean',sc:'shop_id',d:'shop',dc:'shop_id',t:'11'},
+  {s:'shop_chinese',sc:'shop_id',d:'shop',dc:'shop_id',t:'11'},
+  {s:'shop_russian',sc:'shop_id',d:'shop',dc:'shop_id',t:'11'},
+  {s:'shop_japanese',sc:'shop_id',d:'shop',dc:'shop_id',t:'11'},
+  {s:'menu_item',sc:'shop_id',d:'shop',dc:'shop_id',t:'1N'},
+  {s:'menu_item',sc:'image_file_id',d:'file_asset',dc:'file_id',t:'11'},
+  {s:'audio',sc:'shop_id',d:'shop',dc:'shop_id',t:'1N'},
+  {s:'audio',sc:'poi_id',d:'poi',dc:'poi_id',t:'1N'},
+  {s:'audio',sc:'file_id',d:'file_asset',dc:'file_id',t:'11'},
+  {s:'audio',sc:'uploaded_by',d:'user',dc:'user_id',t:'1N'},
+  {s:'shop_image',sc:'shop_id',d:'shop',dc:'shop_id',t:'1N'},
+  {s:'shop_image',sc:'file_id',d:'file_asset',dc:'file_id',t:'1N'}
+];
+var REL_PALETTE=['#4a90a4','#7a6fa4','#4a8a6a','#9a6a3a','#7a4a6a','#3a6a9a','#6a8a3a','#9a4a4a','#4a7a8a','#8a4a9a'];
+function findT(id){return TBLS.find(function(t){return t.id===id;});}
+function tblH(t){return HH+t.cols.length*CH;}
+function colY(t,cn){
+  var i=t.cols.findIndex(function(c){return c.n===cn;});
+  return t.y+HH+(i<0?0:i)*CH+CH/2;
+}
+function sEl(tag){return document.createElementNS('http://www.w3.org/2000/svg',tag);}
+function init(){
+  var vp=document.getElementById('erdVp');
+  var stage=document.getElementById('erdStage');
+  if(!vp||!stage)return;
+  TBLS.forEach(function(t){stage.appendChild(mkTbl(t));});
+  drawLines();
+  applyXf();
+  vp.addEventListener('mousedown',onVpDown);
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+  vp.addEventListener('wheel',onWheel,{passive:false});
+  vp.addEventListener('touchstart',onTs,{passive:false});
+  vp.addEventListener('touchmove',onTm,{passive:false});
+  vp.addEventListener('touchend',function(){drag=null;pinch=null;});
+}
+function mkTbl(t){
+  var div=document.createElement('div');
+  div.className='erd-tbl';
+  div.id='et-'+t.id;
+  div.style.left=t.x+'px';
+  div.style.top=t.y+'px';
+  var h='<div class="erd-th" style="background:'+t.color+'"><span class="erd-th-dot"></span>'+t.name+'</div><div class="erd-tbody">';
+  t.cols.forEach(function(c){
+    var ic=c.pk?'🔑':c.fk?'🔗':c.uk?'◆':'';
+    var nc=c.pk?' pk':c.fk?' fk':c.uk?' uk':'';
+    h+='<div class="erd-cr"><span class="erd-ci">'+ic+'</span><span class="erd-cn'+nc+'">'+c.n+'</span><span class="erd-ct">'+c.t+'</span></div>';
+  });
+  h+='</div>';
+  div.innerHTML=h;
+  div.addEventListener('mousedown',function(e){
+    if(e.button!==0)return;
+    e.stopPropagation();
+    drag={type:'t',t:t,el:div,sx:e.clientX,sy:e.clientY,ox:t.x,oy:t.y};
+    div.classList.add('dragging-tbl');
+  });
+  return div;
+}
+var rci=0;
+function drawLines(){
+  var svg=document.getElementById('erdSvg');
+  if(!svg)return;
+  svg.innerHTML='';
+  rci=0;
+  RELS.forEach(function(r){
+    var st=findT(r.s),dt=findT(r.d);
+    if(!st||!dt)return;
+    var sy=colY(st,r.sc),dy=colY(dt,r.dc);
+    var scx=st.x+TW/2,dcx=dt.x+TW/2;
+    var x1,x2,dir;
+    if(scx<=dcx){x1=st.x+TW;x2=dt.x;dir=1;}
+    else{x1=st.x;x2=dt.x+TW;dir=-1;}
+    var gap=Math.abs(x2-x1);
+    var b=Math.min(gap*0.55,110);
+    var cx1=x1+dir*b,cx2=x2-dir*b;
+    var col=REL_PALETTE[rci%REL_PALETTE.length]; rci++;
+    var path=sEl('path');
+    path.setAttribute('d','M'+x1+','+sy+' C'+cx1+','+sy+' '+cx2+','+dy+' '+x2+','+dy);
+    path.setAttribute('stroke',col);
+    path.setAttribute('stroke-width','1.5');
+    path.setAttribute('fill','none');
+    path.setAttribute('opacity','0.75');
+    svg.appendChild(path);
+    // destination end: always "one"
+    mkOne(svg,x2,dy,-dir,col);
+    // source end: crow's foot for 1:N, single bar for 1:1
+    if(r.t==='11'){mkOne(svg,x1,sy,dir,col);}else{mkN(svg,x1,sy,dir,col);}
+  });
+}
+function mkOne(svg,x,y,dir,col){
+  [6,11].forEach(function(off){
+    var l=sEl('line');
+    l.setAttribute('x1',x+dir*off);l.setAttribute('y1',y-7);
+    l.setAttribute('x2',x+dir*off);l.setAttribute('y2',y+7);
+    l.setAttribute('stroke',col);l.setAttribute('stroke-width','1.5');
+    svg.appendChild(l);
+  });
+}
+function mkN(svg,x,y,dir,col){
+  [[x,y,x+dir*12,y-7],[x,y,x+dir*12,y+7],[x,y,x+dir*12,y]].forEach(function(pts){
+    var l=sEl('line');
+    l.setAttribute('x1',pts[0]);l.setAttribute('y1',pts[1]);
+    l.setAttribute('x2',pts[2]);l.setAttribute('y2',pts[3]);
+    l.setAttribute('stroke',col);l.setAttribute('stroke-width','1.5');
+    svg.appendChild(l);
+  });
+  var lb=sEl('line');
+  lb.setAttribute('x1',x+dir*14);lb.setAttribute('y1',y-7);
+  lb.setAttribute('x2',x+dir*14);lb.setAttribute('y2',y+7);
+  lb.setAttribute('stroke',col);lb.setAttribute('stroke-width','1.5');
+  svg.appendChild(lb);
+}
+function applyXf(){
+  var s=document.getElementById('erdStage');
+  var v=document.getElementById('erdSvg');
+  var xf='translate('+tx+'px,'+ty+'px) scale('+scale+')';
+  if(s){s.style.transform=xf;s.style.transformOrigin='0 0';}
+  if(v){v.style.transform=xf;v.style.transformOrigin='0 0';}
+  var zl=document.getElementById('erdZoomPct');
+  if(zl)zl.textContent=Math.round(scale*100)+'%';
+}
+function onVpDown(e){
+  if(e.button!==0)return;
+  if(e.target.closest&&e.target.closest('.erd-tbl'))return;
+  drag={type:'bg',sx:e.clientX,sy:e.clientY,otx:tx,oty:ty};
+  document.getElementById('erdVp').classList.add('grabbing');
+}
+function onMove(e){
+  if(!drag)return;
+  var dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+  if(drag.type==='bg'){tx=drag.otx+dx;ty=drag.oty+dy;applyXf();}
+  else if(drag.type==='t'){
+    drag.t.x=drag.ox+dx/scale;
+    drag.t.y=drag.oy+dy/scale;
+    drag.el.style.left=drag.t.x+'px';
+    drag.el.style.top=drag.t.y+'px';
+    drawLines();
+  }
+}
+function onUp(){
+  if(drag&&drag.el)drag.el.classList.remove('dragging-tbl');
+  drag=null;
+  var vp=document.getElementById('erdVp');
+  if(vp)vp.classList.remove('grabbing');
+}
+function onWheel(e){
+  e.preventDefault();
+  var vp=document.getElementById('erdVp');
+  var r=vp.getBoundingClientRect();
+  var mx=e.clientX-r.left,my=e.clientY-r.top;
+  var f=e.deltaY>0?0.88:1.13;
+  var ns=Math.max(0.12,Math.min(4,scale*f));
+  tx=mx-(mx-tx)*(ns/scale);ty=my-(my-ty)*(ns/scale);scale=ns;
+  applyXf();
+}
+function onTs(e){
+  e.preventDefault();
+  var ts=Array.from(e.touches);
+  if(ts.length===1){
+    var t0=ts[0];
+    var te=e.target.closest&&e.target.closest('.erd-tbl');
+    if(te){
+      var tb=TBLS.find(function(t){return 'et-'+t.id===te.id;});
+      if(tb)drag={type:'t',t:tb,el:te,sx:t0.clientX,sy:t0.clientY,ox:tb.x,oy:tb.y};
+    }else{
+      drag={type:'bg',sx:t0.clientX,sy:t0.clientY,otx:tx,oty:ty};
+    }
+  }else if(ts.length===2){
+    drag=null;
+    var d=Math.hypot(ts[1].clientX-ts[0].clientX,ts[1].clientY-ts[0].clientY);
+    var mx=(ts[0].clientX+ts[1].clientX)/2,my=(ts[0].clientY+ts[1].clientY)/2;
+    pinch={d:d,s:scale,tx:tx,ty:ty,mx:mx,my:my};
+  }
+}
+function onTm(e){
+  e.preventDefault();
+  var ts=Array.from(e.touches);
+  if(ts.length===1&&drag){
+    var dx=ts[0].clientX-drag.sx,dy=ts[0].clientY-drag.sy;
+    if(drag.type==='bg'){tx=drag.otx+dx;ty=drag.oty+dy;applyXf();}
+    else if(drag.type==='t'){drag.t.x=drag.ox+dx/scale;drag.t.y=drag.oy+dy/scale;drag.el.style.left=drag.t.x+'px';drag.el.style.top=drag.t.y+'px';drawLines();}
+  }else if(ts.length===2&&pinch){
+    var nd=Math.hypot(ts[1].clientX-ts[0].clientX,ts[1].clientY-ts[0].clientY);
+    var vp=document.getElementById('erdVp');var r=vp.getBoundingClientRect();
+    var mx=pinch.mx-r.left,my=pinch.my-r.top;
+    var ns=Math.max(0.12,Math.min(4,pinch.s*(nd/pinch.d)));
+    tx=mx-(mx-pinch.tx)*(ns/pinch.s);ty=my-(my-pinch.ty)*(ns/pinch.s);scale=ns;
+    applyXf();
+  }
+}
+function zoomIn(){scale=Math.min(4,scale*1.2);applyXf();}
+function zoomOut(){scale=Math.max(0.12,scale/1.2);applyXf();}
+function reset(){scale=0.72;tx=30;ty=30;applyXf();}
+function fit(){
+  var vp=document.getElementById('erdVp');
+  if(!vp)return;
+  var w=vp.clientWidth,h=vp.clientHeight;
+  var mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;
+  TBLS.forEach(function(t){mnx=Math.min(mnx,t.x);mny=Math.min(mny,t.y);mxx=Math.max(mxx,t.x+TW);mxy=Math.max(mxy,t.y+tblH(t));});
+  var cw=mxx-mnx,ch=mxy-mny;
+  scale=Math.min(0.95,Math.min((w-40)/cw,(h-40)/ch));
+  tx=20-mnx*scale;ty=20-mny*scale;
+  applyXf();
+}
+window.erd={zoomIn:zoomIn,zoomOut:zoomOut,reset:reset,fit:fit};
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
+})();
+</script>
+</body>
+</html>

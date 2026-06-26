@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Upload &amp; TTS Generation – FlavorTales</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true, theme: 'default',
+  sequence: {
+    diagramMarginX: 30, diagramMarginY: 20,
+    actorMargin: 55, width: 155, height: 50,
+    boxMargin: 10, boxTextMargin: 5, noteMargin: 10,
+    messageMargin: 35, mirrorActors: true, useMaxWidth: true
+  },
+  themeVariables: {
+    primaryColor: '#fff7ed', primaryTextColor: '#1e293b',
+    primaryBorderColor: '#f97316', lineColor: '#64748b',
+    secondaryColor: '#f1f5f9', tertiaryColor: '#fef3c7',
+    actorBkg: '#fff7ed', actorBorder: '#f97316', actorTextColor: '#9a3412',
+    activationBkgColor: '#ffedd5', activationBorderColor: '#f97316',
+    noteBkgColor: '#fef9c3', noteBorderColor: '#fbbf24', noteTextColor: '#713f12'
+  }
+});
+function exportSVG(id, name) {
+  const svg = document.querySelector('#'+id+' svg');
+  if (!svg) { alert('Vui lòng thử lại sau 1 giây.'); return; }
+  const clone = svg.cloneNode(true); clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([clone.outerHTML],{type:'image/svg+xml'}));
+  a.download = name+'.svg'; a.click();
+}
+function copySVG(id) {
+  const svg = document.querySelector('#'+id+' svg');
+  if (!svg) { alert('Vui lòng thử lại.'); return; }
+  navigator.clipboard.writeText(svg.outerHTML).then(() => {
+    const btn = event.target; btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy SVG', 1500);
+  });
+}
+</script>
+</head>
+<body>
+<header>
+  <h1>FlavorTales – Sequence Diagrams</h1>
+  <p>Diagram 6 of 7 · Vendor Tạo Audio Thuyết Minh (TTS &amp; Upload)</p>
+</header>
+<nav>
+  <a href="index.html">Index</a>
+  <a href="01-geofence-detection.html">1. Geofence Detection</a>
+  <a href="02-poi-approval-workflow.html">2. POI Approval Workflow</a>
+  <a href="03-shop-creation-approval.html">3. Shop Creation &amp; Approval</a>
+  <a href="04-browse-nearby-pois.html">4. Browse Nearby POIs</a>
+  <a href="05-file-upload-r2.html">5. File Upload to R2</a>
+  <a class="active" href="06-audio-upload-tts.html">6. Audio TTS &amp; Upload</a>
+  <a href="07-audio-translation.html">7. Audio Translation</a>
+</nav>
+
+<div class="container">
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHASE 1 – TTS Preview                                     -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 1 – Preview TTS (Không lưu vào DB)</h2>
+        <p>Vendor nghe thử audio trước khi tạo chính thức · POST /api/audio/tts/preview → stream MP3 bytes</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d6p1','06-audio-tts-preview')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d6p1')">Copy SVG</button>
+        <button class="btn btn-secondary" onclick="window.print()">🖨 Print</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Vendor App (Frontend)</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>JwtAuthenticationFilter</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>AudioController /api/audio</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>AudioService</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>GoogleCloudTtsService</span>
+    </div>
+
+    <div class="note-box note-orange">
+      <strong>Không lưu:</strong> Preview chỉ stream bytes MP3 về frontend để nghe thử. Không upload lên R2, không INSERT vào DB.
+      Vendor dùng để kiểm tra giọng đọc trước khi xác nhận tạo audio chính thức.
+    </div>
+
+    <div id="d6p1" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant V as Vendor App
+    participant JWT as JwtAuthFilter
+    participant AC as AudioController
+    participant AS as AudioService
+    participant TTS as GoogleCloudTtsService
+
+    V->>JWT: POST /api/audio/tts/preview<br/>{text, language}
+    JWT-->>V: 401 nếu token không hợp lệ
+    JWT->>AC: authenticated (ROLE_vendor)
+
+    AC->>AS: generatePreviewBytes(TtsRequest, vendorEmail)
+    AS->>TTS: synthesize(text, languageCode, voiceName)
+    note over TTS: HTTP POST → Google Cloud TTS API<br/>Gửi text + languageCode + voiceName<br/>Nhận audioContent (base64)
+    TTS-->>AS: base64 audioContent
+    AS->>AS: Base64.decode() + validate MP3 header
+    AS-->>AC: byte[] mp3Bytes
+
+    AC-->>V: 200 OK<br/>Content-Type: audio/mpeg<br/>Body: raw MP3 bytes
+
+    note over V: Browser phát audio trực tiếp<br/>Không gọi thêm bất kỳ API nào
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHASE 2 – TTS Generate & Save                             -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 2 – Tạo TTS Chính Thức &amp; Lưu vào DB</h2>
+        <p>POST /api/audio/shop/{shopId}/tts → Synthesize → R2 → file_asset → audio record (status=pending)</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d6p2','06-audio-tts-generate')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d6p2')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Vendor App (Frontend)</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>JwtAuthenticationFilter</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>AudioController /api/audio</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>AudioService</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>GoogleCloudTtsService</span>
+      <span class="actor-badge"><span class="dot" style="background:#6366f1"></span>R2FileStorageService</span>
+      <span class="actor-badge"><span class="dot" style="background:#f43f5e"></span>MySQL (file_asset + audio)</span>
+      <span class="actor-badge"><span class="dot" style="background:#ef4444"></span>Redis (AudioCacheService)</span>
+    </div>
+
+    <div class="note-box note-blue">
+      <strong>Unique constraint:</strong> Bảng <code>audio</code> có <code>UNIQUE KEY (shop_id, language_code)</code>.
+      Nếu vendor upload lại cùng ngôn ngữ → <code>upsertAudioRecord()</code> sẽ UPDATE thay vì INSERT.
+    </div>
+
+    <div id="d6p2" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant V as Vendor App
+    participant JWT as JwtAuthFilter
+    participant AC as AudioController
+    participant AS as AudioService
+    participant TTS as GoogleCloudTtsService
+    participant R2 as R2FileStorageService
+    participant DB as MySQL
+    participant Cache as Redis
+
+    V->>JWT: POST /api/audio/shop/{shopId}/tts<br/>{text, language}
+    JWT->>AC: authenticated (ROLE_vendor)
+
+    AC->>AS: generateSingleAudio(TtsRequest, vendorEmail, shopId)
+
+    AS->>AS: resolveVendorId(vendorEmail)<br/>SELECT user_id FROM users WHERE email=?
+
+    AS->>TTS: synthesize(text, languageCode, voiceName)
+    note over TTS: Google Cloud TTS API<br/>Trả về base64 audioContent
+    TTS-->>AS: byte[] mp3Bytes
+
+    AS->>R2: uploadBytes(mp3Bytes, objectKey, "audio/mpeg")
+    note over R2: objectKey = "audio/{vendorId}/{shopId}/{lang}/{uuid}.mp3"
+    R2-->>AS: fileUrl (public CDN URL)
+
+    AS->>DB: INSERT INTO file_asset<br/>(file_key, file_url, file_type, file_size, uploaded_by)
+    DB-->>AS: fileId (INT)
+
+    AS->>DB: upsertAudioRecord(shopId, fileId, languageCode,<br/>ttsProvider='google_tts', processingStatus='completed')
+    note over DB: INSERT ... ON DUPLICATE KEY UPDATE<br/>Unique: (shop_id, language_code)
+    DB-->>AS: audioId (INT)
+
+    AS->>Cache: evictByShop(shopId)<br/>DEL audio:shop:{shopId}
+    AS-->>AC: TtsResponse{audioId, fileId, fileUrl, language}
+
+    AC-->>V: 201 Created<br/>{audioId, fileId, fileUrl, language, durationSeconds}
+
+    note over V: Audio status = 'pending'<br/>Cần admin duyệt mới thành 'active'
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHASE 3 – Upload Audio File                               -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 3 – Vendor Upload File Audio Có Sẵn</h2>
+        <p>POST /api/audio/shop/{shopId}/upload · Multipart: file (MP3/WAV) + language → R2 → DB</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d6p3','06-audio-file-upload')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d6p3')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Vendor App (Frontend)</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>AudioController /api/audio</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>AudioService</span>
+      <span class="actor-badge"><span class="dot" style="background:#6366f1"></span>R2FileStorageService</span>
+      <span class="actor-badge"><span class="dot" style="background:#f43f5e"></span>MySQL (file_asset + audio)</span>
+      <span class="actor-badge"><span class="dot" style="background:#ef4444"></span>Redis</span>
+    </div>
+
+    <div id="d6p3" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant V as Vendor App
+    participant AC as AudioController
+    participant AS as AudioService
+    participant R2 as R2FileStorageService
+    participant DB as MySQL
+    participant Cache as Redis
+
+    V->>AC: POST /api/audio/shop/{shopId}/upload<br/>Multipart: file=audio.mp3, language=vi
+    note over AC: Validate: ROLE_vendor<br/>Validate file MIME type
+
+    AC->>AS: uploadAudioFile(MultipartFile, language, vendorEmail, shopId)
+    AS->>AS: resolveVendorId(vendorEmail)
+
+    AS->>R2: uploadBytes(file.getBytes(), objectKey, contentType)
+    note over R2: objectKey = "audio/{vendorId}/{shopId}/{lang}/{uuid}.mp3"
+    R2-->>AS: fileUrl
+
+    AS->>DB: INSERT INTO file_asset(file_key, file_url, file_type,<br/>file_size, uploaded_by)
+    DB-->>AS: fileId
+
+    AS->>DB: upsertAudioRecord(shopId, fileId, language,<br/>ttsProvider='upload', processingStatus='completed')
+    DB-->>AS: audioId
+
+    AS->>Cache: evictByShop(shopId)
+    AS-->>AC: TtsResponse{audioId, fileId, fileUrl, language}
+    AC-->>V: 201 Created {audioId, fileId, fileUrl, language}
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PHASE 4 – Status flow & Admin Approval                    -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 4 – Luồng Status Audio (pending → active)</h2>
+        <p>Audio sau khi tạo có status=pending, cần admin duyệt mới tourist nghe được</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d6p4','06-audio-status-flow')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d6p4')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="note-box note-orange">
+      <strong>Lưu ý quan trọng:</strong> Audio status và processing_status là hai trường độc lập.
+      <code>processing_status='completed'</code> chỉ xác nhận TTS đã xong.
+      <code>status='active'</code> mới cho phép tourist nghe được.
+    </div>
+
+    <div id="d6p4" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant V as Vendor
+    participant Sys as AudioService
+    participant DB as MySQL audio table
+    participant Admin as Admin
+    participant Cache as Redis
+    participant T as Tourist App
+
+    V->>Sys: POST /api/audio/shop/{shopId}/tts
+    Sys->>DB: INSERT audio (status='pending', processing_status='completed')
+    DB-->>V: audioId returned
+
+    note over DB: status = pending<br/>Tourist chưa thể nghe
+
+    Admin->>DB: (thông qua Shop approval flow)<br/>UPDATE audio SET status='active'<br/>WHERE shop_id = ?
+    DB->>Cache: evictByShop(shopId) + evictByPoi(poiId)
+
+    T->>Sys: GET /api/audio/poi/{poiId}
+    Sys->>DB: SELECT WHERE status='active'
+    DB-->>T: [{audioId, fileUrl, languageCode, ...}]
+
+    note over T: Tourist nghe audio theo ngôn ngữ<br/>đang chọn trong session
+    </div>
+
+    <!-- Status state machine -->
+    <div style="padding: 1.5rem 2rem; border-top: 1px solid #f1f5f9;">
+      <h3 style="font-size:0.9rem; color:#64748b; margin-bottom:1rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+        Audio Status State Machine
+      </h3>
+      <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+        <div style="background:#fef9c3; border:2px solid #fbbf24; border-radius:8px; padding:.5rem 1.2rem; font-weight:600; font-size:.9rem;">pending</div>
+        <div style="color:#64748b; font-size:1.2rem;">→</div>
+        <div style="background:#dcfce7; border:2px solid #22c55e; border-radius:8px; padding:.5rem 1.2rem; font-weight:600; font-size:.9rem; color:#15803d;">active</div>
+        <div style="color:#64748b; font-size:1.2rem;">hoặc</div>
+        <div style="background:#fee2e2; border:2px solid #ef4444; border-radius:8px; padding:.5rem 1.2rem; font-weight:600; font-size:.9rem; color:#dc2626;">rejected</div>
+        <div style="color:#64748b; font-size:1.2rem;">·</div>
+        <div style="background:#f1f5f9; border:2px solid #94a3b8; border-radius:8px; padding:.5rem 1.2rem; font-weight:600; font-size:.9rem; color:#475569;">disabled</div>
+      </div>
+      <p style="font-size:.82rem; color:#94a3b8; margin-top:.8rem;">
+        GET /api/audio/shop/{shopId} và GET /api/audio/poi/{poiId} chỉ trả về audio có status = <strong>active</strong>.
+      </p>
+    </div>
+  </div>
+
+</div><!-- /container -->
+<footer>FlavorTales – Audio TTS &amp; Upload · Diagram 6/7 · Dựa trên source code thực tế</footer>
+</body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tourist Geofence Detection – FlavorTales Sequence Diagrams</title>
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'default',
+  sequence: {
+    diagramMarginX: 30,
+    diagramMarginY: 20,
+    actorMargin: 60,
+    width: 160,
+    height: 50,
+    boxMargin: 10,
+    boxTextMargin: 5,
+    noteMargin: 10,
+    messageMargin: 35,
+    mirrorActors: true,
+    useMaxWidth: true
+  },
+  themeVariables: {
+    primaryColor: '#fff7ed',
+    primaryTextColor: '#1e293b',
+    primaryBorderColor: '#f97316',
+    lineColor: '#64748b',
+    secondaryColor: '#f1f5f9',
+    tertiaryColor: '#fef3c7',
+    actorBkg: '#fff7ed',
+    actorBorder: '#f97316',
+    actorTextColor: '#9a3412',
+    activationBkgColor: '#ffedd5',
+    activationBorderColor: '#f97316',
+    noteBkgColor: '#fef9c3',
+    noteBorderColor: '#fbbf24',
+    noteTextColor: '#713f12'
+  }
+});
+
+function exportSVG(containerId, filename) {
+  const svg = document.querySelector('#' + containerId + ' svg');
+  if (!svg) { alert('Diagram chưa render xong, vui lòng thử lại sau 1 giây.'); return; }
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  const blob = new Blob([clone.outerHTML], {type: 'image/svg+xml'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = filename + '.svg'; a.click();
+}
+
+function copySVG(containerId) {
+  const svg = document.querySelector('#' + containerId + ' svg');
+  if (!svg) { alert('Diagram chưa render xong.'); return; }
+  navigator.clipboard.writeText(svg.outerHTML).then(() => {
+    const btn = event.target; btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy SVG', 1500);
+  });
+}
+
+function printDiagram() { window.print(); }
+</script>
+</head>
+<body>
+<header>
+  <h1>FlavorTales – Sequence Diagrams</h1>
+  <p>Diagram 1 of 5 · Tourist Check-in / Geofence Detection</p>
+</header>
+<nav>
+  <a class="active" href="01-geofence-detection.html">1. Geofence Detection</a>
+  <a href="02-poi-approval-workflow.html">2. POI Approval Workflow</a>
+  <a href="03-shop-creation-approval.html">3. Shop Creation &amp; Approval</a>
+  <a href="04-browse-nearby-pois.html">4. Browse Nearby POIs</a>
+  <a href="05-file-upload-r2.html">5. File Upload to R2</a>
+  <a href="index.html">← Index</a>
+</nav>
+
+<div class="container">
+
+  <!-- ─── Phase 1: Create Tourist Session ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 1 – Create Tourist Session</h2>
+        <p>POST /api/tourist/sessions → TouristSessionController.createSession()</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d1p1','01-phase1-create-session')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d1p1')">Copy SVG</button>
+        <button class="btn btn-secondary" onclick="printDiagram()">🖨 Print</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Tourist App (Frontend)</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>TouristSessionController</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>TouristSessionService</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>MongoDB (TouristSession collection)</span>
+    </div>
+
+    <div class="diagram-body">
+      <div id="d1p1" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant App as Tourist App<br/>(Frontend)
+    participant SC as TouristSessionController<br/>/api/tourist/sessions
+    participant SS as TouristSessionService
+    participant MDB as MongoDB<br/>tourist_sessions
+
+    App->>+SC: POST /api/tourist/sessions
+    Note over App,SC: No auth required (anonymous endpoint)
+    SC->>+SS: createSession()
+    SS->>SS: Generate UUID sessionId
+    SS->>SS: Set expiresAt = now + 1h
+    SS->>+MDB: save(TouristSession {<br/>  sessionId, languagePreference: "vi",<br/>  viewedPoiIds: [], playedAudioIds: [],<br/>  createdAt, expiresAt })
+    MDB-->>-SS: TouristSession saved
+    Note over MDB: TTL index on expiresAt field<br/>auto-cleans expired docs
+    SS->>SS: publishEvent(SessionCreatedEvent)
+    SS-->>-SC: CreateTouristSessionResponse {<br/>  sessionId, expiresAt }
+    SC-->>-App: 201 Created<br/>ApiResponse { success: true,<br/>  data: { sessionId, expiresAt } }
+    Note over App: Lưu sessionId vào localStorage<br/>Dùng cho mọi request tiếp theo
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Phase 2: Fetch Active POI List ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 2 – Fetch Active POI List (Redis Cache)</h2>
+        <p>GET /api/poi → PoiController.getActivePois() [@ReadOnly → MySQL Replica]</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d1p2','01-phase2-fetch-pois')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d1p2')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Tourist App</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>PoiController</span>
+      <span class="actor-badge"><span class="dot" style="background:#dc2626"></span>DataSourceAspect (AOP)</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>PoiService</span>
+      <span class="actor-badge"><span class="dot" style="background:#f59e0b"></span>PoiCacheService</span>
+      <span class="actor-badge"><span class="dot" style="background:#d97706"></span>Redis (poi:list:active)</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>MySQL Replica (read-only)</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Lưu ý:</strong> <code>GET /api/poi</code> là <strong>public endpoint</strong> – không cần JWT. 
+      Method <code>getActivePois()</code> được đánh dấu <code>@ReadOnly</code>, 
+      <code>DataSourceAspect</code> tự động route sang MySQL Replica thay vì Primary.
+    </div>
+
+    <div class="diagram-body">
+      <div id="d1p2" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant App as Tourist App<br/>(Frontend)
+    participant PC as PoiController<br/>/api/poi
+    participant DSA as DataSourceAspect<br/>[AOP @ReadOnly]
+    participant PS as PoiService
+    participant PCS as PoiCacheService
+    participant RD as Redis<br/>key: poi:list:active
+    participant DB as MySQL Replica<br/>[Read-Only]
+
+    App->>+PC: GET /api/poi
+    Note over App,PC: No Authorization header needed<br/>Header: X-Session-Id: {sessionId}
+    PC->>+DSA: intercept @ReadOnly method
+    DSA->>DSA: DataSourceContextHolder<br/>.set(REPLICA)
+    DSA->>+PS: getActivePois()
+    PS->>+PCS: getActivePoisFromCache()
+    PCS->>+RD: GET "poi:list:active"
+
+    alt Cache HIT (TTL còn hạn)
+        RD-->>PCS: List&lt;PoiResponse&gt; (JSON)
+        PCS-->>PS: List&lt;PoiResponse&gt;
+        Note over PCS,RD: Cache hit, bỏ qua DB
+    else Cache MISS (key không tồn tại / hết TTL)
+        RD-->>-PCS: nil
+        PCS-->>-PS: Optional.empty()
+        PS->>+DB: poiRepository.findByStatus(PoiStatus.active)<br/>SELECT * FROM poi WHERE status = 'active'<br/>[via RoutingDataSource → Replica]
+        DB-->>-PS: List&lt;Poi&gt; entities
+        PS->>PS: poiMapper.toPoiResponseList(pois)
+        PS->>+PCS: putActivePois(List&lt;PoiResponse&gt;)
+        PCS->>RD: SET "poi:list:active" {json}<br/>EX 3600 (1 hour TTL)
+        RD-->>PCS: OK
+        PCS-->>-PS: cached
+    end
+
+    PS-->>-DSA: List&lt;PoiResponse&gt;
+    DSA->>DSA: DataSourceContextHolder.clear()
+    DSA-->>-PC: List&lt;PoiResponse&gt;
+    PC-->>-App: 200 OK<br/>ApiResponse { success: true,<br/>  data: [ { poiId, name, latitude, longitude,<br/>    radius, linkedShopName, avatarUrl,<br/>    openingHours, tags, likesCount }, ... ] }
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Phase 3: Client-Side Geofence Check ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 3 – Client-Side Geofence Detection + Session Update</h2>
+        <p>Frontend tính Haversine Distance → detect proximity → PATCH /api/tourist/sessions/{sessionId}</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d1p3','01-phase3-geofence-client')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d1p3')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Tourist App (Leaflet Map)</span>
+      <span class="actor-badge"><span class="dot" style="background:#64748b"></span>Browser Geolocation API</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>TouristSessionController</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>TouristSessionService</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>MongoDB</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Kiến trúc quan trọng:</strong> FlavorTales không gửi tọa độ tourist lên server để tính geofence.
+      Server chỉ cung cấp <code>List&lt;POI&gt;</code> với lat/lng/radius, 
+      <strong>Frontend tự tính khoảng cách</strong> bằng Haversine formula.
+      Khi vào vùng radius, app cập nhật <code>viewedPoiIds</code> trong session MongoDB.
+    </div>
+
+    <div class="diagram-body">
+      <div id="d1p3" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant GEO as Browser<br/>Geolocation API
+    participant App as Tourist App / Leaflet Map<br/>(Frontend)
+    participant SC as TouristSessionController<br/>/api/tourist/sessions
+    participant SS as TouristSessionService
+    participant MDB as MongoDB
+
+    App->>+GEO: navigator.geolocation.watchPosition()
+    Note over GEO: Continuous location tracking
+    GEO-->>-App: { latitude, longitude, accuracy }
+
+    loop Mỗi lần vị trí thay đổi
+        App->>App: Với mỗi POI trong danh sách:<br/>distance = haversineMetres(<br/>  userLat, userLng,<br/>  poi.latitude, poi.longitude<br/>)
+        Note over App: Haversine Formula:<br/>R = 6,371,000 m<br/>a = sin²(Δlat/2) + cos(lat1)·cos(lat2)·sin²(Δlng/2)<br/>d = 2R · atan2(√a, √(1-a))
+
+        alt distance ≤ poi.radius (tourist TRONG vùng POI)
+            App->>App: Hiển thị content: shop name,<br/>menu, audio guide, avatar
+            App->>App: Highlight marker trên Leaflet map
+            App->>App: Thêm poiId vào viewedPoiIds set
+
+            App->>+SC: PATCH /api/tourist/sessions/{sessionId}<br/>Body: UpdateSessionRequest {<br/>  viewedPoiIds: [poiId1, poiId2, ...] }
+            SC->>+SS: updateSession(sessionId, request)
+            SS->>+MDB: findBySessionId(sessionId)<br/>check expiresAt > now
+            MDB-->>SS: TouristSession document
+            SS->>SS: Merge viewedPoiIds
+            SS->>MDB: save(updatedSession)
+            MDB-->>-SS: saved
+            SS-->>-SC: TouristSessionResponse
+            SC-->>-App: 200 OK
+
+        else distance > poi.radius (tourist NGOÀI vùng POI)
+            App->>App: POI marker bình thường<br/>Không hiển thị content
+        end
+    end
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ─── Phase 4: Overlapping POI Zones ─── -->
+  <div class="diagram-card">
+    <div class="diagram-card-header">
+      <div>
+        <h2>Phase 4 – Tourist Vào Vùng Giao Thoa Của 2 POI</h2>
+        <p>Haversine check trên tất cả POI → nhiều POI cùng active → hiển thị đồng thời, merge viewedPoiIds</p>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-info" onclick="exportSVG('d1p4','01-phase4-overlapping-pois')">⬇ Export SVG</button>
+        <button class="btn btn-secondary" onclick="copySVG('d1p4')">Copy SVG</button>
+      </div>
+    </div>
+
+    <div class="actors-legend">
+      <h3>Actors</h3>
+      <span class="actor-badge"><span class="dot" style="background:#f97316"></span>Tourist App (Leaflet Map)</span>
+      <span class="actor-badge"><span class="dot" style="background:#64748b"></span>Browser Geolocation API</span>
+      <span class="actor-badge"><span class="dot" style="background:#8b5cf6"></span>TouristSessionController</span>
+      <span class="actor-badge"><span class="dot" style="background:#0ea5e9"></span>TouristSessionService</span>
+      <span class="actor-badge"><span class="dot" style="background:#10b981"></span>MongoDB</span>
+    </div>
+
+    <div class="note-box">
+      <strong>Trường hợp giao thoa:</strong> Vì frontend duyệt qua <strong>toàn bộ danh sách POI</strong> trong mỗi location update,
+      nhiều POI có thể đồng thời thỏa điều kiện <code>distance ≤ radius</code>.
+      Hệ thống <strong>không chọn ưu tiên</strong> – tất cả POI trong vùng đều được kích hoạt song song.
+      Session update gộp tất cả <code>poiId</code> mới vào một PATCH request duy nhất để tránh race condition.
+    </div>
+
+    <div class="diagram-body">
+      <div id="d1p4" class="mermaid">
+sequenceDiagram
+    autonumber
+    participant GEO as Browser Geolocation API
+    participant App as Tourist App Leaflet Map
+    participant SC as TouristSessionController
+    participant SS as TouristSessionService
+    participant MDB as MongoDB
+
+    GEO-->>App: latitude, longitude, accuracy
+
+    App->>App: Khoi tao tap newlyEnteredPoiIds = empty set
+
+    loop Duyet tung POI trong danh sach
+        App->>App: Tinh Haversine distance toi POI-A
+        App->>App: Tinh Haversine distance toi POI-B
+        Note over App: POI-A - distance = 18m - radius = 30m - IN RANGE
+        Note over App: POI-B - distance = 25m - radius = 40m - IN RANGE
+        App->>App: Ca 2 POI deu thoa distance le radius
+        App->>App: Them POI-A va POI-B vao newlyEnteredPoiIds
+    end
+
+    Note over App: 2 POI dang active dong thoi
+
+    App->>App: Highlight marker POI-A tren ban do
+    App->>App: Highlight marker POI-B tren ban do
+    App->>App: Hien thi panel noi dung POI-A va POI-B cung luc
+
+    App->>+SC: PATCH /api/tourist/sessions/sessionId - viewedPoiIds gom ca POI-A va POI-B
+    Note over App,SC: Gop toan bo poiId moi vao 1 request - tranh race condition
+    SC->>+SS: updateSession(sessionId, viewedPoiIds=[poiA, poiB])
+    SS->>+MDB: findBySessionId - check expiresAt
+    MDB-->>SS: TouristSession document
+    SS->>SS: Merge viewedPoiIds - addAll - loai trung lap
+    SS->>MDB: save updatedSession
+    MDB-->>-SS: saved
+    SS-->>-SC: TouristSessionResponse
+    SC-->>-App: 200 OK
+
+    Note over App: Tourist thay noi dung cua ca 2 POI dong thoi
+    Note over App: Khi tourist ra khoi vung giao thoa - chi con 1 POI active
+      </div>
+    </div>
+  </div>
+
+</div>
+<footer>FlavorTales – Food Tourism Platform · Sequence Diagrams Documentation</footer>
+</body>
+</html>

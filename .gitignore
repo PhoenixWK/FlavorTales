@@ -1,6 +1,17 @@
 ### IDE ###
 .idea/
 .vscode/
+.classpath
+.factorypath
+.project
+.settings/
+**/.classpath
+**/.factorypath
+**/.project
+**/.settings/
+
+### Copilot analysis output ###
+.understand-anything/
 
 ### Build output ###
 target/
